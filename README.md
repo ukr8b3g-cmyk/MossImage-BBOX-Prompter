@@ -1,6 +1,6 @@
 # MOSS BBOX Prompter
 
-![Uploading image.png…]()
+<img width="1154" height="839" alt="image" src="https://github.com/user-attachments/assets/739cff51-f11a-4c25-88d5-7b0c5eb1a76c" />
 
 
 Repository: [MossImage-BBOX-Prompter](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter).
