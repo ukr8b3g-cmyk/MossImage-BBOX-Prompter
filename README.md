@@ -4,7 +4,6 @@
 
 
 Repository: [MossImage-BBOX-Prompter](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter).
-Repository: [MossImage-BBOX-Prompter](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter).
 
 Based on [Krea2 BBOX Prompter Suite](https://github.com/ukr8b3g-cmyk/Krea2-BBOX-Prompter)
 by ukr8b3g-cmyk. This package is released under the **MIT License**; see
@@ -54,9 +53,10 @@ helpers. Do not install a second copy if it is already present.
   version with MOSS-Image support and select your installed model files.
 
 `pyproject.toml` supplies MIT/package metadata. `node_list.json` lists the three
-current node IDs and three retained legacy IDs. `manager-entry.json` is a draft
-entry for ComfyUI-Manager's `custom-node-list.json`; no registration PR or Comfy
-Registry publication has been submitted. This package adds no pip dependency.
+current node IDs and three retained legacy IDs. `manager-entry.json` records the entry submitted in
+[ComfyUI-Manager PR #3399](https://github.com/Comfy-Org/ComfyUI-Manager/pull/3399).
+Registry publication uses the manual **Publish to Comfy Registry** GitHub Action
+and the repository secret `REGISTRY_ACCESS_TOKEN`. This package adds no pip dependency.
 
 Connect:
 
