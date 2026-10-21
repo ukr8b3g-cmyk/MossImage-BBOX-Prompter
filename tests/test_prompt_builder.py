@@ -194,24 +194,26 @@ class BuilderTests(unittest.TestCase):
             self.assertEqual(js["warnings"], py["warnings"])
 
     def test_sample_links_and_portrait_state(self):
-        workflow = json.loads((ROOT / "examples/moss_bbox_hybrid_896x1184.json").read_text(encoding="utf-8"))
-        nodes = {node["id"]: node for node in workflow["nodes"]}
-        moss = next(node for node in nodes.values() if node["type"] == "MOSSBBoxCanvasPrompt")
-        latent = next(node for node in nodes.values() if node["type"] == "EmptyFlux2LatentImage")
-        state = builder.parse_state(moss["widgets_values"][0])
-        self.assertEqual((state["width"], state["height"]), (896, 1184))
-        self.assertEqual(latent["widgets_values"][:2], [896, 1184])
-        for link_id, origin, slot, target, input_index, kind in workflow["links"]:
-            self.assertIn(link_id, nodes[origin]["outputs"][slot]["links"])
-            self.assertEqual(nodes[target]["inputs"][input_index]["link"], link_id)
-        width_link = next(link for link in workflow["links"] if link[1:3] == [moss["id"], 1])
-        height_link = next(link for link in workflow["links"] if link[1:3] == [moss["id"], 2])
-        self.assertEqual(width_link[3:5], [latent["id"], 0])
-        self.assertEqual(height_link[3:5], [latent["id"], 1])
+        for name in ("MOSS_BBOX_Standard_WebP.json", "MOSS_BBOX_DMD_WebP.json"):
+            with self.subTest(workflow=name):
+                workflow = json.loads((ROOT / "examples" / name).read_text(encoding="utf-8"))
+                nodes = {node["id"]: node for node in workflow["nodes"]}
+                canvas = next(node for node in nodes.values() if node["type"] == "MOSSSharedCanvas")
+                export = next(node for node in nodes.values() if node["type"] == "MOSSFromKrea2")
+                latent = next(node for node in nodes.values() if node["type"] == "EmptyFlux2LatentImage")
+                self.assertEqual(canvas["widgets_values"][:2], [896, 1184])
+                self.assertEqual(latent["widgets_values"][:2], [896, 1184])
+                for link_id, origin, slot, target, input_index, kind in workflow["links"]:
+                    self.assertIn(link_id, nodes[origin]["outputs"][slot]["links"])
+                    self.assertEqual(nodes[target]["inputs"][input_index]["link"], link_id)
+                width_link = next(link for link in workflow["links"] if link[1:3] == [export["id"], 1])
+                height_link = next(link for link in workflow["links"] if link[1:3] == [export["id"], 2])
+                self.assertEqual(width_link[3:5], [latent["id"], 0])
+                self.assertEqual(height_link[3:5], [latent["id"], 1])
 
     def test_png_webp_metadata_roundtrip_cpu(self):
         from PIL import Image, PngImagePlugin
-        workflow = json.loads((ROOT / "examples/moss_bbox_hybrid_896x1184.json").read_text(encoding="utf-8"))
+        workflow = json.loads((ROOT / "examples/MOSS_BBOX_Standard_WebP.json").read_text(encoding="utf-8"))
         text = json.dumps(workflow, ensure_ascii=False)
         with tempfile.TemporaryDirectory() as temp:
             png = Path(temp) / "workflow.png"
@@ -223,10 +225,9 @@ class BuilderTests(unittest.TestCase):
             Image.new("RGB", (16, 16)).save(webp, exif=exif, lossless=True)
             restored_webp = json.loads(Image.open(webp).getexif()[0x010F].split(":", 1)[1])
         for restored in [restored_png, restored_webp]:
-            node = next(node for node in restored["nodes"] if node["type"] == "MOSSBBoxCanvasPrompt")
-            state = builder.parse_state(node["widgets_values"][0])
-            self.assertEqual((state["width"], state["height"]), (896, 1184))
-            self.assertEqual(builder.build_prompt(state), builder.build_prompt(json.loads(next(node for node in workflow["nodes"] if node["type"] == "MOSSBBoxCanvasPrompt")["widgets_values"][0])))
+            self.assertEqual(restored, workflow)
+            canvas = next(node for node in restored["nodes"] if node["type"] == "MOSSSharedCanvas")
+            self.assertEqual(canvas["widgets_values"][:2], [896, 1184])
 
 
 if __name__ == "__main__":

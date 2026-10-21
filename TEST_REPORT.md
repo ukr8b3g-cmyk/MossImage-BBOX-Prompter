@@ -2,6 +2,12 @@
 
 ## Current status — 2026-10-21
 
+Distributed generation examples are limited to MOSS_BBOX_Standard_WebP.json and
+MOSS_BBOX_DMD_WebP.json. One state-import sample is retained. The five superseded
+workflow files are removed from the current package and remain in Git history;
+legacy node IDs and runtime behavior are unchanged. Sample-link and metadata
+tests now read the current workflows rather than a removed legacy example.
+
 The current recommended nodes are MOSSSharedCanvas, MOSSSharedPrompter and
 MOSSFromKrea2. The checks below cover the installed ComfyUI_test frontend 1.55.18
 and standard MOSS model after a user-managed backend restart. ComfyUI-Q carries
@@ -29,8 +35,8 @@ the same 28 package files; it was not independently GPU-tested in this run.
 - Final CPU checks: 31 Python tests and 9 JavaScript tests pass, without skips
   after supplying the previous snapshot for workflow compatibility checks.
   Python AST parsing and the changed JavaScript module's syntax check pass.
-  All bundled examples match their previous backend outputs; no workflow JSON
-  was changed. Protected Core/Krea2 file hashes remain unchanged.
+  The retained examples match their previous backend outputs; their JSON content
+  is unchanged. Protected Core/Krea2 file hashes remain unchanged.
 
 Known limits: boxes are guidance, not strict masks. Earlier seed comparisons
 showed a central suitcase drifting toward the person at seed 42. DMD, additional

@@ -66,6 +66,8 @@ Open `examples/MOSS_BBOX_Standard_WebP.json` or
 export, model loaders and Save WEBP Meta (quality 70), at 896×1184. Standard:
 25 steps / CFG 2.5. DMD: installed `moss_image\\lora.safetensors`, strength 1,
 8 steps / CFG 1. Both use er_sde/simple as the local comparison setup.
+These are the only bundled generation workflows. The separate
+`moss_state_896x1184.json` is a state-import sample, not a generation workflow.
 
 This path requires the already installed **Krea2-BBOX-Prompter** package.
 The node IDs are `MOSSSharedCanvas`, `MOSSSharedPrompter` and `MOSSFromKrea2`.
@@ -172,12 +174,8 @@ and height to Empty Flux 2 Latent; connect Prompter prompt to CLIP Text Encode.
 The Prompter preview follows connected Canvas edits without copying geometry
 into the text node's saved state. Empty prompt fields deliberately clear text.
 
-Open `examples/moss_bbox_canvas_prompter_standard_webp_896x1184.json` for the
-25-step example, or `examples/moss_bbox_canvas_prompter_dmd_webp_896x1184.json`
-for the installed `moss_image\\lora.safetensors` adapter at strength 1, 8 steps,
-CFG 1, er_sde/simple. Both use **Save WEBP Meta**, WebP quality 70. That save node
-and adapter must already be installed; this package adds no dependency/download.
-The sampling pair is the local comparison setup, not a universal DMD default.
+Older example workflows are available in Git history. Existing workflows using
+these nodes remain supported; the two current examples above use the shared UI.
 
 The original **MOSS BBOX Canvas + Prompt (Hybrid)** (`MOSSBBoxCanvasPrompt`)
 and its existing workflows remain supported. Its original instructions follow.
@@ -186,9 +184,8 @@ and its existing workflows remain supported. Its original instructions follow.
 
 1. Install this folder as `custom_nodes/MOSS-BBOX-Prompter`, then restart ComfyUI
    when your running work is finished. Refresh the frontend afterwards.
-2. Add the node or open `examples/moss_bbox_hybrid_896x1184.json` in a new workflow.
-   The example uses the locally observed MOSS model/encoder/VAE filenames; select
-   your installed equivalents if they differ. It has no LoRA node.
+2. Open your existing combined-node workflow or add the legacy combined node.
+   For a new workflow, use the current Standard or DMD example above instead.
 3. Enter the whole-image prompt and color descriptions. Select a color and drag
    to create a box. Select/move by dragging inside a box, resize at any corner,
    and delete using the button or Delete with the canvas focused. “Draw new box”
@@ -198,7 +195,7 @@ and its existing workflows remain supported. Its original instructions follow.
    color share the description; their types and rendered strings are independent.
 5. Connect `prompt` to the `text` input of **CLIP Text Encode**. Connect `width`
    and `height` to **Empty Flux 2 Latent** (convert its widgets to inputs if
-   needed). The sample already makes all three connections.
+   needed).
 6. Inspect/copy the complete final output in the node before generating.
 
 The default resolution is **896×1184**, editable with Apply resolution. Existing
