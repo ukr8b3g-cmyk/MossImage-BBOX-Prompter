@@ -410,13 +410,14 @@ function k2cfHasMeaningfulState(values) {
   });
 }
 
-function k2cfJsonHasBoxes(value) {
-  try {
-    const data = JSON.parse(String(value || ""));
-    return Array.isArray(data?.boxes) && data.boxes.length > 0;
-  } catch (_) {
-    return false;
+function k2cfParseCanvasLayout(value) {
+  const raw = String(value ?? "");
+  const layout = raw.trim() ? JSON.parse(raw) : {};
+  if (!layout || typeof layout !== "object" || Array.isArray(layout) ||
+      (layout.boxes !== undefined && !Array.isArray(layout.boxes))) {
+    throw new Error("MOSS Canvas layout_data must be a JSON object; boxes must be an array.");
   }
+  return layout;
 }
 
 function k2cfJsonHasValues(value) {
@@ -765,7 +766,10 @@ function k2cfIsDefaultValue(name, value) {
   if (name === "width") return s === String(DEFAULT_WIDTH);
   if (name === "height") return s === String(DEFAULT_HEIGHT);
   if (name === "preset") return s === DEFAULT_PRESET;
-  if (name === "layout_data") return !k2cfJsonHasBoxes(s);
+  if (name === "layout_data") {
+    try { return !k2cfParseCanvasLayout(s).boxes?.length; }
+    catch (_) { return false; }
+  }
   if (name === "camera_data") return !k2cfJsonHasValues(s) || s === '{"iso":"","shutter":"","aperture":"","focal_length":""}';
   if (name === "camera_set_data" || name === "canvas_preset_data") return !k2cfJsonHasValues(s) || s === '{"sets":[],"selected":""}';
   if (name === "grid_mode") return s === "Thirds";
@@ -1392,7 +1396,7 @@ function setupCanvasNode(node) {
   const savedCanvasState = k2cfBestSavedState(node, "canvas");
   if (savedCanvasState) applyConfiguredValuesToWidgets(node, CANVAS_WIDGETS, savedCanvasState.widgets_values);
 
-  const state = { activeSlot: "red", boxes: [], selectedId: null, drawing: null, moving: null, resizing: null, hideBoxes: false, drawMode: false };
+  const state = { activeSlot: "red", boxes: [], selectedId: null, drawing: null, moving: null, resizing: null, hideBoxes: false, drawMode: false, layoutError: null };
   const externalPreviewSize = { width: null, height: null };
   const controls = {};
   const history = createCanvasHistory();
@@ -1431,7 +1435,7 @@ function setupCanvasNode(node) {
     if (isHydrating) return;
     const previous = k2cfBestSavedState(node, "canvas");
     node.__k2cfSkipLocalCanvasState = false;
-    node.__k2cfAllowDefaultOverwrite = allowDefaultOverwrite;
+    node.__k2cfAllowDefaultOverwrite = !!state.layoutError || allowDefaultOverwrite;
     if (controls.width && externalPreviewSize.width == null) setWidget("width", Math.max(1, Number(controls.width.value) || 1));
     if (controls.height && externalPreviewSize.height == null) setWidget("height", Math.max(1, Number(controls.height.value) || 1));
     if (controls.preset) setWidget("preset", controls.preset.value || "Custom");
@@ -1450,17 +1454,17 @@ function setupCanvasNode(node) {
       focal_length: controls.focal_length?.get() || "",
     };
     setWidget("camera_data", JSON.stringify(camera));
-    setWidget("layout_data", JSON.stringify({
+    setWidget("layout_data", state.layoutError ? state.layoutError.raw : JSON.stringify({
       boxes: state.boxes,
       activeSlot: state.activeSlot,
       hideBoxes: state.hideBoxes,
       drawMode: state.drawMode
     }));
     const rawValues = CANVAS_WIDGETS.map((n) => widgets[n]?.value ?? "");
-    const values = allowDefaultOverwrite ? rawValues : k2cfMergeWithPrevious(CANVAS_WIDGETS, rawValues, previous?.widgets_values);
+    const values = state.layoutError || allowDefaultOverwrite ? rawValues : k2cfMergeWithPrevious(CANVAS_WIDGETS, rawValues, previous?.widgets_values);
     node.widgets_values = values.slice();
     applyConfiguredValuesToWidgets(node, CANVAS_WIDGETS, node.widgets_values);
-    if (!allowDefaultOverwrite) {
+    if (!state.layoutError && !allowDefaultOverwrite) {
       try {
         const layout = JSON.parse(widgets.layout_data?.value || "{}");
         if (Array.isArray(layout.boxes) && layout.boxes.length > 0 && state.boxes.length === 0) {
@@ -1479,7 +1483,7 @@ function setupCanvasNode(node) {
     };
     k2cfWriteLocalState(node, "canvas", node.properties.k2cfCanvasState);
     node.__k2cfConfiguredWidgetValues = null;
-    if (historyState && !historySuspended && !applyingHistory && !state.drawing && !state.moving && !state.resizing) {
+    if (!state.layoutError && historyState && !historySuspended && !applyingHistory && !state.drawing && !state.moving && !state.resizing) {
       const next = snapshotCanvasEdit();
       history.record(historyState, next);
       historyState = next;
@@ -1488,13 +1492,21 @@ function setupCanvasNode(node) {
     try { app.graph?.setDirtyCanvas?.(true, true); } catch (_) {}
   }
 
-  try {
-    const data = JSON.parse(widgets.layout_data?.value || '{"boxes":[]}');
-    state.boxes = Array.isArray(data.boxes) ? data.boxes : [];
-    if (data.activeSlot) state.activeSlot = data.activeSlot;
-    if (typeof data.hideBoxes === "boolean") state.hideBoxes = data.hideBoxes;
-    if (typeof data.drawMode === "boolean") state.drawMode = data.drawMode;
-  } catch (_) { state.boxes = []; }
+  function restoreCanvasLayout() {
+    const raw = widgets.layout_data?.value ?? "";
+    try {
+      const layout = k2cfParseCanvasLayout(raw);
+      state.boxes = layout.boxes || [];
+      if (layout.activeSlot) state.activeSlot = layout.activeSlot;
+      if (typeof layout.hideBoxes === "boolean") state.hideBoxes = layout.hideBoxes;
+      if (typeof layout.drawMode === "boolean") state.drawMode = layout.drawMode;
+      state.layoutError = null;
+    } catch (error) {
+      state.boxes = [];
+      state.layoutError = { raw, message: error.message };
+    }
+  }
+  restoreCanvasLayout();
   requestAnimationFrame(() => { ensureNormalizedBoxes(); remapBoxesForCurrentCanvas(); resizeCanvases(); drawOverlay(); });
 
   const wrap = document.createElement("div");
@@ -1547,6 +1559,9 @@ function setupCanvasNode(node) {
   });
   resetCanvasBtn.addEventListener("click", () => {
     historySuspended++;
+    state.layoutError = null;
+    overlay.title = canvasHelp;
+    overlay.setAttribute("aria-invalid", "false");
     state.boxes = [];
     state.selectedId = null;
     setSize(DEFAULT_WIDTH, DEFAULT_HEIGHT, DEFAULT_PRESET);
@@ -1571,6 +1586,7 @@ function setupCanvasNode(node) {
     writeBoxes();
     historySuspended--;
     sync();
+    if (!historyState) historyState = snapshotCanvasEdit();
   });
   tools.prepend(showBtn, drawBtn, resetCanvasBtn, undoBtn, redoBtn);
   const langSelect = document.createElement("select");
@@ -1612,7 +1628,8 @@ function setupCanvasNode(node) {
   const overlay = document.createElement("canvas");
   overlay.className = "moss-k2cf-overlay";
   overlay.tabIndex = 0;
-  overlay.title = "Alt+click to cycle overlapping boxes; then drag the selected box. Ctrl/Cmd+Z: undo.";
+  const canvasHelp = "Alt+click to cycle overlapping boxes; then drag the selected box. Ctrl/Cmd+Z: undo.";
+  overlay.title = canvasHelp;
   // ComfyUI's early capture listener reserves editable targets for local history.
   // These drawing controls own keyboard input, but never accept text insertion.
   for (const target of [overlay, undoBtn, redoBtn]) {
@@ -1898,7 +1915,7 @@ function setupCanvasNode(node) {
     };
   }
   function applyCanvasPreset(set) {
-    if (!set) return;
+    if (!set || state.layoutError) return;
     historySuspended++;
     state.boxes = Array.isArray(set.boxes) ? JSON.parse(JSON.stringify(set.boxes)) : [];
     state.activeSlot = set.activeSlot || "red";
@@ -1963,6 +1980,7 @@ function setupCanvasNode(node) {
   const loadCanvasPreset = button("Load", "Load selected Canvas preset");
   const deleteCanvasPreset = button(tr(resolveLang(controls.ui_language?.value || "Auto"), "deletePreset"), "Delete selected Canvas preset");
   saveCanvasPreset.addEventListener("click", () => {
+    if (state.layoutError) return;
     const name = prompt("Canvas preset name", canvasPresetSelect.value || "My Canvas Preset");
     if (!name) return;
     controls.canvasPresetData.sets = getCanvasPresets().filter((s) => s.name !== name);
@@ -2243,7 +2261,7 @@ function setupCanvasNode(node) {
     return null;
   }
   overlay.addEventListener("pointerdown", (ev)=>{
-    if(ev.button!==0 || pointerStart)return;
+    if(ev.button!==0 || pointerStart || state.layoutError)return;
     ev.preventDefault(); ev.stopPropagation(); overlay.focus({preventScroll:true});
     const p=point(ev);
     if(ev.altKey){
@@ -2336,15 +2354,11 @@ function setupCanvasNode(node) {
         refreshCanvasPresetSelect?.();
       } catch (_) {}
 
-      try {
-        const layout = JSON.parse(widgets.layout_data?.value || '{"boxes":[]}');
-        state.boxes = Array.isArray(layout.boxes) ? layout.boxes : [];
-        if (layout.activeSlot) state.activeSlot = layout.activeSlot;
-        if (typeof layout.hideBoxes === "boolean") state.hideBoxes = layout.hideBoxes;
-        if (typeof layout.drawMode === "boolean") state.drawMode = layout.drawMode;
-      } catch (_) {
-        state.boxes = [];
-      }
+      restoreCanvasLayout();
+      overlay.title = state.layoutError
+        ? "Invalid saved layout. Original data is preserved; use Reset Canvas or reload a valid workflow."
+        : canvasHelp;
+      overlay.setAttribute("aria-invalid", String(!!state.layoutError));
 
       tools.querySelectorAll(".moss-k2cf-sw").forEach((x) => x.classList.toggle("active", x.dataset.slot === state.activeSlot));
       drawBtn.classList.toggle("primary", state.drawMode);
@@ -2355,7 +2369,7 @@ function setupCanvasNode(node) {
     } finally {
       isHydrating = false;
       history.clear();
-      historyState = snapshotCanvasEdit();
+      historyState = state.layoutError ? null : snapshotCanvasEdit();
       updateHistoryButtons();
       requestAnimationFrame(updateExternalSizeStatus);
     }

@@ -173,3 +173,94 @@ test("restore widgets-only workflows before the shared renderer reads its creati
   node.onConfigure({ widgets_values: ["", "text"], properties: {} });
   assert.deepEqual(node.widgets.map(widget => widget.value), ["", "text"]);
 });
+
+const controlsSource = await readFile(new URL("../web/moss_controls.mjs", import.meta.url), "utf8");
+function canvasLayoutHarness(raw, previousRaw = raw) {
+  const app = { graph: { _nodes: [] },
+    graphToPrompt() { return this.graph._nodes.map(node => node.widgets.find(w => w.name === "layout_data").value); },
+    queuePrompt() { return this.graphToPrompt(); } };
+  const window = { comfyAPI: { app: { app } } };
+  const helpers = new Function("app", "window", "createCanvasHistory", "nextOverlappingBox",
+    controlsSource.replace(/^import .*;\r?\n/gm, "").replace(/^export .*;\s*$/m, "") +
+    "\nreturn { CANVAS_WIDGETS, k2cfParseCanvasLayout, k2cfIsDefaultValue, k2cfMergeWithPrevious, k2cfBestSavedState, applyConfiguredValuesToWidgets, k2cfWriteLocalState, installNodePersistenceHooks };")
+    (app, window, createCanvasHistory, nextOverlappingBox);
+  const values = [896, 1184, "Custom", raw, "{}", "Thirds", "English", '{"sets":[],"selected":""}', '{"sets":[],"selected":""}'];
+  const widgets = Object.fromEntries(helpers.CANVAS_WIDGETS.map((name, i) => [name, { name, value: values[i] }]));
+  const previous = values.slice(); previous[3] = previousRaw;
+  const node = { type: "MOSSSharedCanvas", widgets: Object.values(widgets), size: [830, 980],
+    properties: { k2cfCanvasState: { widgets_values: previous, saved_at: 1 } } };
+  app.graph._nodes.push(node);
+  const state = { boxes: [], activeSlot: "red", hideBoxes: false, drawMode: false, layoutError: null };
+  // Execute the renderer's actual restore/sync functions with no DOM or service.
+  const functions = ["setWidget", "sync", "restoreCanvasLayout"].map(name => {
+    const start = controlsSource.indexOf(`  function ${name}(`);
+    assert(start >= 0, name);
+    const end = controlsSource.indexOf("\n  }", start);
+    return controlsSource.slice(start, end + 4);
+  }).join("\n");
+  const bindings = { ...helpers, app, node, widgets, state, controls: {},
+    externalPreviewSize: { width: null, height: null }, localStorage: { setItem() {} },
+    CANVAS_GRID_KEY: "grid", CANVAS_LANGUAGE_KEY: "language" };
+  const actions = new Function(...Object.keys(bindings),
+    `let isHydrating = false, historyState = null;\n${functions}\nreturn { sync, restoreCanvasLayout };`)
+    (...Object.values(bindings));
+  helpers.installNodePersistenceHooks(node, actions.sync, helpers.CANVAS_WIDGETS, "k2cfCanvas");
+  const save = () => { const data = { properties: structuredClone(node.properties) }; node.onSerialize(data); return data; };
+  return { ...helpers, ...actions, app, node, widgets, state, save };
+}
+
+const brokenLayouts = ['{"boxes": [', "[]", "null", '{"boxes":null}', ' \n {"boxes": [ '];
+
+test("Canvas layout parsing distinguishes intentional empty layouts from corrupt JSON and shape", () => {
+  const { k2cfParseCanvasLayout: parse } = canvasLayoutHarness("");
+  for (const raw of ["", " ", "{}", '{"boxes":[]}']) assert.deepEqual(parse(raw).boxes || [], []);
+  const data = { boxes: [{ id: "one", slot: "red", x1: 10, y1: 20, x2: 30, y2: 40 }] };
+  assert.deepEqual(parse(JSON.stringify(data)), data);
+  for (const raw of [...brokenLayouts, "false", "3", '"text"', '{"boxes":{}}']) assert.throws(() => parse(raw));
+});
+
+test("Corrupt nonempty Canvas values are not defaults and survive saved-state merging", () => {
+  const { k2cfIsDefaultValue: isDefault, k2cfMergeWithPrevious: merge } = canvasLayoutHarness("");
+  const previous = JSON.stringify({ boxes: [{ id: "old" }] });
+  for (const raw of brokenLayouts) {
+    assert.equal(isDefault("layout_data", raw), false);
+    assert.deepEqual(merge(["layout_data"], [raw], [previous]), [raw]);
+  }
+  for (const raw of ["", " ", "{}", '{"boxes":[]}']) assert.equal(isDefault("layout_data", raw), true);
+});
+
+test("Canvas restore, implicit sync, serialization and prompt preparation preserve corrupt originals", () => {
+  for (const raw of brokenLayouts) {
+    const h = canvasLayoutHarness(raw, JSON.stringify({ boxes: [{ id: "old" }] }));
+    h.restoreCanvasLayout();
+    assert.equal(h.state.layoutError.raw, raw);
+    assert(h.state.layoutError.message);
+    assert.deepEqual(h.state.boxes, []);
+    h.state.activeSlot = "blue"; h.state.hideBoxes = true;
+    for (const allowOverwrite of [true, false]) {
+      h.sync(allowOverwrite);
+      assert.equal(h.widgets.layout_data.value, raw);
+      assert.equal(h.node.widgets_values[3], raw);
+      assert.equal(h.node.properties.k2cfCanvasState.widgets_values[3], raw);
+    }
+    const before = structuredClone(h.node.properties), saved = h.save();
+    assert.equal(saved.widgets_values[3], raw);
+    assert.equal(saved.properties.k2cfCanvasState.widgets_values[3], raw);
+    assert.deepEqual(h.node.properties, before);
+    assert.deepEqual(h.app.graphToPrompt(), [raw]);
+    assert.deepEqual(h.app.queuePrompt(), [raw]);
+    assert.equal(h.widgets.layout_data.value, raw);
+  }
+});
+
+test("Reloading a valid Canvas clears the error and resumes ordinary synchronization", () => {
+  for (const valid of ["", " \n ", "{}", '{"boxes":[]}', JSON.stringify({ boxes: [{ id: "new", slot: "red", x1: 10, y1: 20, x2: 30, y2: 40 }] })]) {
+    const h = canvasLayoutHarness(brokenLayouts[0]);
+    h.restoreCanvasLayout(); h.sync(false);
+    h.widgets.layout_data.value = valid;
+    h.restoreCanvasLayout();
+    assert.equal(h.state.layoutError, null);
+    h.sync();
+    assert.deepEqual(JSON.parse(h.save().widgets_values[3]).boxes, h.state.boxes);
+  }
+});

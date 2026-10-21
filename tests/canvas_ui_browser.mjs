@@ -170,14 +170,14 @@ try {
   // Match the exporter's 9-decimal coordinate precision after resolution remapping.
   const geometry = list => list.map(({id,slot,x1,y1,x2,y2}) => ({id,slot,
     x1:Number(x1.toFixed(9)),y1:Number(y1.toFixed(9)),x2:Number(x2.toFixed(9)),y2:Number(y2.toFixed(9))}));
-  const coords = async (x,y) => {
-    await overlay.scrollIntoViewIfNeeded();
-    const r = await overlay.boundingBox();
-    const size = await overlay.evaluate(el => [el.width,el.height]);
+  const coords = async (x,y,canvas=overlay) => {
+    await canvas.scrollIntoViewIfNeeded();
+    const r = await canvas.boundingBox();
+    const size = await canvas.evaluate(el => [el.width,el.height]);
     return { x:r.x+x*r.width/size[0], y:r.y+y*r.height/size[1] };
   };
-  const drag = async (x1,y1,x2,y2) => {
-    const start=await coords(x1,y1), end=await coords(x2,y2);
+  const drag = async (x1,y1,x2,y2,canvas=overlay) => {
+    const start=await coords(x1,y1,canvas), end=await coords(x2,y2,canvas);
     await page.mouse.move(start.x,start.y); await page.mouse.down();
     await page.mouse.move(end.x,end.y,{steps:8}); await page.mouse.up();
   };
@@ -276,9 +276,81 @@ try {
   assert.equal(await overlay.evaluate(el => {
     el.focus();return el.dispatchEvent(new KeyboardEvent('keydown',{key:'z',ctrlKey:true,bubbles:true,cancelable:true}));
   }),true);
+
+  // Corrupt workflow data stays verbatim through real controls, timers and save hooks.
+  await page.evaluate(() => {
+    window.guardNode = window.makeEditNode();
+    document.querySelector('#nodes').prepend(window.guardNode.host);
+    window.guardValid = window.guardNode.save();
+  });
+  const guarded = page.locator('.host').first();
+  const guardedOverlay = guarded.locator('.moss-k2cf-overlay');
+  const guardedUndo = guarded.getByRole('button',{name:'Undo Canvas edit',exact:true});
+  const guardedRedo = guarded.getByRole('button',{name:'Redo Canvas edit',exact:true});
+  const guardedLayout = () => page.evaluate(() => window.guardNode.widgets.find(w=>w.name==='layout_data').value);
+  const corruptLayouts = ['{"boxes": [','[]','null','{"boxes":null}',' \n {"boxes": [ '];
+  for (const raw of corruptLayouts) {
+    await page.evaluate(raw => {
+      const data=structuredClone(window.guardValid);data.widgets_values[3]=raw;data.properties={};
+      window.guardInput=structuredClone(data);window.guardNode.configure(data);
+    },raw);
+    assert.equal(await guardedOverlay.getAttribute('aria-invalid'),'true');
+    assert.match(await guardedOverlay.getAttribute('title'),/Original data is preserved/);
+    assert.equal(await guardedUndo.isDisabled(),true);
+    assert.equal(await guardedRedo.isDisabled(),true);
+    await guarded.locator('[data-slot="blue"]').click();
+    await guarded.getByTitle('Show or hide all D-boxes').click();
+    await guarded.locator('.moss-k2cf-camera-cell select').first().selectOption('200');
+    await drag(100,200,400,600,guardedOverlay);
+    const saved=await page.evaluate(() => {
+      window.guardNode.onResize?.(window.guardNode.size);
+      window.guardNode.__k2cfCanvasSync(false);
+      window.comfyAPI.app.app.graphToPrompt();
+      window.comfyAPI.app.app.queuePrompt(); // Fixture stub: never contacts ComfyUI.
+      return window.guardNode.save();
+    });
+    assert.equal(await guardedLayout(),raw);
+    assert.equal(saved.widgets_values[3],raw);
+    assert.equal(saved.properties.k2cfCanvasState.widgets_values[3],raw);
+    assert.equal(await page.evaluate(()=>window.guardInput.widgets_values[3]),raw);
+    // A serialized workflow reload must retain both the original and the error.
+    await page.evaluate(saved=>window.guardNode.configure(saved),saved);
+    assert.equal(await guardedLayout(),raw);
+    assert.equal(await guardedOverlay.getAttribute('aria-invalid'),'true');
+    if(raw===corruptLayouts[0]) await guarded.screenshot({path:resolve(artifacts,'canvas-corrupt-layout-preserved.jpg'),type:'jpeg',quality:85});
+    await guarded.getByRole('button',{name:'Reset Canvas',exact:true}).click();
+    assert.equal(await guardedOverlay.getAttribute('aria-invalid'),'false');
+    assert.deepEqual(JSON.parse(await guardedLayout()).boxes,[]);
+    assert.equal(await guardedUndo.isDisabled(),true);
+    await drag(100,200,400,600,guardedOverlay);
+    assert.equal(JSON.parse(await guardedLayout()).boxes.length,1);
+    await guardedUndo.click();assert.deepEqual(JSON.parse(await guardedLayout()).boxes,[]);
+    await guardedRedo.click();assert.equal(JSON.parse(await guardedLayout()).boxes.length,1);
+    // Valid reload also clears the protection and starts a fresh editing history.
+    await page.evaluate(raw => {
+      const data=structuredClone(window.guardValid);data.widgets_values[3]=raw;data.properties={};
+      window.guardNode.configure(data);window.guardNode.configure(window.guardValid);
+    },raw);
+    assert.equal(await guardedOverlay.getAttribute('aria-invalid'),'false');
+    assert.equal(JSON.parse(await guardedLayout()).boxes.length,1);
+    assert.equal(await guardedUndo.isDisabled(),true);
+  }
+  for(const raw of ['', ' \n ', '{}', '{"boxes":[]}']) {
+    await page.evaluate(raw=>{
+      const data=structuredClone(window.guardValid);data.widgets_values[3]=raw;data.properties={};
+      window.guardNode.configure(data);window.guardNode.__k2cfCanvasSync(false);
+    },raw);
+    assert.equal(await guardedOverlay.getAttribute('aria-invalid'),'false');
+    assert.deepEqual(JSON.parse(await guardedLayout()).boxes,[]);
+  }
+  await page.evaluate(()=>{
+    window.guardNode.onRemoved?.();window.guardNode.host.remove();
+    window.guardNode.graph._nodes=window.guardNode.graph._nodes.filter(node=>node!==window.guardNode);
+  });
   assert.deepEqual(errors,[]);
   const result={standalone:!process.env.KREA2_UI_SOURCE,coexistence:!!process.env.KREA2_UI_SOURCE,legacy_presets_read:true,Krea_storage_unchanged:true,before_height:initial.oldHeight,after_height:initial.height,reduction_percent:Math.round(100*(1-initial.height/initial.oldHeight)),equal_panels:true,horizontal_latent_controls:true,size_presets:true,camera_values:true,canvas_preset_roundtrip:true,clone_restores:true,external_override_status:true,responsive,raw_controls_unchanged:true,page_errors:errors};
   Object.assign(result,{canvas_history:true,overlap_select_and_drag:true,keyboard_isolation:true,early_graph_shortcut_isolation:true,pointer_cancel:true,configure_during_drag:true,external_size_history:true});
+  Object.assign(result,{corrupt_layouts_preserved:corruptLayouts.length,corrupt_serialization_roundtrip:true,corrupt_prompt_preparation:true,explicit_reset_recovery:true,valid_reload_recovery:true,intentional_empty_layouts:true});
   await writeFile(resolve(artifacts,'canvas-footer-checks.json'),JSON.stringify(result,null,2));
   console.log(JSON.stringify(result));
 } finally {

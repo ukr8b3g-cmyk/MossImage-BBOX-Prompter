@@ -1,5 +1,78 @@
 # Validation record — updated 2026-10-22
 
+## Actual ComfyUI server-side Save As — 2026-10-22
+
+All four corrupt layout strings from the Export/import check also passed the
+real **Workflow actions → Save As** operation in ComfyUI_test. Each save returned
+HTTP 200. Reading the stored server JSON confirmed the exact original in both
+`widgets_values` and `k2cfCanvasState`.
+
+After closing the saving page, a fresh browser session opened each saved entry
+from the server's Workflows sidebar. The frontend fetched the stored workflow
+from the server (GET 200), restored the exact original and retained its error
+state. This closes the earlier server-side Save As verification gap.
+
+There were zero page errors and zero prompt requests; the queue was empty before
+and after. All four temporary server workflows created by this test were removed
+and confirmed absent (GET 404). Owned browsers were closed. Existing workflows
+and the user-managed service were preserved. No GPU generation, commit, push,
+GitHub Release or Registry publication was performed.
+
+
+## Actual ComfyUI frontend: corrupt layout retention — 2026-10-22
+
+Confirmed against the running ComfyUI_test at `http://127.0.0.9:8188` after the
+user-managed restart, in a separate Chromium session. A Standard workflow copy
+was loaded via ComfyUI's file input for each of four corrupt layout strings:
+`{"boxes": [`, `[]`, `null`, and `{"boxes":null}`.
+
+All four passed: after actual color/visibility controls, **Workflow actions →
+Export** saved a real JSON file retaining the exact original in both widget
+values and `k2cfCanvasState`. Importing that exported file retained the original
+and error state. Clicking **Reset Canvas** recovered to a valid empty layout;
+loading the unmodified Standard workflow recovered its three original boxes.
+This checks downloaded workflow-file export/import, not server-side Save As.
+
+There were **zero page errors, zero prompt requests**, and the queue was empty
+before/after. Generation requests were blocked in the test browser as a guard.
+The original workflow file was unchanged, the owned browser was closed, and
+the existing user service/tabs were left alone. No GPU generation, commit, push
+or Registry publication was performed.
+
+## Unreleased: preserve corrupt Canvas layouts — 2026-10-22
+
+Baseline: v1.0.0 (`4dd357f0cdcce537cb32bd7c26bcea061ea4089f`).
+Canvas restoration now distinguishes intentionally empty layouts from malformed
+JSON and invalid object/boxes types. On failure it retains the exact original
+and an editing error state. Ordinary sync, saved-state merging and serialization
+preserve that original, so the existing Python validation can still reject it.
+Reset or a valid workflow reload clears the error and resumes editing. Layout
+edits/preset replacement are suspended while the input is corrupt. The existing
+Canvas layout, node IDs, sockets, widget order and bundled workflows are unchanged.
+
+Local validation completed:
+
+- **38 Python tests passed, no skips**, including byte-for-byte export parity
+  for both bundled workflows against the pre-change snapshot.
+- **17 JavaScript unit tests passed, no skips**. Four new tests cover input
+  classification, saved-state merging, actual restore/sync/serialization and
+  stubbed prompt preparation, and recovery after loading valid data.
+- **11 JavaScript files passed syntax checks.**
+- **Canvas and Prompter browser fixtures passed, zero page errors.** The Canvas
+  fixture preserves five corrupt inputs (the four reported cases plus surrounding
+  whitespace) through real color/visibility/camera controls, attempted drawing,
+  resize callbacks, serialization and a corrupt serialized-workflow reload.
+  Reset recovery, valid-workflow recovery, four intentional-empty inputs and
+  the existing Undo/Redo/overlap-selection scenarios pass. Footer height remains
+  **93 CSS px at 830px node width**.
+
+The browser checks use isolated fixtures with ComfyUI API stubs. Their save/load
+and prompt-preparation checks are not real ComfyUI file-save/Queue operations.
+No user service was restarted, no generation request was sent, and no new GPU
+or actual ComfyUI frontend test is claimed. Owned fixture browsers/servers closed.
+These local checks were completed before committing this fix. The package
+version remains 1.0.0; no GitHub Release or Registry publication is part of it.
+
 ## Version 1.0.0 release — 2026-10-22
 
 Version 1.0.0 standardizes the package metadata, README and release naming.

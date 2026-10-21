@@ -54,6 +54,15 @@ shortcuts, selection and movement of covered boxes, and deletion/restoration.
 Those frontend checks submitted no generation jobs. See [TEST_REPORT.md](TEST_REPORT.md)
 for the tested scope and the earlier GPU validation record.
 
+### Unreleased fix: damaged layout recovery
+
+If a saved Canvas layout contains malformed JSON or an invalid layout structure,
+its exact original is retained in the widgets and saved workflow state. Color,
+visibility and camera changes, serialization and prompt preparation cannot turn
+it silently into an empty layout. The Canvas tooltip identifies this error;
+drawing and Canvas preset replacement are suspended until **Reset Canvas** or
+loading a valid workflow. Intentional empty layouts remain supported.
+
 ### UI compatibility
 
 The standard MOSS BBOX template requires **Nodes 2.0**.
