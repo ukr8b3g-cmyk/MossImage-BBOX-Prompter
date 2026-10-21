@@ -12,8 +12,8 @@ are retained. Krea2-compatible input schemas remain accepted by MOSS Export.
 
 Version 0.1.2 introduces standalone operation; v0.1.1 predates this change.
 Release publication runs the Python and JavaScript checks in GitHub Actions
-before the opt-in Registry upload. No restart or GPU generation was performed
-for this standalone change.
+before the opt-in Registry upload. After publication, the service was restarted
+and both bundled workflows passed GPU generation, as recorded below.
 The package now contains 29 source files. Local CPU validation passes all
 33 Python tests in each runtime and all nine JavaScript unit tests, plus ten
 JavaScript syntax checks and Ruff S102/E702. A new isolated-process regression
@@ -32,6 +32,46 @@ including the actual auto/literal outputs of both saved examples. JSON files
 and protected Krea2 sources retain their original hashes. The running test
 service serves the bundled module with HTTP 200 and JavaScript MIME type;
 this is a delivery check, not a live ComfyUI interaction or GPU acceptance.
+
+### Standalone GPU acceptance — 2026-10-21
+
+Tested source: standalone **v0.1.2**, commit
+[`6c069ef`](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/commit/6c069efcaa7eb731cb9e4f6c5ef034b67e690d36).
+ComfyUI_test was restarted after the standalone code was deployed. Its package
+matched the published source before and after the runs. The device was an
+NVIDIA GeForce RTX 5060 Ti (16 GB), using ComfyUI 0.42.1 / PyTorch 2.14.1+cu130.
+
+| Bundled workflow | Steps / CFG | DMD LoRA | Elapsed | WebP size | Result |
+| --- | --- | --- | --- | --- | --- |
+| `MOSS_BBOX_Standard.json` | 25 / 2.5 | Off | 48.23 s | 100,040 bytes | PASS |
+| `MOSS_BBOX_DMD.json` | 8 / 1 | On, strength 0.7 | 9.12 s | 75,028 bytes | PASS |
+
+Both used seed 8961184, er_sde / simple, denoise 1, batch size 1 and 896×1184.
+The saved MOSS-Image SFT, Qwen3.5 9B INT8 text encoder and VAE selections were
+retained. The DMD file used its saved `moss_image\\lora_latest.safetensors`.
+The templates' generation subgraph and reroutes were resolved into an API
+graph with the same node inputs and connections, including rgthree Power Lora
+Loader. The running MOSS Canvas, Prompter and Export supplied the conditioning
+path; their output was not replaced with an offline precompiled prompt.
+Only the output filename prefix changed in the submitted workflow copies.
+Both original example JSON files retained their published hashes.
+
+For both runs:
+
+- Execution completed successfully, and KSampler was not a cache hit.
+- Save Animated WEBP produced one 896×1184 WebP, quality 80, with the embedded
+  workflow and API prompt exactly matching the submitted data.
+- Visual inspection found readable `MOSS Café` across the top, a character
+  holding a cup on the left, and a table with a flower vase on the right.
+- No source edits were required, and both service queues were empty afterward.
+
+Scope: one saved seed per variant. These API runs do not repeat the live
+browser UI interaction test or establish a numerical BBOX-placement accuracy
+score. Krea2 remained installed in this GPU environment; the separate isolated
+CPU process and browser tests above verify operation without Krea2. Standard
+includes initial model/CLIP loading; DMD reused upstream caches, but executed
+its LoRA loader, sampler and decoder. The elapsed times are not a controlled
+speed comparison.
 
 The sections below describe earlier versions and their dependencies.
 

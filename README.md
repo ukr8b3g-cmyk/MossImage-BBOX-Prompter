@@ -69,9 +69,9 @@ These are the only two bundled generation workflows. Both use the MOSS pair,
 Export, a generation subgraph, rgthree Power Lora Loader and the standard
 Save Animated WEBP node (quality 80), at 896×1184. Install **rgthree-comfy** to
 load the templates. The Standard file disables the LoRA; the DMD file enables
-`moss_image\\lora_latest.safetensors` at strength 0.7. Both preserve the supplied
-8 steps / CFG 1 / er_sde / simple settings; these are sample values, not a
-recommendation that 8 steps is optimal for the standard model. Select locally
+`moss_image\\lora_latest.safetensors` at strength 0.7. Standard uses
+25 steps / CFG 2.5; DMD uses 8 steps / CFG 1. Both use er_sde / simple.
+These are sample settings, not universal quality recommendations. Select locally
 installed model, CLIP, VAE and LoRA files before running. The subgraph routes
 the LoRA loader's model output to KSampler.
 The separate `moss_state_896x1184.json` is a state-import sample, not a generation
@@ -161,8 +161,9 @@ layout, a graphics-only layout, and a run submitted from Chrome. All three saved
 WebP Meta with the exact generated prompt. Workflow restoration and page reload
 retain the scene, color prompts and Character/Object/Text selections, including
 workflows without a saved Prompter snapshot. The compact footer's three panels
-remain aligned at 93 CSS pixels. DMD was not GPU-tested in this run. See
-`TEST_REPORT.md` for the tested scope and remaining limits.
+remain aligned at 93 CSS pixels. That earlier run predates standalone v0.1.2;
+the subsequent Standard and DMD GPU acceptance is recorded under Verification
+below and in `TEST_REPORT.md`.
 
 The earlier custom MOSS interfaces remain loadable for existing workflows and
 are marked deprecated in node search. New workflows use the MOSS pair above.
@@ -276,6 +277,16 @@ workflow manager, history and prompt submission for this deprecated combined
 interface still need an in-app check.
 
 ## Verification
+
+**Standalone v0.1.2: both bundled Standard and DMD workflows passed GPU
+generation after restart on 2026-10-21**, using an NVIDIA GeForce RTX 5060 Ti.
+Both produced 896×1184 WebP images with embedded workflow and API prompt
+metadata matching the submitted data. The sampler executed in both runs;
+the source workflow JSON files were unchanged. Visual review confirmed the
+title at the top, the character on the left, and the table/vase on the right.
+See [the GPU validation record](TEST_REPORT.md#standalone-gpu-acceptance--2026-10-21)
+for settings, execution scope and limitations. Independence from a separate
+Krea2 installation is also covered by isolated CPU and browser tests.
 
 No extra runtime dependency is required. For CPU tests, use Python, Node.js, and
 Pillow (already in ComfyUI). Optional isolated browser tests need Playwright and
