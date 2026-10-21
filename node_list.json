@@ -1,0 +1,8 @@
+{
+  "MOSSSharedCanvas": "MOSS BBOX Canvas: manual five-color layout using the installed Krea2 shared UI.",
+  "MOSSSharedPrompter": "MOSS BBOX Prompter: scene and color prompts with Character, Object and Text types.",
+  "MOSSFromKrea2": "MOSS BBOX Export: hybrid, caption, layout_json or auto output with centralized pixel bounding boxes.",
+  "MOSSBBoxCanvasPrompt": "Legacy combined MOSS BBOX Canvas + Prompt; retained for existing workflows.",
+  "MOSSBBoxCanvas": "Legacy separate MOSS BBOX Canvas; retained for existing workflows.",
+  "MOSSBBoxPrompter": "Legacy separate MOSS BBOX Prompter; retained for existing workflows."
+}

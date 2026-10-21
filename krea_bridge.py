@@ -1,0 +1,86 @@
+"""Convert the installed Krea2 Canvas/Prompter outputs to MOSS layout input."""
+
+import json
+import sys
+
+from .prompt_builder import SLOTS, build_prompt, default_state
+
+ELEMENT_TYPES = ("character", "object", "text")
+
+
+def element_type(value):
+    if value == "obj":
+        return "object"
+    if value not in ELEMENT_TYPES:
+        raise ValueError(f"MOSS Type must be character, object or text; got {value!r}")
+    return value
+
+
+def krea_helpers():
+    registry = sys.modules.get("nodes")
+    source = registry.NODE_CLASS_MAPPINGS.get("Krea2ElementFramingV1Canvas") if registry else None
+    if source is None:
+        raise RuntimeError("MOSS BBOX requires the installed Krea2-BBOX-Prompter shared UI package.")
+    return sys.modules[source.__module__]
+
+
+def build_from_krea(framing_data, prompt_ui_data, auto_position_hint=False,
+                    output_mode="hybrid", text_mode="legacy",
+                    text_style="readable text with black outline"):
+    if text_mode not in ("legacy", "literal"):
+        raise ValueError(f"Unknown MOSS text mode: {text_mode!r}")
+    if not isinstance(text_style, str):
+        raise ValueError("MOSS text_style must be a string")
+    framing = json.loads(framing_data)
+    prompts = json.loads(prompt_ui_data)
+    if framing.get("version") != "krea2_element_framing_v1":
+        raise ValueError("Connect the Krea2 Element Framing V1 Canvas framing_data output.")
+    if prompts.get("version") != "krea2_element_prompt_ui_v1":
+        raise ValueError("Connect the Krea2 Element Framing V1 Prompter prompt_ui_data output.")
+    krea = krea_helpers()
+    state = default_state()
+    state["width"], state["height"] = framing["width"], framing["height"]
+    summary = [prompts.get("scene", ""), prompts.get("background", "")]
+    camera = framing.get("camera", {})
+    camera_text = ", ".join(f"{label} {camera[key]}" for key, label in (
+        ("iso", "ISO"), ("shutter", "shutter speed"), ("aperture", "aperture"),
+        ("focal_length", "focal length")) if camera.get(key))
+    if camera_text:
+        summary.append("Camera settings: " + camera_text + ".")
+    state["prompt"] = "\n".join(part for part in summary if part)
+    state["settings"]["auto_position"] = auto_position_hint
+    metadata = {}
+    for slot in SLOTS:
+        data = prompts.get("slots", {}).get(slot, {})
+        kind = element_type(data.get("type", "object"))
+        content = krea._clean(data.get("prompt", ""))
+        if kind == "text":
+            if text_mode == "literal":
+                text = data.get("literal_text", data.get("prompt", ""))
+                if not isinstance(text, str):
+                    raise ValueError(f"{slot} literal text must be a string")
+                content, caption = text, text_style
+            else:
+                content = krea._strip_text_marker(content)
+                text, caption = krea._split_visible_text_desc(content)
+        else:
+            text = ""
+            caption = krea._append_framing_hint(content, data.get("framing", "Auto"))
+            caption = krea._append_angle_hint(caption, data.get("angle", "Auto"))
+        # Do not invent descriptions for empty, unused color cards.
+        state["slots"][slot] = caption if content or kind != "text" else ""
+        metadata[slot] = (kind, text)
+    for index, source in enumerate(framing.get("layout", {}).get("boxes", [])):
+        slot = source.get("slot")
+        if slot not in SLOTS:
+            raise ValueError(f"Unknown Canvas box color: {slot}")
+        label, text = metadata[slot]
+        state["boxes"].append({"id": str(index), "slot": slot, "label": label, "text": text,
+                               **{key: source[key] for key in ("x1", "y1", "x2", "y2")}})
+    if output_mode == "caption" or (output_mode == "auto" and not state["boxes"]):
+        used = {box["slot"] for box in state["boxes"]}
+        for slot, (kind, text) in metadata.items():
+            if slot not in used and kind == "text" and text:
+                caption = state["slots"][slot]
+                state["slots"][slot] = caption + ('\n' if caption else '') + '"' + text + '"'
+    return build_prompt(state, output_mode)

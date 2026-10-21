@@ -1,0 +1,51 @@
+{
+  "schema_version": "moss_bbox_v1",
+  "prompt": "A warm cafe poster, soft golden light, clean readable composition.",
+  "width": 896,
+  "height": 1184,
+  "slots": {
+    "red": "A girl with blonde wavy hair and blue eyes, holding a ceramic cup.",
+    "blue": "A wooden cafe table with a small flower vase.",
+    "yellow": "Elegant white lettering.",
+    "green": "",
+    "magenta": ""
+  },
+  "boxes": [
+    {
+      "id": "person",
+      "slot": "red",
+      "label": "character",
+      "text": "",
+      "x1": 64,
+      "y1": 240,
+      "x2": 520,
+      "y2": 1120
+    },
+    {
+      "id": "table",
+      "slot": "blue",
+      "label": "object",
+      "text": "",
+      "x1": 520,
+      "y1": 700,
+      "x2": 864,
+      "y2": 1120
+    },
+    {
+      "id": "title",
+      "slot": "yellow",
+      "label": "text",
+      "text": "MOSS Café",
+      "x1": 64,
+      "y1": 48,
+      "x2": 832,
+      "y2": 208
+    }
+  ],
+  "settings": {
+    "auto_position": false,
+    "active_slot": "red",
+    "draw_mode": false,
+    "selected_id": "person"
+  }
+}
