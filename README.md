@@ -1,6 +1,6 @@
 # MOSS BBOX Prompter
 
-**Current version: 1.0.0** — [GitHub Release](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/tag/v1.0.0)
+**Current version: 1.0.1** — [GitHub Releases](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases)
 · [Comfy Registry](https://registry.comfy.org/nodes/mossimage-bbox-prompter)
 
 <img width="1154" height="839" alt="image" src="https://github.com/user-attachments/assets/739cff51-f11a-4c25-88d5-7b0c5eb1a76c" />
@@ -54,7 +54,7 @@ shortcuts, selection and movement of covered boxes, and deletion/restoration.
 Those frontend checks submitted no generation jobs. See [TEST_REPORT.md](TEST_REPORT.md)
 for the tested scope and the earlier GPU validation record.
 
-### Unreleased fix: damaged layout recovery
+### 1.0.1: damaged layout recovery
 
 If a saved Canvas layout contains malformed JSON or an invalid layout structure,
 its exact original is retained in the widgets and saved workflow state. Color,

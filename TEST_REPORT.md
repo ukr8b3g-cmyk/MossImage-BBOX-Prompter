@@ -1,5 +1,14 @@
 # Validation record — updated 2026-10-22
 
+## Version 1.0.1 Registry package — 2026-10-22
+
+Version 1.0.1 packages the damaged-layout recovery fix and verification records
+from commit `c3e44b92427fcd96548638cb718c1f82a2ff13f2`. Only the package version
+and release documentation change in this update; runtime code, UI, node IDs,
+sockets and the two bundled workflows remain unchanged. The checks below were
+completed before packaging. GitHub Actions reruns the Python, JavaScript,
+syntax, Ruff and archive checks before Registry publication.
+
 ## Actual ComfyUI server-side Save As — 2026-10-22
 
 All four corrupt layout strings from the Export/import check also passed the

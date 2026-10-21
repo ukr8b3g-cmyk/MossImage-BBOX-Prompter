@@ -1,6 +1,6 @@
 [project]
 name = "mossimage-bbox-prompter"
-version = "1.0.0"
+version = "1.0.1"
 description = "Standalone BBOX layout and prompt export for MOSS-Image, with UI adapted from Krea2 BBOX Prompter Suite."
 readme = "README.md"
 license = { file = "LICENSE" }
