@@ -23,7 +23,12 @@ def load_package(name, root):
 package = load_package("moss_export_test", ROOT)
 bridge = sys.modules[package.__name__ + ".krea_bridge"]
 builder = sys.modules[package.__name__ + ".prompt_builder"]
-source_spec = importlib.util.spec_from_file_location("moss_export_shared", ROOT.parent / "Krea2-BBOX-Prompter/nodes_element_framing.py")
+krea_root = Path(os.environ["KREA2_SOURCE_ROOT"]) if os.environ.get("KREA2_SOURCE_ROOT") else next(
+    (ROOT.parent / name for name in ("Krea2-BBOX-Prompter", "Krea2-BBOX-Prompter-Suite", "krea2-bbox-prompter")
+     if (ROOT.parent / name / "nodes_element_framing.py").is_file()), None)
+if krea_root is None:
+    raise FileNotFoundError("Install Krea2 BBOX Prompter Suite or set KREA2_SOURCE_ROOT to its folder.")
+source_spec = importlib.util.spec_from_file_location("moss_export_shared", krea_root / "nodes_element_framing.py")
 shared = importlib.util.module_from_spec(source_spec)
 sys.modules[source_spec.name] = shared
 source_spec.loader.exec_module(shared)
@@ -37,6 +42,37 @@ class ExportOptionsTests(unittest.TestCase):
         prompts = package.NODE_CLASS_MAPPINGS["MOSSSharedPrompter"]().execute(
             scene="A minimalist poster", red_type=label, red_prompt=wording)[0]
         return framing, prompts
+
+    def test_examples_emit_character_object_and_literal_title(self):
+        for filename in ("MOSS_BBOX_Standard.json", "MOSS_BBOX_DMD.json"):
+            with self.subTest(workflow=filename):
+                workflow = json.loads((ROOT / "examples" / filename).read_text(encoding="utf-8"))
+                ui = {node["type"]: node for node in workflow["nodes"]}
+                values = []
+                for node_type in ("MOSSSharedCanvas", "MOSSSharedPrompter"):
+                    cls = package.NODE_CLASS_MAPPINGS[node_type]
+                    node = ui[node_type]
+                    names = list(cls.INPUT_TYPES()["required"])
+                    arguments = dict(zip(names, node["widgets_values"]))
+                    if node_type == "MOSSSharedPrompter":
+                        expected = {"red_type": "character", "blue_type": "object", "yellow_type": "text"}
+                        for key, kind in expected.items():
+                            self.assertEqual(arguments[key], kind)
+                            self.assertEqual(node["widgets_values_named"][key], kind)
+                        saved = node["properties"]["k2cfPromptState"]["widgets_values"]
+                        self.assertEqual(saved, node["widgets_values"])
+                        view_states = [json.loads(arguments["prompt_ui_data"]), node["properties"]["k2cfPromptUiState"]]
+                        for view in view_states:
+                            for key, kind in expected.items():
+                                self.assertEqual(view["slotValues"][key.removesuffix("_type")]["type"], kind)
+                    values.append(cls().execute(**arguments)[0])
+                options = ui["MOSSFromKrea2"]["widgets_values_named"]
+                result = package.NODE_CLASS_MAPPINGS["MOSSFromKrea2"]().build(*values, **options)
+                items = json.loads(result[3])["items"]
+                self.assertEqual([item["label"] for item in items], ["character", "object", "text"])
+                self.assertEqual(items[2]["text"], "MOSS Café")
+                self.assertNotIn("text", items[0])
+                self.assertNotIn("text", items[1])
 
     def test_literal_text_survives_spaces_quotes_pipes_prefix_and_unicode(self):
         exact = '  text: "A | B"\n日本語 😀\n\nlast line  '

@@ -1,6 +1,61 @@
 # Validation record — updated 2026-10-21
 
-## Current status — 2026-10-21
+## Current source status — audit corrections, 2026-10-21
+
+The local ComfyUI-Q and ComfyUI_test packages contain the same 27 source files.
+The two generation templates are `examples/MOSS_BBOX_Standard.json` and
+`examples/MOSS_BBOX_DMD.json`; `moss_state_896x1184.json` is an import-state sample.
+Both templates now consistently save Character for the person, Object for the
+table and Text for the title in positional values, named values and Prompter
+restoration snapshots. Actual CPU execution emits `character / object / text`
+and preserves the exact visible title `MOSS Café` in the Text item's `text` field.
+UI layout, model/size links, prompts and sampler settings are otherwise retained.
+
+Current template settings remain 896x1184, 8 steps / CFG 1, er_sde/simple,
+Save Animated WEBP quality 80. The DMD LoRA is off in Standard and on at strength
+0.7 in DMD. These are supplied sample values, not new GPU-quality recommendations.
+
+CPU tests automatically locate the installed Krea2 package using the source,
+Suite or Registry folder name, or the explicit `KREA2_SOURCE_ROOT` folder.
+No duplicate Krea2 installation is needed. On both ComfyUI-Q (source folder) and
+ComfyUI_test (Suite folder), all **32 Python tests pass without skips** when
+`COMFYUI_ROOT` and `MOSS_BEFORE_ROOT` are supplied. A new regression checks the
+actual sample-node output and consistency of the saved Type representations.
+
+These corrections update the source package. The already published Registry
+v0.1.0 is unchanged; it was built from GitHub commit
+`d0f24cae69e0cb66a21bc44875349ea61d96c60b` before these corrections.
+No new real-frontend interaction, restart or GPU generation was performed.
+The GPU results below apply to the earlier acceptance workflows, not to the
+replacement Standard/DMD templates or their latest Type corrections.
+
+## Registry warning and publishing-test corrections, 2026-10-21
+
+The official-node comparison now imports the original module with test-only
+Comfy I/O types instead of extracting and executing Python source. Its 500
+coordinate comparisons are retained. The two metadata-test semicolon statements
+are split into separate lines; no test is removed or suppressed.
+
+The action runs Ruff S102/E702, Python regressions and JavaScript unit/syntax
+tests before packing. Pushes to main run these checks automatically. Registry
+version checks and publication require a manual run with `publish=true`;
+`publish` defaults to false. Failed checks stop the job before publication.
+Krea2 v1.0.2, the official MOSS source and the published MOSS compatibility
+reference are pinned and checked out outside the package being packed.
+Runtime code, workflow JSON, version and the packaged file list are unchanged.
+Local checks pass: 32 Python tests in each installed package, nine JavaScript
+unit tests, nine JavaScript syntax checks and zero Ruff S102/E702 findings.
+A temporary copy with the exact pinned CI sources also passes all 32 Python
+tests and the JavaScript checks; intentional Python/JS failures return nonzero.
+Local validation used Python 3.12.12 and Node 25.2.1; the action selects Node 24.
+These are local validation results; the GitHub Actions run for each commit
+is the authoritative remote CI result. No Registry republish, restart or GPU
+test is part of this source update; the published Registry version is unchanged.
+
+## Historical GPU acceptance — before template replacement
+
+The following acceptance record predates the replacement templates. Its file
+names, sampling settings and saved-image nodes describe that earlier stage.
 
 Distributed generation examples are limited to MOSS_BBOX_Standard_WebP.json and
 MOSS_BBOX_DMD_WebP.json. One state-import sample is retained. The five superseded
@@ -11,7 +66,7 @@ tests now read the current workflows rather than a removed legacy example.
 The current recommended nodes are MOSSSharedCanvas, MOSSSharedPrompter and
 MOSSFromKrea2. The checks below cover the installed ComfyUI_test frontend 1.55.18
 and standard MOSS model after a user-managed backend restart. ComfyUI-Q carries
-the same 28 package files; it was not independently GPU-tested in this run.
+the same package content; it was not independently GPU-tested in that run.
 
 - Standard model, no LoRA: person/cafe and graphics-only workflows completed,
   plus a person/cafe run submitted using Chrome's Run button. All three executed
@@ -47,7 +102,7 @@ restoration and generation nevertheless completed successfully.
 
 Local evidence: `restart_acceptance.json`, `restart_ui_run.result.json`,
 `restart_ui_restored.json`, `restart_final_verification.json` and UI screenshots
-under `D:/Codex/ComfyUI/moss_bbox_validation_20261017/gpu_bbox_seeds_20261021/`.
+under `<developer-local path>`.
 These local evidence files are not runtime dependencies. Publication status is
 recorded in the repository commit history.
 
@@ -91,14 +146,14 @@ sampler/LoRA changes were introduced; no backend code change was needed.
 A fresh dedicated IAB tab loaded the real ComfyUI service without restarting
 the backend. Its MOSS footer is 93 CSS pixels, has three equal-height panels and
 no horizontal overflow. The user's Chrome tab was not operated. Evidence:
-`D:/Codex/ComfyUI/moss_bbox_validation_20261017/compact_footer_20261019/`.
+`<developer-local path>`.
 Fixture processes 33508 / 43144 and ports 62235 / 64257 closed in finally.
 The earlier measurement fixture 36420 / 60379 also closed in finally.
 **No GPU generation or backend restart was performed.** Existing browser pages
 need a frontend refresh to load the new JavaScript.
 
 Pre-change snapshot:
-`D:/Codex/_snapshots/MOSS-BBOX-Prompter/20261019-181653-compact-canvas-footer/`;
+`<developer-local path>`;
 27 files copied and hashes matched. Core/Krea2/user-workflow protected hashes
 remain unchanged; example workflows and model/sampler settings are untouched.
 
@@ -119,14 +174,14 @@ blank lines survived workflow-tab return and full frontend reload exactly;
 the character/object/text selections also survived. No MOSS-matching error logs.
 The user's existing Chrome tab was not operated or reloaded.
 
-Evidence: `D:/Codex/ComfyUI/moss_bbox_validation_20261017/restart_20261018/`.
+Evidence: `<developer-local path>`.
 `legacy-defaults-live.jpg` shows the real frontend, not an isolated mock fixture.
 The verification workflow contains no model, sampler or image-generation nodes.
 Warning execution and model output quality were not tested on the live service.
 **GPU generation tests remain on explicit hold.**
 
 Pre-record snapshot:
-`D:/Codex/_snapshots/MOSS-BBOX-Prompter/20261018-011045-restart-ui-record/`;
+`<developer-local path>`;
 README, TEST_REPORT and the unchanged source example copied with matching hashes.
 
 ## Current change: compatible export modes and literal Text
@@ -153,12 +208,12 @@ outputs. The nine protected Core/Krea2/user-workflow hashes remain unchanged.
 Isolated Chromium, GPU disabled: **7 scenario groups pass**, including exact
 spaces, quotes, pipes, Unicode and multiline Text surviving serialization and
 clone hydration using the actual unchanged Krea2 renderer. Zero page errors.
-Evidence: `D:/Codex/ComfyUI/moss_bbox_validation_20261017/export_options_fixture/`.
+Evidence: `<developer-local path>`.
 Fixture PID 51028 / port 56202 closed in finally; listener false and process exited.
 This fixture does not contact the running ComfyUI or submit generation.
 
 Pre-change snapshot:
-`D:/Codex/_snapshots/MOSS-BBOX-Prompter/20261017-222118-prompt-export-options/`;
+`<developer-local path>`;
 26 files copied and hashes matched. The runtime package is canonical and ignored
 by its enclosing ComfyUI Git repository; there is no separate tracked source copy.
 
@@ -191,10 +246,10 @@ and the MOSS adapter with GPU disabled. **6 scenario groups pass**: three choice
 latest types in serialization, clone restoration, clone isolation, legacy obj
 restoration and unchanged original Krea2 options. No page errors. Fixture PID
 11248 / port 53766 stopped in finally; HTTP listener false and process exited.
-Evidence: `D:/Codex/ComfyUI/moss_bbox_validation_20261017/three_types_fixture/`.
+Evidence: `<developer-local path>`.
 The JPEG is from this fixture, not live ComfyUI. The first fixture attempt
 needed to open the collapsed Yellow card; a later artifact-write permission
-failure was resolved by writing evidence under D:/Codex.
+failure was resolved by writing evidence in the developer workspace.
 
 Live ComfyUI is running user catalog generation. It was not restarted or
 interrupted. Applying the new Python input schema requires a normal launcher
@@ -204,7 +259,7 @@ restart; no restart or live frontend refresh was performed for this change.
 Code and examples are saved for the next user-managed restart.
 **GPU tests remain on explicit hold.**
 
-Pre-change snapshot: `D:/Codex/_snapshots/MOSS-BBOX-Prompter/20261017-three-element-types/`;
+Pre-change snapshot: `<developer-local path>`;
 25 source/example/test files copied and hashes matched.
 
 The sections below describe earlier versions, not live acceptance of this change.
@@ -238,10 +293,10 @@ exported workflow retains all three MOSS node IDs, three raw boxes and current
 text; CPU execution of this export produces three official MOSS items.
 Evidence: `moss_named_live_checks.json`, `moss_named_live_cpu_checks.json`,
 `moss_named_live_state.json`, `moss_named_live_chrome.jpg` in
-`D:/Codex/ComfyUI/moss_bbox_validation_20261017/`.
+`<developer-local path>`.
 GPU remains on explicit user hold; no generation was submitted for this version.
 
-Snapshot: `D:/Codex/_snapshots/MOSS-BBOX-Prompter/20261017-moss-names-shared-runtime/`;
+Snapshot: `<developer-local path>`;
 21 source/example/test files copied and hashes matched (generated test artifacts excluded).
 
 The prior Krea2-node integration record follows.
@@ -278,9 +333,9 @@ until the user asks to resume. Earlier custom-UI GPU results below do not
 validate this new export path. Evidence: `krea_ui_live_checks.json`,
 `krea_ui_live_cpu_checks.json` and `krea_ui_live_state.json` in the evidence folder.
 
-Snapshot before this change: `D:/Codex/_snapshots/MOSS-BBOX-Prompter/20261017-actual-krea-ui/`;
+Snapshot before this change: `<developer-local path>`;
 19 files copied and SHA256 matched. Evidence and prepared workflows:
-`D:/Codex/ComfyUI/moss_bbox_validation_20261017/krea_ui_workflows/`.
+`<developer-local path>`.
 
 The sections below are historical records of the earlier custom interface;
 they do not describe validation of the new Krea2-to-MOSS export path.
@@ -301,7 +356,7 @@ WebP's three boxes and full derived prompt. Save WEBP Meta reported
 `unresolved_runtime_text` for normalized text extraction; pixels and raw graph
 metadata were retained. These two images are a smoke test, not a quality or
 performance benchmark. Their model, guidance and step counts are recorded in
-`D:/Codex/ComfyUI/moss_bbox_validation_20261017/`.
+`<developer-local path>`.
 
 Actual Chrome testing exercised box drawing/movement, four resize corners,
 shared-color captions, original Unicode/special text and dimension changes.
@@ -326,7 +381,7 @@ Neither Core/Krea2 nor the user-managed ComfyUI process was modified/stopped.
 
 The original implementation record below describes the earlier baseline.
 
-Target: Desktop-PC, `D:\StabilityMatrix\Data\Packages\ComfyUI-Q`.
+Target: developer ComfyUI installation, `<developer-local path>`.
 Initial node/sample dimensions: **896×1184**.
 
 ## Inspected baseline
@@ -334,7 +389,7 @@ Initial node/sample dimensions: **896×1184**.
 - ComfyUI-Q: `e087d8f6cb7c6cdb11b59dc7c9bf17c79f8d877d`.
 - Krea2-BBOX-Prompter: `98f3a29c28b95369cad6ba2a507a699f9a36a41b`, clean.
 - Instructions: checkout `AGENTS.md`, global work rules, and referenced
-  `D:\Codex\AGENTS.md`. No `.agents/skills` applies to this new custom-node path.
+  `<developer-local path>`. No `.agents/skills` applies to this new custom-node path.
 - Official `nodes_moss_image.py`, `nodes_bounding_boxes.py`, and
   `EmptyFlux2LatentImage` were read. Installed frontend: **1.55.17**;
   its source maps confirm `addDOMWidget`, read/write string-widget accessors,

@@ -1,5 +1,6 @@
 import importlib.util
 import json
+import os
 from pathlib import Path
 import sys
 from types import SimpleNamespace
@@ -12,7 +13,12 @@ package = importlib.util.module_from_spec(spec)
 sys.modules[spec.name] = package
 spec.loader.exec_module(package)
 bridge = sys.modules[spec.name + ".krea_bridge"]
-source_spec = importlib.util.spec_from_file_location("moss_test_shared_source", ROOT.parent / "Krea2-BBOX-Prompter" / "nodes_element_framing.py")
+krea_root = Path(os.environ["KREA2_SOURCE_ROOT"]) if os.environ.get("KREA2_SOURCE_ROOT") else next(
+    (ROOT.parent / name for name in ("Krea2-BBOX-Prompter", "Krea2-BBOX-Prompter-Suite", "krea2-bbox-prompter")
+     if (ROOT.parent / name / "nodes_element_framing.py").is_file()), None)
+if krea_root is None:
+    raise FileNotFoundError("Install Krea2 BBOX Prompter Suite or set KREA2_SOURCE_ROOT to its folder.")
+source_spec = importlib.util.spec_from_file_location("moss_test_shared_source", krea_root / "nodes_element_framing.py")
 shared_source = importlib.util.module_from_spec(source_spec)
 sys.modules[source_spec.name] = shared_source
 source_spec.loader.exec_module(shared_source)

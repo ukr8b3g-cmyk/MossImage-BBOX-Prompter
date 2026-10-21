@@ -1,17 +1,15 @@
-import ast
 import copy
 import importlib.util
 import json
-import math
 import os
 from pathlib import Path
 import random
-import re
 import subprocess
 import sys
 import tempfile
 from types import SimpleNamespace
 import unittest
+from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
 spec = importlib.util.spec_from_file_location("moss_bbox_test_package", ROOT / "__init__.py", submodule_search_locations=[str(ROOT)])
@@ -155,10 +153,14 @@ class BuilderTests(unittest.TestCase):
     def test_official_execute_matches_without_grid_quantization(self):
         comfy_root = os.environ.get("COMFYUI_ROOT")
         if not comfy_root: self.skipTest("Set COMFYUI_ROOT to compare installed official MOSS execute")
-        tree = ast.parse((Path(comfy_root) / "comfy_extras/nodes_moss_image.py").read_text(encoding="utf-8"))
-        cls = next(node for node in tree.body if isinstance(node, ast.ClassDef) and node.name == "MOSSImageLayoutPrompt")
-        scope = {"io": SimpleNamespace(ComfyNode=object, NodeOutput=lambda *values: values), "math": math, "json": json, "re": re}
-        exec(compile(ast.Module(body=[cls], type_ignores=[]), "official_moss_class", "exec"), scope)
+        official_spec = importlib.util.spec_from_file_location(
+            "official_moss_cpu", Path(comfy_root) / "comfy_extras/nodes_moss_image.py")
+        official = importlib.util.module_from_spec(official_spec)
+        # Import the real node with only its Comfy I/O types replaced; no GPU runtime.
+        api = SimpleNamespace(ComfyExtension=object,
+                              io=SimpleNamespace(ComfyNode=object, NodeOutput=lambda *values: values))
+        with patch.dict(sys.modules, {"comfy_api.latest": api}):
+            official_spec.loader.exec_module(official)
         rng = random.Random(8961184)
         for width, height in [(896, 1184), (1024, 1024), (1536, 896), (897, 1185), (16, 16)]:
             for _ in range(100):
@@ -166,7 +168,7 @@ class BuilderTests(unittest.TestCase):
                 y0, y1 = sorted([rng.random() * height, rng.random() * height])
                 b = box(x1=x0, x2=x1, y1=y0, y2=y1)
                 element = {"bbox": [y0 * 1000 / height, x0 * 1000 / width, y1 * 1000 / height, x1 * 1000 / width], "desc": "original", "type": "obj"}
-                result = scope["MOSSImageLayoutPrompt"].execute("original", [element], width, height)[0]
+                result = official.MOSSImageLayoutPrompt.execute("original", [element], width, height)[0]
                 self.assertEqual(json.loads(result)["items"][0]["bbox"], builder.pixel_bbox(b, width, height))
 
     def test_js_python_parity(self):
@@ -246,11 +248,13 @@ class BuilderTests(unittest.TestCase):
         text = json.dumps(workflow, ensure_ascii=False)
         with tempfile.TemporaryDirectory() as temp:
             png = Path(temp) / "workflow.png"
-            info = PngImagePlugin.PngInfo(); info.add_text("workflow", text)
+            info = PngImagePlugin.PngInfo()
+            info.add_text("workflow", text)
             Image.new("RGB", (16, 16)).save(png, pnginfo=info)
             restored_png = json.loads(Image.open(png).info["workflow"])
             webp = Path(temp) / "workflow.webp"
-            exif = Image.Exif(); exif[0x010F] = "workflow:" + json.dumps(workflow)
+            exif = Image.Exif()
+            exif[0x010F] = "workflow:" + json.dumps(workflow)
             Image.new("RGB", (16, 16)).save(webp, exif=exif, lossless=True)
             restored_webp = json.loads(Image.open(webp).getexif()[0x010F].split(":", 1)[1])
         for restored in [restored_png, restored_webp]:

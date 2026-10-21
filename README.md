@@ -39,8 +39,8 @@ helpers. Do not install a second copy if it is already present.
 
 - **ComfyUI-Manager:** install Krea2 BBOX Prompter Suite, then use **Install via
   Git URL** with `https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter`.
-  Manager listing registration is being prepared; this is not a claim that the
-  package is already searchable in the default list.
+  The default-list registration request has been submitted as PR #3399;
+  default-list availability still depends on upstream approval.
 - **Manual:** open your ComfyUI installation's `custom_nodes` folder and run:
 
   ```shell
@@ -55,8 +55,10 @@ helpers. Do not install a second copy if it is already present.
 `pyproject.toml` supplies MIT/package metadata. `node_list.json` lists the three
 current node IDs and three retained legacy IDs. `manager-entry.json` records the entry submitted in
 [ComfyUI-Manager PR #3399](https://github.com/Comfy-Org/ComfyUI-Manager/pull/3399).
-Registry publication uses the manual **Publish to Comfy Registry** GitHub Action
-and the repository secret `REGISTRY_ACCESS_TOKEN`. This package adds no pip dependency.
+Registry publication uses the **Test and publish to Comfy Registry** GitHub Action
+and the repository secret `REGISTRY_ACCESS_TOKEN`. Pushes to `main` run tests
+and package validation only. To publish a new version, run the action manually
+with `publish` enabled; it defaults to false. This package adds no pip dependency.
 
 Connect:
 
@@ -127,8 +129,10 @@ state are preserved; no dependency on the native node is added.
 ### Export options
 
 The existing Canvas and color cards are unchanged. MOSS BBOX Export appends three
-optional settings; existing workflow inputs, output sockets and saved examples
-keep their previous defaults (`hybrid` / `legacy`).
+optional settings; older workflow inputs and output sockets retain their defaults
+(`hybrid` / `legacy`). The distributed Standard and DMD templates explicitly use
+`auto` / `literal`, with Character for the person, Object for the table and Text
+for the title.
 
 - `output_mode`: `hybrid` retains the existing prose + JSON; `caption` emits
   prose without editor color/box labels; `layout_json` emits compact Layout JSON;
@@ -283,13 +287,28 @@ Chromium; they never contact the running ComfyUI or submit a queue.
 
 ```powershell
 $env:COMFYUI_ROOT = 'D:\StabilityMatrix\Data\Packages\ComfyUI-Q'
-python -B tests/test_prompt_builder.py
-node --test tests/state.test.mjs
+python -B -m unittest discover -s tests -p "test_*.py"
+node --test tests/state.test.mjs tests/shared_ui.test.mjs
 node --check web/moss_bbox.js
 node --check web/editor.mjs
 # Optional: point PLAYWRIGHT_MODULE and CHROMIUM_PATH at installed copies.
 node tests/browser_smoke.mjs
 ```
+
+CPU integration tests recognize `Krea2-BBOX-Prompter`,
+`Krea2-BBOX-Prompter-Suite` and the Registry folder `krea2-bbox-prompter`.
+For another location, set `KREA2_SOURCE_ROOT` to the dependency folder.
+Set `MOSS_BEFORE_ROOT` to a pre-change package snapshot to include the optional
+byte-compatibility test; otherwise that one comparison is skipped.
+
+The action runs Registry warning checks, the Python suite and JavaScript
+unit/syntax tests before packing or publishing; any failure stops publication.
+Push runs and manual runs with `publish` disabled never run Registry version
+checks or publication. It uses pinned Krea2 v1.0.2, ComfyUI and published
+MOSS source references, including the optional byte-compatibility comparison.
+The official MOSS node is imported with test-only I/O types for a CPU comparison;
+this does not test the real ComfyUI frontend or GPU generation. Test tools are
+installed only on the CI runner, with no added package runtime dependency.
 
 See `TEST_REPORT.md` for the tested scope and pending checks, and `NOTICE.md` /
 `LICENSE` for Krea2 attribution. Core/Krea2 files and existing workflows are not
