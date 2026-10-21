@@ -1,10 +1,7 @@
 import { app } from "../../scripts/app.js";
+import { installControls } from "./moss_controls.mjs";
 
-const sources = new Map();
-const sharedTypes = {
-  MOSSSharedCanvas: "Krea2ElementFramingV1Canvas",
-  MOSSSharedPrompter: "Krea2ElementFramingV1Prompt",
-};
+const sharedTypes = new Set(["MOSSSharedCanvas", "MOSSSharedPrompter"]);
 const slots = ["red", "blue", "yellow", "green", "magenta"];
 const typeNames = new Set(slots.map(slot => `${slot}_type`));
 const mossTypes = [["character", "Character"], ["object", "Object"], ["text", "Text"]];
@@ -28,14 +25,14 @@ function normalizePromptConfig(node, info) {
 }
 
 function updateTypeHelp(root) {
-  for (const select of root.querySelectorAll(".k2cf-type")) {
+  for (const select of root.querySelectorAll(".moss-k2cf-type")) {
     select.title = "MOSS element type: character, object or text. The selected type is kept in the output.";
     if (select.previousElementSibling) select.previousElementSibling.title = select.title;
   }
 }
 
 function installTypeOptions(node, root) {
-  root.querySelectorAll(".k2cf-type").forEach((select, index) => {
+  root.querySelectorAll(".moss-k2cf-type").forEach((select, index) => {
     const widget = node.widgets.find(widget => widget.name === `${slots[index]}_type`);
     select.replaceChildren(...mossTypes.map(([value, label]) => {
       const option = root.ownerDocument.createElement("option");
@@ -50,47 +47,47 @@ function installTypeOptions(node, root) {
 }
 
 function compactCanvasFooter(root) {
-  const panels = root.querySelector(".k2cf-panels");
-  const size = panels.querySelector(".k2cf-panel");
-  const cameraPanel = panels.querySelector(".k2cf-camera-panel");
-  const [camera, presets] = cameraPanel.querySelectorAll(".k2cf-compact-group");
-  const presetRow = size.querySelector("select").closest(".k2cf-rowline");
-  const dimensions = size.querySelector('input[type="number"]').closest(".k2cf-rowline");
-  const actions = [...size.querySelectorAll(".k2cf-rowline")].find(row => row.querySelector("button"));
+  const panels = root.querySelector(".moss-k2cf-panels");
+  const size = panels.querySelector(".moss-k2cf-panel");
+  const cameraPanel = panels.querySelector(".moss-k2cf-camera-panel");
+  const [camera, presets] = cameraPanel.querySelectorAll(".moss-k2cf-compact-group");
+  const presetRow = size.querySelector("select").closest(".moss-k2cf-rowline");
+  const dimensions = size.querySelector('input[type="number"]').closest(".moss-k2cf-rowline");
+  const actions = [...size.querySelectorAll(".moss-k2cf-rowline")].find(row => row.querySelector("button"));
   root.classList.add("moss-canvas-compact");
   size.classList.add("moss-size-panel");
   presetRow.previousElementSibling.classList.add("moss-size-preset-label");
   presetRow.classList.add("moss-size-preset");
   dimensions.classList.add("moss-size-dimensions");
   actions.classList.add("moss-size-actions");
-  camera.classList.add("k2cf-panel", "moss-camera-group");
-  presets.classList.add("k2cf-panel", "moss-preset-group");
-  for (const group of [camera, presets]) group.title = group.querySelector(".k2cf-note").textContent;
+  camera.classList.add("moss-k2cf-panel", "moss-camera-group");
+  presets.classList.add("moss-k2cf-panel", "moss-preset-group");
+  for (const group of [camera, presets]) group.title = group.querySelector(".moss-k2cf-note").textContent;
   // Move the existing controls with their handlers and persistence intact.
   panels.replaceChildren(size, camera, presets);
   const style = root.ownerDocument.createElement("style");
   style.textContent = `
-    .moss-canvas-compact .k2cf-panels{grid-template-columns:repeat(auto-fit,minmax(min(100%,244px),1fr));grid-auto-rows:1fr;gap:6px;align-items:stretch}
-    .moss-canvas-compact .k2cf-panels>.k2cf-panel{box-sizing:border-box;padding:6px;align-self:stretch}
-    .moss-canvas-compact .k2cf-panel h4,.moss-canvas-compact .k2cf-section-label{margin:0;line-height:13px;min-height:13px;font-size:11px}
-    .moss-canvas-compact .k2cf-panel input,.moss-canvas-compact .k2cf-panel select,.moss-canvas-compact .k2cf-panel button{box-sizing:border-box;height:22px;font-size:11px;padding:2px 4px}
+    .moss-canvas-compact .moss-k2cf-panels{grid-template-columns:repeat(auto-fit,minmax(min(100%,244px),1fr));grid-auto-rows:1fr;gap:6px;align-items:stretch}
+    .moss-canvas-compact .moss-k2cf-panels>.moss-k2cf-panel{box-sizing:border-box;padding:6px;align-self:stretch}
+    .moss-canvas-compact .moss-k2cf-panel h4,.moss-canvas-compact .moss-k2cf-section-label{margin:0;line-height:13px;min-height:13px;font-size:11px}
+    .moss-canvas-compact .moss-k2cf-panel input,.moss-canvas-compact .moss-k2cf-panel select,.moss-canvas-compact .moss-k2cf-panel button{box-sizing:border-box;height:22px;font-size:11px;padding:2px 4px}
     .moss-canvas-compact .moss-size-panel{display:grid;grid-template-columns:minmax(76px,.8fr) minmax(140px,1.2fr);grid-template-rows:13px 12px 22px 22px;gap:3px 5px;align-content:start;align-items:center}
     .moss-canvas-compact .moss-size-panel h4{grid-column:1/-1;grid-row:1}
     .moss-canvas-compact .moss-size-preset-label{grid-column:1;grid-row:2;font-size:10px;line-height:12px;color:#bbb}
-    .moss-canvas-compact .k2cf-size-label{grid-column:2;grid-row:2;font-size:10px;line-height:12px;gap:4px;white-space:nowrap}
+    .moss-canvas-compact .moss-k2cf-size-label{grid-column:2;grid-row:2;font-size:10px;line-height:12px;gap:4px;white-space:nowrap}
     .moss-canvas-compact .moss-size-preset{grid-column:1;grid-row:3;min-width:0}
     .moss-canvas-compact .moss-size-preset select{width:100%;min-width:0}
     .moss-canvas-compact .moss-size-dimensions{grid-column:2;grid-row:3;flex-wrap:nowrap;gap:3px;font-size:10px}
     .moss-canvas-compact .moss-size-dimensions input{width:52px;min-width:0;flex:1 1 52px}
     .moss-canvas-compact .moss-size-actions{grid-column:1/-1;grid-row:4;flex-wrap:nowrap;gap:4px}
-    .moss-canvas-compact .k2cf-override-status{grid-column:1/-1;margin-top:0}
-    .moss-canvas-compact .k2cf-compact-group{gap:4px}
-    .moss-canvas-compact .k2cf-camera-grid{grid-template-columns:repeat(4,minmax(0,1fr));gap:4px}
-    .moss-canvas-compact .k2cf-camera-cell>div:first-child{font-size:10px;line-height:12px;margin-bottom:3px}
-    .moss-canvas-compact .k2cf-camera-cell input,.moss-canvas-compact .k2cf-camera-cell select{width:100%;min-width:0;max-width:none}
-    .moss-canvas-compact .k2cf-canvas-presetbar{display:grid;grid-template-columns:minmax(64px,1fr) repeat(3,max-content);gap:4px;margin-top:15px}
-    .moss-canvas-compact .k2cf-canvas-presetbar select{min-width:0;max-width:none;width:100%}
-    .moss-canvas-compact .k2cf-note{display:none}
+    .moss-canvas-compact .moss-k2cf-override-status{grid-column:1/-1;margin-top:0}
+    .moss-canvas-compact .moss-k2cf-compact-group{gap:4px}
+    .moss-canvas-compact .moss-k2cf-camera-grid{grid-template-columns:repeat(4,minmax(0,1fr));gap:4px}
+    .moss-canvas-compact .moss-k2cf-camera-cell>div:first-child{font-size:10px;line-height:12px;margin-bottom:3px}
+    .moss-canvas-compact .moss-k2cf-camera-cell input,.moss-canvas-compact .moss-k2cf-camera-cell select{width:100%;min-width:0;max-width:none}
+    .moss-canvas-compact .moss-k2cf-canvas-presetbar{display:grid;grid-template-columns:minmax(64px,1fr) repeat(3,max-content);gap:4px;margin-top:15px}
+    .moss-canvas-compact .moss-k2cf-canvas-presetbar select{min-width:0;max-width:none;width:100%}
+    .moss-canvas-compact .moss-k2cf-note{display:none}
   `;
   root.appendChild(style);
 }
@@ -98,15 +95,10 @@ function compactCanvasFooter(root) {
 app.registerExtension({
   name: "moss.bbox.shared-ui.v1",
   beforeRegisterNodeDef(nodeType, nodeData) {
-    if (Object.values(sharedTypes).includes(nodeData.name)) sources.set(nodeData.name, nodeType);
-    const sourceName = sharedTypes[nodeData.name];
-    if (!sourceName) return;
-    // Call the registered renderer; do not load another copy or reinstall its global hooks.
-    const sourcePrototype = () => {
-      const source = sources.get(sourceName);
-      if (!source) throw new Error("MOSS BBOX requires the installed Krea2-BBOX-Prompter shared UI package.");
-      return source.prototype;
-    };
+    if (!sharedTypes.has(nodeData.name)) return;
+    installControls(nodeType, nodeData);
+    const created = nodeType.prototype.onNodeCreated;
+    const configured = nodeType.prototype.onConfigure;
     nodeType.prototype.onNodeCreated = function () {
       const isPrompt = nodeData.name === "MOSSSharedPrompter";
       if (isPrompt) {
@@ -125,7 +117,7 @@ app.registerExtension({
         return addDOMWidget.apply(this, arguments);
       };
       let result;
-      try { result = sourcePrototype().onNodeCreated?.apply(this, arguments); }
+      try { result = created?.apply(this, arguments); }
       finally { this.addDOMWidget = addDOMWidget; }
       if (root) {
         const hydrate = this.__k2cfHydrateFromWidgets;
@@ -139,12 +131,12 @@ app.registerExtension({
       return result;
     };
     nodeType.prototype.onConfigure = function (info) {
-      const configured = nodeData.name === "MOSSSharedPrompter" ? normalizePromptConfig(this, info) : info;
-      if (nodeData.name === "MOSSSharedPrompter" && configured.properties.k2cfPromptState) {
+      const infoToRestore = nodeData.name === "MOSSSharedPrompter" ? normalizePromptConfig(this, info) : info;
+      if (nodeData.name === "MOSSSharedPrompter" && infoToRestore.properties.k2cfPromptState) {
         // Creation installs a default snapshot; replace it before the shared hydrator reads it.
-        this.properties = { ...this.properties, k2cfPromptState: configured.properties.k2cfPromptState };
+        this.properties = { ...this.properties, k2cfPromptState: infoToRestore.properties.k2cfPromptState };
       }
-      return sourcePrototype().onConfigure?.call(this, configured);
+      return configured?.call(this, infoToRestore);
     };
   },
 });

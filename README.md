@@ -8,15 +8,13 @@ Repository: [MossImage-BBOX-Prompter](https://github.com/ukr8b3g-cmyk/MossImage-
 Based on [Krea2 BBOX Prompter Suite](https://github.com/ukr8b3g-cmyk/Krea2-BBOX-Prompter)
 by ukr8b3g-cmyk. This package is released under the **MIT License**; see
 [LICENSE](LICENSE) and [NOTICE.md](NOTICE.md) for attribution and implementation
-details. The current Canvas and Prompter reuse the installed Krea2 renderer;
-the earlier retained interface adapts portions of its interaction code.
+details. The required Canvas/Prompter controls and text helpers are bundled
+in this package. **No separate Krea2 installation is required.**
 
 Use **MOSS BBOX Canvas**, **MOSS BBOX Prompter** and **MOSS BBOX Export**.
-The Canvas and Prompter use the already registered Krea2 UI. The Canvas delegates
-to its shared backend; the Prompter shares its text/framing helpers with MOSS types.
-Rendering, collapsed cards, textarea sizing, autocomplete, presets and workflow
-persistence are shared. No second renderer, global hook installation or Python
-module copy is loaded. Krea2 source files are not modified or copied.
+The familiar Canvas/Prompter UI, collapsed cards, textarea sizing, optional
+autocomplete, presets and workflow persistence are retained. Existing node IDs,
+socket types, widget order and saved workflow state remain compatible.
 
 MOSS Canvas reuses the same controls in a compact footer: Latent Size puts its
 preset and width/height on one line, and Latent Size / Camera Settings / Canvas
@@ -34,21 +32,19 @@ This package's **MOSS BBOX Canvas / Prompter / Export** also work with the
 
 ### Installation
 
-Install **Krea2 BBOX Prompter Suite** first; it supplies the shared renderer and
-helpers. Do not install a second copy if it is already present.
+This package contains its required Canvas/Prompter UI and backend helpers.
+Krea2 BBOX Prompter Suite is the MIT-licensed source of the adapted UI, not a
+required installation. An existing Krea2 installation can remain in place.
 
-- **ComfyUI-Manager:** install Krea2 BBOX Prompter Suite, then use **Install via
-  Git URL** with `https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter`.
-  The default-list registration request has been submitted as PR #3399;
-  default-list availability still depends on upstream approval.
+- **ComfyUI-Manager:** use **Install via Git URL** with
+  `https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter`.
 - **Manual:** open your ComfyUI installation's `custom_nodes` folder and run:
 
   ```shell
-  git clone https://github.com/ukr8b3g-cmyk/Krea2-BBOX-Prompter.git
   git clone https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter.git
   ```
 
-  Skip the first command if Krea2 is already installed. Restart ComfyUI when
+  To update a clone, open its folder and run `git pull`. Restart ComfyUI when
   running work is finished, then refresh the browser with Ctrl+F5. Use a ComfyUI
   version with MOSS-Image support and select your installed model files.
 
@@ -81,7 +77,7 @@ the LoRA loader's model output to KSampler.
 The separate `moss_state_896x1184.json` is a state-import sample, not a generation
 workflow. Older workflow versions remain available in Git history.
 
-This path requires the already installed **Krea2-BBOX-Prompter** package.
+This path runs entirely from the bundled MOSS package.
 The node IDs are `MOSSSharedCanvas`, `MOSSSharedPrompter` and `MOSSFromKrea2`.
 The Export's existing ID and socket types are retained for workflow compatibility.
 Restart ComfyUI after adding the two MOSS UI nodes, then refresh the frontend.
@@ -94,12 +90,12 @@ choose multiples of 16. Each color's **Type** selects **Character**, **Object** 
 **Text**, exported as `character`, `object` or `text`. All boxes of that color
 share its type and content. New nodes default to Object. Select Character for
 people, Object for objects and Text for lettering in your composition.
-Old `obj` values remain accepted and are restored as Object. The shared Krea2
-nodes retain their original two choices and behavior.
+Old `obj` values remain accepted and are restored as Object. Separately installed Krea2
+nodes retain their original choices and behavior.
 
 The selected Type is authoritative: quotes or a `text:` prefix in Character or
 Object descriptions do not change the label. Only Text items emit a `text` field.
-Text notation and framing/angle descriptions use the installed Krea2 helpers:
+Text notation and framing/angle descriptions use the bundled text helpers:
 for example, choose Text and enter `MOSS Café | Elegant white lettering.`.
 Scene/background are combined; nonempty camera settings are included as prose.
 The shared text helpers trim outer whitespace before emitting data. The original
@@ -295,17 +291,15 @@ node --check web/editor.mjs
 node tests/browser_smoke.mjs
 ```
 
-CPU integration tests recognize `Krea2-BBOX-Prompter`,
-`Krea2-BBOX-Prompter-Suite` and the Registry folder `krea2-bbox-prompter`.
-For another location, set `KREA2_SOURCE_ROOT` to the dependency folder.
+CPU and isolated browser tests use the bundled controls and do not need Krea2.
 Set `MOSS_BEFORE_ROOT` to a pre-change package snapshot to include the optional
 byte-compatibility test; otherwise that one comparison is skipped.
 
 The action runs Registry warning checks, the Python suite and JavaScript
 unit/syntax tests before packing or publishing; any failure stops publication.
 Push runs and manual runs with `publish` disabled never run Registry version
-checks or publication. It uses pinned Krea2 v1.0.2, ComfyUI and published
-MOSS source references, including the optional byte-compatibility comparison.
+checks or publication. It uses pinned ComfyUI and published MOSS source references, including the
+optional byte-compatibility comparison. No Krea2 checkout is needed.
 The official MOSS node is imported with test-only I/O types for a CPU comparison;
 this does not test the real ComfyUI frontend or GPU generation. Test tools are
 installed only on the CI runner, with no added package runtime dependency.

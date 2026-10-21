@@ -4,22 +4,26 @@ import test from "node:test";
 
 const source = await readFile(new URL("../web/moss_shared_ui.js", import.meta.url), "utf8");
 let extension;
+let installControls = () => {};
 const app = { registerExtension(value) { extension = value; } };
-new Function("app", source.replace(/^import .*;\r?\n/, ""))(app);
+new Function("app", "installControls", source.replace(/^import .*;\r?\n/gm, ""))(app, (...args) => installControls(...args));
 
-test("delegate to the already registered renderer after all extension hooks finish", () => {
+test("install bundled controls without registering any Krea2 node", () => {
   class SharedCanvas {}
   class MossCanvas {}
-  extension.beforeRegisterNodeDef(SharedCanvas, { name: "Krea2ElementFramingV1Canvas" });
-  extension.beforeRegisterNodeDef(MossCanvas, { name: "MOSSSharedCanvas" });
+
   let creates = 0;
-  // Krea2's hook may run after ours; use its final prototype, not an early copy.
   SharedCanvas.prototype.onNodeCreated = function () {
     creates++;
     this.savedValues = this.__k2cfConfiguredWidgetValues.slice();
     this.onSerialize = data => { data.widgets_values = this.widgets.map(widget => widget.value); };
   };
   SharedCanvas.prototype.onConfigure = function (info) { this.widgets[0].value = info.widgets_values[0]; };
+  installControls = type => {
+    type.prototype.onNodeCreated = SharedCanvas.prototype.onNodeCreated;
+    type.prototype.onConfigure = SharedCanvas.prototype.onConfigure;
+  };
+  extension.beforeRegisterNodeDef(MossCanvas, { name: "MOSSSharedCanvas" });
   const node = new MossCanvas();
   node.widgets = [{ name: "width", value: 896 }];
   node.onNodeCreated();
@@ -35,11 +39,15 @@ test("keep Canvas and Prompter renderer state separate and leave unrelated nodes
   class SharedPrompt {}
   class MossPrompt {}
   class Unrelated {}
-  extension.beforeRegisterNodeDef(SharedPrompt, { name: "Krea2ElementFramingV1Prompt" });
-  extension.beforeRegisterNodeDef(MossPrompt, { name: "MOSSSharedPrompter" });
+
   extension.beforeRegisterNodeDef(Unrelated, { name: "CLIPTextEncode" });
   SharedPrompt.prototype.onNodeCreated = function () { this.promptValues = this.__k2cfConfiguredWidgetValues.slice(); };
   SharedPrompt.prototype.onConfigure = function (info) { this.widgets[0].value = info.widgets_values[0]; };
+  installControls = type => {
+    type.prototype.onNodeCreated = SharedPrompt.prototype.onNodeCreated;
+    type.prototype.onConfigure = SharedPrompt.prototype.onConfigure;
+  };
+  extension.beforeRegisterNodeDef(MossPrompt, { name: "MOSSSharedPrompter" });
   const first = new MossPrompt();
   first.widgets = [{ name: "scene", value: "original" }];
   first.onNodeCreated();
@@ -55,11 +63,15 @@ test("keep Canvas and Prompter renderer state separate and leave unrelated nodes
 test("restore legacy obj as object while retaining character and immutable saved state", () => {
   class SharedPrompt {}
   class MossPrompt {}
-  extension.beforeRegisterNodeDef(SharedPrompt, { name: "Krea2ElementFramingV1Prompt" });
-  extension.beforeRegisterNodeDef(MossPrompt, { name: "MOSSSharedPrompter" });
+
   let configured;
   SharedPrompt.prototype.onNodeCreated = function () {};
   SharedPrompt.prototype.onConfigure = function (info) { configured = info; };
+  installControls = type => {
+    type.prototype.onNodeCreated = SharedPrompt.prototype.onNodeCreated;
+    type.prototype.onConfigure = SharedPrompt.prototype.onConfigure;
+  };
+  extension.beforeRegisterNodeDef(MossPrompt, { name: "MOSSSharedPrompter" });
   const node = new MossPrompt();
   node.widgets = [{ name: "scene", value: "unchanged" }, { name: "red_type", value: "obj" },
                   { name: "blue_type", value: "character" }, { name: "yellow_type", value: "text" }];
@@ -79,8 +91,7 @@ test("restore legacy obj as object while retaining character and immutable saved
 test("restore widgets-only workflows before the shared renderer reads its creation snapshot", () => {
   class SharedPrompt {}
   class MossPrompt {}
-  extension.beforeRegisterNodeDef(SharedPrompt, { name: "Krea2ElementFramingV1Prompt" });
-  extension.beforeRegisterNodeDef(MossPrompt, { name: "MOSSSharedPrompter" });
+
   SharedPrompt.prototype.onNodeCreated = function () {
     this.properties.k2cfPromptState = { widgets_values: ["", "object"], saved_at: Date.now() };
   };
@@ -88,6 +99,11 @@ test("restore widgets-only workflows before the shared renderer reads its creati
     this.widgets.forEach((widget, i) => { widget.value = info.widgets_values[i]; });
     this.widgets.forEach((widget, i) => { widget.value = this.properties.k2cfPromptState.widgets_values[i]; });
   };
+  installControls = type => {
+    type.prototype.onNodeCreated = SharedPrompt.prototype.onNodeCreated;
+    type.prototype.onConfigure = SharedPrompt.prototype.onConfigure;
+  };
+  extension.beforeRegisterNodeDef(MossPrompt, { name: "MOSSSharedPrompter" });
   const node = new MossPrompt();
   node.properties = {};
   node.widgets = [{ name: "scene", value: "" }, { name: "red_type", value: "object" }];

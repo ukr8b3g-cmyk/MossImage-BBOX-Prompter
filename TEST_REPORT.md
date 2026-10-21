@@ -1,6 +1,41 @@
 # Validation record — updated 2026-10-21
 
-## Current source status — audit corrections, 2026-10-21
+## Standalone implementation — v0.1.2, 2026-10-21
+
+The required Canvas/Prompter controls and text helpers are now bundled from
+the MIT-licensed Krea2 v1.0.2 implementation. Runtime imports and rendering no
+longer require Krea2. Effect galleries/APIs and global debug helpers are omitted.
+CSS, browser hook guards and new storage writes are MOSS-owned. Existing preset
+keys are read only as a migration fallback; original Krea2 storage is not changed.
+Node IDs, sockets, widget order, saved properties and both workflow JSON files
+are retained. Krea2-compatible input schemas remain accepted by MOSS Export.
+
+Version 0.1.2 introduces standalone operation; v0.1.1 predates this change.
+Release publication runs the Python and JavaScript checks in GitHub Actions
+before the opt-in Registry upload. No restart or GPU generation was performed
+for this standalone change.
+The package now contains 29 source files. Local CPU validation passes all
+33 Python tests in each runtime and all nine JavaScript unit tests, plus ten
+JavaScript syntax checks and Ruff S102/E702. A new isolated-process regression
+copies only the MOSS Python package and its two example JSON files, then runs
+both examples without ComfyUI/Krea2 node registrations or a Krea2 installation.
+
+GPU-disabled browser fixtures pass with Krea2 absent and with the original
+Krea2 renderer loaded alongside MOSS. They cover Type/literal text, clone and
+restoration, presets, local preset migration without overwriting Krea2 storage,
+external dimensions and equal-height compact panels. The footer remains 93px
+at 830px node width. No browser page errors were observed in these fixtures.
+
+An independent comparison against the published 0.1.1 implementation and its
+original Krea2 helpers matches 1,282 result dictionaries/tuples exactly,
+including the actual auto/literal outputs of both saved examples. JSON files
+and protected Krea2 sources retain their original hashes. The running test
+service serves the bundled module with HTTP 200 and JavaScript MIME type;
+this is a delivery check, not a live ComfyUI interaction or GPU acceptance.
+
+The sections below describe earlier versions and their dependencies.
+
+## Historical source status — audit corrections, 2026-10-21
 
 The local ComfyUI-Q and ComfyUI_test packages contain the same 27 source files.
 The two generation templates are `examples/MOSS_BBOX_Standard.json` and

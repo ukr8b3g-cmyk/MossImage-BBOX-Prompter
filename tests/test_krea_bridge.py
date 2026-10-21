@@ -1,6 +1,8 @@
 import importlib.util
 import json
-import os
+import shutil
+import subprocess
+import tempfile
 from pathlib import Path
 import sys
 from types import SimpleNamespace
@@ -13,27 +15,57 @@ package = importlib.util.module_from_spec(spec)
 sys.modules[spec.name] = package
 spec.loader.exec_module(package)
 bridge = sys.modules[spec.name + ".krea_bridge"]
-krea_root = Path(os.environ["KREA2_SOURCE_ROOT"]) if os.environ.get("KREA2_SOURCE_ROOT") else next(
-    (ROOT.parent / name for name in ("Krea2-BBOX-Prompter", "Krea2-BBOX-Prompter-Suite", "krea2-bbox-prompter")
-     if (ROOT.parent / name / "nodes_element_framing.py").is_file()), None)
-if krea_root is None:
-    raise FileNotFoundError("Install Krea2 BBOX Prompter Suite or set KREA2_SOURCE_ROOT to its folder.")
-source_spec = importlib.util.spec_from_file_location("moss_test_shared_source", krea_root / "nodes_element_framing.py")
-shared_source = importlib.util.module_from_spec(source_spec)
-sys.modules[source_spec.name] = shared_source
-source_spec.loader.exec_module(shared_source)
-sys.modules["nodes"] = SimpleNamespace(NODE_CLASS_MAPPINGS=shared_source.NODE_CLASS_MAPPINGS)
+shared_source = sys.modules[package.__name__ + ".canvas_controls"]
 
 
 class KreaBridgeTests(unittest.TestCase):
-    def test_reuse_registered_module_without_duplicate_import(self):
-        modules = set(sys.modules)
-        for _ in range(10):
-            self.assertIs(bridge.krea_helpers(), shared_source)
-        self.assertEqual(set(sys.modules), modules)
+    def test_standalone_without_registered_krea_nodes(self):
         with patch.dict(sys.modules, {"nodes": SimpleNamespace(NODE_CLASS_MAPPINGS={})}):
-            with self.assertRaisesRegex(RuntimeError, "shared UI"):
-                bridge.krea_helpers()
+            canvas = package.NODE_CLASS_MAPPINGS["MOSSSharedCanvas"]()
+            values = {key: entry[1]["default"] for key, entry in canvas.INPUT_TYPES()["required"].items()}
+            self.assertEqual(json.loads(canvas.execute(**values)[0])["width"], 896)
+            framing, prompts = self.inputs()
+            self.assertEqual(len(package.NODE_CLASS_MAPPINGS["MOSSFromKrea2"]().build(framing, prompts)), 4)
+            self.assertEqual(sys.modules["nodes"].NODE_CLASS_MAPPINGS, {})
+        self.assertFalse(any(name.startswith("moss_test_shared_source") for name in sys.modules))
+
+    def test_clean_package_executes_both_workflows_without_krea_installation(self):
+        script = """
+import importlib.util, json, sys
+from pathlib import Path
+root = Path(sys.argv[1])
+spec = importlib.util.spec_from_file_location('standalone_moss', root / '__init__.py', submodule_search_locations=[str(root)])
+module = importlib.util.module_from_spec(spec)
+sys.modules[spec.name] = module
+spec.loader.exec_module(module)
+assert 'nodes' not in sys.modules
+for path in sorted((root / 'examples').glob('MOSS_BBOX_*.json')):
+    workflow = json.loads(path.read_text(encoding='utf-8'))
+    ui = {n['type']: n for n in workflow['nodes']}
+    inputs = []
+    for kind in ('MOSSSharedCanvas', 'MOSSSharedPrompter'):
+        cls = module.NODE_CLASS_MAPPINGS[kind]
+        args = dict(zip(cls.INPUT_TYPES()['required'], ui[kind]['widgets_values']))
+        inputs.append(cls().execute(**args)[0])
+    result = module.NODE_CLASS_MAPPINGS['MOSSFromKrea2']().build(*inputs, **ui['MOSSFromKrea2']['widgets_values_named'])
+    items = json.loads(result[3])['items']
+    assert [item['label'] for item in items] == ['character', 'object', 'text']
+    assert items[2]['text'] == 'MOSS Café'
+assert not any('nodes_element_framing' in name for name in sys.modules)
+print('standalone: both workflows passed')
+"""
+        with tempfile.TemporaryDirectory(prefix='moss-standalone-') as folder:
+            root = Path(folder).resolve()
+            self.assertEqual(root.parent, Path(tempfile.gettempdir()).resolve())
+            for name in ('__init__.py', 'nodes.py', 'prompt_builder.py', 'krea_bridge.py', 'canvas_controls.py'):
+                shutil.copyfile(ROOT / name, root / name)
+            (root / 'examples').mkdir()
+            for name in ('MOSS_BBOX_Standard.json', 'MOSS_BBOX_DMD.json'):
+                shutil.copyfile(ROOT / 'examples' / name, root / 'examples' / name)
+            result = subprocess.run([sys.executable, '-I', '-B', '-c', script, str(root)],
+                                    cwd=root, capture_output=True, encoding='utf-8')
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertIn('standalone: both workflows passed', result.stdout)
 
     def test_moss_names_and_defaults_preserve_shared_backend_contracts(self):
         canvas = package.NODE_CLASS_MAPPINGS["MOSSSharedCanvas"]()
@@ -42,8 +74,8 @@ class KreaBridgeTests(unittest.TestCase):
         self.assertEqual(inputs["width"][1]["default"], 896)
         self.assertEqual(inputs["height"][1]["default"], 1184)
         self.assertEqual(inputs["preset"][1]["default"], "Custom")
-        self.assertEqual(shared_source.Krea2ElementFramingV1Canvas.INPUT_TYPES()["required"]["width"][1]["default"], 1024)
-        shared_inputs = shared_source.Krea2ElementFramingV1Prompt.INPUT_TYPES()["required"]
+        self.assertEqual(shared_source.CanvasControls.INPUT_TYPES()["required"]["width"][1]["default"], 1024)
+        shared_inputs = shared_source.PromptControls.INPUT_TYPES()["required"]
         moss_inputs = prompter.INPUT_TYPES()["required"]
         for name, value in shared_inputs.items():
             if name.endswith("_type"):
@@ -55,8 +87,8 @@ class KreaBridgeTests(unittest.TestCase):
             self.assertNotIn("Krea2", package.NODE_DISPLAY_NAME_MAPPINGS[name])
         canvas_values = {name: data[1]["default"] for name, data in inputs.items()}
         prompt_values = {name: data[1]["default"] for name, data in prompter.INPUT_TYPES()["required"].items()}
-        self.assertEqual(canvas.execute(**canvas_values), shared_source.Krea2ElementFramingV1Canvas().execute(**canvas_values))
-        expected = json.loads(shared_source.Krea2ElementFramingV1Prompt().execute(**prompt_values)[0])
+        self.assertEqual(canvas.execute(**canvas_values), shared_source.CanvasControls().execute(**canvas_values))
+        expected = json.loads(shared_source.PromptControls().execute(**prompt_values)[0])
         for slot in expected["slots"].values():
             slot["type"] = "object"
         self.assertEqual(json.loads(prompter.execute(**prompt_values)[0]), expected)
@@ -95,13 +127,13 @@ class KreaBridgeTests(unittest.TestCase):
             bridge.build_from_krea(framing, json.dumps(data))
 
     def inputs(self):
-        krea = bridge.krea_helpers()
+        krea = shared_source
         boxes = [{"id": "first", "slot": "red", "x1": 10.2, "y1": 20.8, "x2": 300.1, "y2": 1100.9999999999},
                  {"id": "second", "slot": "red", "x1": 350, "y1": 200, "x2": 600, "y2": 1100},
                  {"id": "title", "slot": "yellow", "x1": 64, "y1": 48, "x2": 832, "y2": 208}]
-        framing = krea.Krea2ElementFramingV1Canvas().execute(896, 1184, "Custom", json.dumps({"boxes": boxes}),
+        framing = krea.CanvasControls().execute(896, 1184, "Custom", json.dumps({"boxes": boxes}),
                                                           '{"iso":"200","focal_length":"50mm"}', "Thirds")[0]
-        prompts = krea.Krea2ElementFramingV1Prompt().execute(
+        prompts = krea.PromptControls().execute(
             '  Japanese cafe 日本語 {keep|原文} 😀  ', 'warm lighting', 'a woman', '',
             'MOSS Café | Elegant white lettering.', '', '', yellow_type="text", red_framing="Full body",
             red_angle="Eye level")[0]

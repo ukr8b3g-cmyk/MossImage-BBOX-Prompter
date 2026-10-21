@@ -28,7 +28,6 @@ jobs:
         working-directory: moss
     env:
       PYTHONDONTWRITEBYTECODE: '1'
-      KREA2_SOURCE_ROOT: ${{ github.workspace }}/Krea2-BBOX-Prompter
       COMFYUI_ROOT: ${{ github.workspace }}/ComfyUI
       MOSS_BEFORE_ROOT: ${{ github.workspace }}/moss-before
     steps:
@@ -36,15 +35,6 @@ jobs:
         with:
           persist-credentials: false
           path: moss
-      - name: Check out Krea2 v1.0.2 CPU dependency
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
-        with:
-          repository: ukr8b3g-cmyk/Krea2-BBOX-Prompter
-          ref: 98f3a29c28b95369cad6ba2a507a699f9a36a41b
-          path: Krea2-BBOX-Prompter
-          persist-credentials: false
-          sparse-checkout: nodes_element_framing.py
-          sparse-checkout-cone-mode: false
       - name: Check out official MOSS reference
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:

@@ -8,6 +8,7 @@ from pathlib import Path
 import sys
 from types import SimpleNamespace
 import unittest
+from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -23,16 +24,7 @@ def load_package(name, root):
 package = load_package("moss_export_test", ROOT)
 bridge = sys.modules[package.__name__ + ".krea_bridge"]
 builder = sys.modules[package.__name__ + ".prompt_builder"]
-krea_root = Path(os.environ["KREA2_SOURCE_ROOT"]) if os.environ.get("KREA2_SOURCE_ROOT") else next(
-    (ROOT.parent / name for name in ("Krea2-BBOX-Prompter", "Krea2-BBOX-Prompter-Suite", "krea2-bbox-prompter")
-     if (ROOT.parent / name / "nodes_element_framing.py").is_file()), None)
-if krea_root is None:
-    raise FileNotFoundError("Install Krea2 BBOX Prompter Suite or set KREA2_SOURCE_ROOT to its folder.")
-source_spec = importlib.util.spec_from_file_location("moss_export_shared", krea_root / "nodes_element_framing.py")
-shared = importlib.util.module_from_spec(source_spec)
-sys.modules[source_spec.name] = shared
-source_spec.loader.exec_module(shared)
-sys.modules["nodes"] = SimpleNamespace(NODE_CLASS_MAPPINGS=shared.NODE_CLASS_MAPPINGS)
+shared = sys.modules[package.__name__ + ".canvas_controls"]
 
 
 class ExportOptionsTests(unittest.TestCase):
@@ -206,6 +198,15 @@ class ExportOptionsTests(unittest.TestCase):
     @unittest.skipUnless(os.environ.get("MOSS_BEFORE_ROOT"), "Set MOSS_BEFORE_ROOT to a pre-change snapshot")
     def test_saved_workflows_match_pre_change_outputs_byte_for_byte(self):
         previous = load_package("moss_export_before", Path(os.environ["MOSS_BEFORE_ROOT"]))
+        legacy = SimpleNamespace(**vars(shared))
+        legacy.Krea2ElementFramingV1Canvas = shared.CanvasControls
+        legacy.Krea2ElementFramingV1Prompt = shared.PromptControls
+        for name in ("nodes", "krea_bridge"):
+            module = sys.modules[previous.__name__ + "." + name]
+            if "krea_helpers" in vars(module):
+                stub = patch.object(module, "krea_helpers", return_value=legacy)
+                stub.start()
+                self.addCleanup(stub.stop)
         for path in sorted((ROOT / "examples").glob("*.json")):
             workflow = json.loads(path.read_text(encoding="utf-8"))
             if "nodes" not in workflow:
@@ -224,7 +225,7 @@ class ExportOptionsTests(unittest.TestCase):
                         "Krea2ElementFramingV1Canvas", "Krea2ElementFramingV1Prompt")
                     values = []
                     for node_type in node_types:
-                        cls = mapping[node_type] if node_type in mapping else shared.NODE_CLASS_MAPPINGS[node_type]
+                        cls = mapping[node_type] if node_type in mapping else getattr(legacy, node_type)
                         node = cls()
                         arguments = dict(zip(node.INPUT_TYPES()["required"], ui[node_type]["widgets_values"]))
                         values.append(node.execute(**arguments)[0])

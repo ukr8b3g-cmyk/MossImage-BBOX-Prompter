@@ -1,8 +1,10 @@
 import json
 import logging
 
+from . import canvas_controls as controls
+
 from .prompt_builder import OUTPUT_MODES, SLOTS, build_prompt, default_state, parse_state
-from .krea_bridge import ELEMENT_TYPES, build_from_krea, element_type, krea_helpers
+from .krea_bridge import ELEMENT_TYPES, build_from_krea, element_type
 
 
 class MOSSBBoxCanvasPrompt:
@@ -96,7 +98,7 @@ class MOSSFromKrea2:
 class MOSSSharedCanvas:
     @classmethod
     def INPUT_TYPES(cls):
-        inputs = krea_helpers().Krea2ElementFramingV1Canvas.INPUT_TYPES()
+        inputs = controls.CanvasControls.INPUT_TYPES()
         inputs["required"]["width"][1]["default"] = 896
         inputs["required"]["height"][1]["default"] = 1184
         inputs["required"]["preset"][1]["default"] = "Custom"
@@ -109,13 +111,13 @@ class MOSSSharedCanvas:
     DESCRIPTION = "Five-color MOSS canvas with shared drawing, presets and workflow persistence. Default 896 x 1184."
 
     def execute(self, **kwargs):
-        return krea_helpers().Krea2ElementFramingV1Canvas().execute(**kwargs)
+        return controls.CanvasControls().execute(**kwargs)
 
 
 class MOSSSharedPrompter:
     @classmethod
     def INPUT_TYPES(cls):
-        inputs = krea_helpers().Krea2ElementFramingV1Prompt.INPUT_TYPES()
+        inputs = controls.PromptControls.INPUT_TYPES()
         for slot in SLOTS:
             inputs["required"][f"{slot}_type"] = ([*ELEMENT_TYPES, "obj"], {"default": "object"})
         return inputs
@@ -124,21 +126,20 @@ class MOSSSharedPrompter:
     RETURN_NAMES = ("prompt_ui_data",)
     FUNCTION = "execute"
     CATEGORY = "conditioning/MOSS"
-    DESCRIPTION = "MOSS scene and five color prompts. Choose character, object or text for each color. Shares text controls, presets and workflow persistence."
+    DESCRIPTION = "MOSS scene and five color prompts. Choose character, object or text for each color. Includes text controls, presets and workflow persistence."
 
     def execute(self, **kwargs):
-        krea = krea_helpers()
         slots = {}
         for slot in SLOTS:
             slots[slot] = {
                 "type": element_type(kwargs.get(f"{slot}_type", "object")),
-                "prompt": krea._clean(kwargs.get(f"{slot}_prompt", "")),
-                "framing": krea._normalize_framing(kwargs.get(f"{slot}_framing", "Auto")),
-                "angle": krea._normalize_angle(kwargs.get(f"{slot}_angle", "Auto")),
+                "prompt": controls._clean(kwargs.get(f"{slot}_prompt", "")),
+                "framing": controls._normalize_framing(kwargs.get(f"{slot}_framing", "Auto")),
+                "angle": controls._normalize_angle(kwargs.get(f"{slot}_angle", "Auto")),
             }
             if slots[slot]["type"] == "text":
                 slots[slot]["literal_text"] = kwargs.get(f"{slot}_prompt", "")
-        data = krea._prompt_ui_data(kwargs.get("scene", ""), kwargs.get("background", ""), slots)
+        data = controls._prompt_ui_data(kwargs.get("scene", ""), kwargs.get("background", ""), slots)
         return (json.dumps(data, ensure_ascii=False, separators=(",", ":")),)
 
 

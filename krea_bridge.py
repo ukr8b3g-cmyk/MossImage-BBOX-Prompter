@@ -1,7 +1,8 @@
-"""Convert the installed Krea2 Canvas/Prompter outputs to MOSS layout input."""
+"""Convert compatible Canvas/Prompter wire data to MOSS layout input."""
 
 import json
-import sys
+
+from . import canvas_controls as controls
 
 from .prompt_builder import SLOTS, build_prompt, default_state
 
@@ -16,13 +17,6 @@ def element_type(value):
     return value
 
 
-def krea_helpers():
-    registry = sys.modules.get("nodes")
-    source = registry.NODE_CLASS_MAPPINGS.get("Krea2ElementFramingV1Canvas") if registry else None
-    if source is None:
-        raise RuntimeError("MOSS BBOX requires the installed Krea2-BBOX-Prompter shared UI package.")
-    return sys.modules[source.__module__]
-
 
 def build_from_krea(framing_data, prompt_ui_data, auto_position_hint=False,
                     output_mode="hybrid", text_mode="legacy",
@@ -34,10 +28,9 @@ def build_from_krea(framing_data, prompt_ui_data, auto_position_hint=False,
     framing = json.loads(framing_data)
     prompts = json.loads(prompt_ui_data)
     if framing.get("version") != "krea2_element_framing_v1":
-        raise ValueError("Connect the Krea2 Element Framing V1 Canvas framing_data output.")
+        raise ValueError("Connect the MOSS BBOX Canvas framing_data output.")
     if prompts.get("version") != "krea2_element_prompt_ui_v1":
-        raise ValueError("Connect the Krea2 Element Framing V1 Prompter prompt_ui_data output.")
-    krea = krea_helpers()
+        raise ValueError("Connect the MOSS BBOX Prompter prompt_ui_data output.")
     state = default_state()
     state["width"], state["height"] = framing["width"], framing["height"]
     summary = [prompts.get("scene", ""), prompts.get("background", "")]
@@ -53,7 +46,7 @@ def build_from_krea(framing_data, prompt_ui_data, auto_position_hint=False,
     for slot in SLOTS:
         data = prompts.get("slots", {}).get(slot, {})
         kind = element_type(data.get("type", "object"))
-        content = krea._clean(data.get("prompt", ""))
+        content = controls._clean(data.get("prompt", ""))
         if kind == "text":
             if text_mode == "literal":
                 text = data.get("literal_text", data.get("prompt", ""))
@@ -61,12 +54,12 @@ def build_from_krea(framing_data, prompt_ui_data, auto_position_hint=False,
                     raise ValueError(f"{slot} literal text must be a string")
                 content, caption = text, text_style
             else:
-                content = krea._strip_text_marker(content)
-                text, caption = krea._split_visible_text_desc(content)
+                content = controls._strip_text_marker(content)
+                text, caption = controls._split_visible_text_desc(content)
         else:
             text = ""
-            caption = krea._append_framing_hint(content, data.get("framing", "Auto"))
-            caption = krea._append_angle_hint(caption, data.get("angle", "Auto"))
+            caption = controls._append_framing_hint(content, data.get("framing", "Auto"))
+            caption = controls._append_angle_hint(caption, data.get("angle", "Auto"))
         # Do not invent descriptions for empty, unused color cards.
         state["slots"][slot] = caption if content or kind != "text" else ""
         metadata[slot] = (kind, text)

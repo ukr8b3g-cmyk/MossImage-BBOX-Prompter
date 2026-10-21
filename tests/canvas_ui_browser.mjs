@@ -1,4 +1,4 @@
-// Actual shared Canvas renderer in a CPU-only fixture; never contacts ComfyUI.
+// Bundled standalone Canvas renderer in a CPU-only fixture; never contacts ComfyUI.
 import assert from "node:assert/strict";
 import { createServer } from "node:http";
 import { readFile, mkdir, writeFile } from "node:fs/promises";
@@ -12,13 +12,17 @@ const moduleName = process.env.PLAYWRIGHT_MODULE ? pathToFileURL(process.env.PLA
 const { chromium } = await import(moduleName);
 const fixture = `<!DOCTYPE html><meta charset="utf-8"><title>MOSS compact Canvas fixture</title>
 <style>body{background:#111;color:#ddd;font:14px sans-serif;margin:16px}#nodes{display:flex;gap:24px;align-items:start}.host{width:830px;height:980px;flex:none}.host h3{margin:0 0 8px}</style>
-<h2>Actual shared Canvas renderer — isolated CPU comparison</h2><canvas id="graph-canvas" hidden></canvas><main id="nodes"></main>
+<h2>Bundled standalone Canvas renderer — isolated CPU comparison</h2><canvas id="graph-canvas" hidden></canvas><main id="nodes"></main>
 <script type="module">
 const extensions=[];
 const graph={_nodes:[],extra:{},links:new Map(),getNodeById(id){return this._nodes.find(n=>n.id===id)},setDirtyCanvas(){}};
 const app={graph,rootGraph:graph,canvas:{canvas:document.querySelector('#graph-canvas'),ds:{scale:1}},registerExtension(e){extensions.push(e)},queuePrompt(){},graphToPrompt(){}};
 window.comfyAPI={app:{app}};
-await import('/shared.js');await import('/web/moss_shared_ui.js');
+${process.env.KREA2_UI_SOURCE ? "await import('/external-krea.js');" : ""}
+await import('/web/moss_shared_ui.js');const {installControls}=await import('/web/moss_controls.mjs');
+const legacyPresetKey='krea2_element_framing_v1_custom_latent_presets';
+window.legacyPresets=JSON.stringify([{label:'User:832x1216',width:832,height:1216}]);
+localStorage.setItem(legacyPresetKey,window.legacyPresets);
 const names=['width','height','preset','layout_data','camera_data','grid_mode','ui_language','camera_set_data','canvas_preset_data'];
 const defaults=[896,1184,'Custom',JSON.stringify({boxes:[{id:'one',slot:'red',x1:64,y1:240,x2:520,y2:1120}],activeSlot:'red',hideBoxes:false,drawMode:false}), '{}','Thirds','English','{"sets":[],"selected":""}','{"sets":[],"selected":""}'];
 let sequence=0;
@@ -31,17 +35,24 @@ class Node{
  configure(info){this.properties=structuredClone(info.properties||{});info.widgets_values?.forEach((value,i)=>{if(this.widgets[i])this.widgets[i].value=value});this.onConfigure(info)}
  save(){const data={widgets_values:this.widgets.slice(0,names.length).map(w=>w.value),properties:structuredClone(this.properties),size:this.size.slice()};this.onSerialize?.(data);return data}
 }
-class Shared extends Node{constructor(){super('Krea2ElementFramingV1Canvas')}}
+class Shared extends Node{constructor(){super('MOSSSharedCanvas')}}
 class Moss extends Node{constructor(){super('MOSSSharedCanvas')}}
-for(const [type,name]of [[Shared,'Krea2ElementFramingV1Canvas'],[Moss,'MOSSSharedCanvas']])for(const extension of extensions)await extension.beforeRegisterNodeDef?.(type,{name});
+installControls(Shared,{name:'MOSSSharedCanvas'});
+for(const e of extensions)await e.beforeRegisterNodeDef?.(Moss,{name:'MOSSSharedCanvas'});
 window.original=new Shared();window.moss=new Moss();window.makeCopy=data=>{const node=new Moss();node.configure(data);return node};
+window.makeExternal=()=>{
+ class External extends Node{constructor(){super('Krea2ElementFramingV1Canvas')}}
+ for(const e of extensions)e.beforeRegisterNodeDef?.(External,{name:'Krea2ElementFramingV1Canvas'});
+ window.external=new External();return true;
+};
 window.ready=true;
 </script>`;
 const server = createServer(async (request, response) => {
   try {
     let content;
     if (request.url === "/") content = fixture;
-    else if (request.url === "/shared.js") content = await readFile(resolve(root, "../Krea2-BBOX-Prompter/web/krea2_element_framing_v1.js"));
+    else if (request.url === "/external-krea.js" && process.env.KREA2_UI_SOURCE) content = await readFile(process.env.KREA2_UI_SOURCE);
+    else if (request.url === "/web/moss_controls.mjs") content = await readFile(resolve(root, "web/moss_controls.mjs"));
     else if (request.url === "/web/moss_shared_ui.js") content = await readFile(resolve(root, "web/moss_shared_ui.js"));
     else if (request.url === "/scripts/app.js") content = "export const app=window.comfyAPI.app.app;";
     else { response.writeHead(404); response.end(); return; }
@@ -61,21 +72,22 @@ try {
   await page.waitForFunction(()=>window.ready);
   const metrics=()=>page.evaluate(()=>{
     const box=e=>{const r=e.getBoundingClientRect();return{x:r.x,y:r.y,width:r.width,height:r.height}};
-    const footer=window.moss.host.querySelector('.k2cf-panels');
-    return {oldHeight:window.original.host.querySelector('.k2cf-panels').getBoundingClientRect().height,
+    const footer=window.moss.host.querySelector('.moss-k2cf-panels');
+    return {oldHeight:window.original.host.querySelector('.moss-k2cf-panels').getBoundingClientRect().height,
       height:footer.getBoundingClientRect().height,panels:[...footer.children].map(box),
       controls:[footer.querySelector('.moss-size-preset select'),...footer.querySelectorAll('.moss-size-dimensions input')].map(box),
-      overflow:[...footer.querySelectorAll('.k2cf-panel')].some(e=>e.scrollWidth>e.clientWidth+1)};
+      overflow:[...footer.querySelectorAll('.moss-k2cf-panel')].some(e=>e.scrollWidth>e.clientWidth+1)};
   });
   const initial=await metrics();
+  assert.equal(await page.locator('.host').nth(1).locator('option[value="User:832x1216"]').count(),1);
   assert.equal(initial.panels.length,3);
   assert(initial.height<=initial.oldHeight*.75,JSON.stringify(initial));
   assert(initial.panels.every(p=>Math.abs(p.height-initial.panels[0].height)<1&&Math.abs(p.y-initial.panels[0].y)<1));
   assert(initial.controls.every(p=>Math.abs(p.y-initial.controls[0].y)<1));
   assert.equal(initial.overflow,false);
-  const originalFooter=page.locator('.host').nth(0).locator('.k2cf-panels');
+  const originalFooter=page.locator('.host').nth(0).locator('.moss-k2cf-panels');
   const moss=page.locator('.host').nth(1);
-  const footer=moss.locator('.k2cf-panels');
+  const footer=moss.locator('.moss-k2cf-panels');
   await originalFooter.screenshot({path:resolve(artifacts,'canvas-footer-before.jpg'),type:'jpeg',quality:85});
   await footer.screenshot({path:resolve(artifacts,'canvas-footer-after.jpg'),type:'jpeg',quality:85});
   await page.screenshot({path:resolve(artifacts,'canvas-comparison.jpg'),type:'jpeg',quality:80});
@@ -90,20 +102,20 @@ try {
   assert.equal((await values()).preset,'User:896x1184');
   await moss.getByRole('button',{name:'Delete Custom',exact:true}).click();
   assert.equal((await values()).preset,'Custom');
-  await moss.locator('.k2cf-camera-cell select').nth(0).selectOption('200');
-  await moss.locator('.k2cf-camera-cell select').nth(3).selectOption('50mm');
+  await moss.locator('.moss-k2cf-camera-cell select').nth(0).selectOption('200');
+  await moss.locator('.moss-k2cf-camera-cell select').nth(3).selectOption('50mm');
   assert.equal(JSON.parse((await values()).camera_data).iso,'200');
   assert.equal(JSON.parse((await values()).camera_data).focal_length,'50mm');
   page.once('dialog',dialog=>dialog.accept('Compact footer fixture'));
   await moss.getByRole('button',{name:'Save Preset',exact:true}).click();
-  await moss.locator('.k2cf-camera-cell select').nth(0).selectOption('800');
+  await moss.locator('.moss-k2cf-camera-cell select').nth(0).selectOption('800');
   await moss.getByRole('button',{name:'Load',exact:true}).click();
   assert.equal(JSON.parse((await values()).camera_data).iso,'200');
   const saved=await page.evaluate(()=>window.moss.save());
   await page.evaluate(data=>{window.copy=window.makeCopy(data)},saved);
   await page.waitForFunction(()=>window.copy?.host.querySelector('input[type=number]')?.value==='896');
-  assert.equal(await page.locator('.host').nth(2).locator('.k2cf-panels>.k2cf-panel').count(),3);
-  assert.equal(await page.locator('.host').nth(2).locator('.k2cf-camera-cell select').nth(0).inputValue(),'200');
+  assert.equal(await page.locator('.host').nth(2).locator('.moss-k2cf-panels>.moss-k2cf-panel').count(),3);
+  assert.equal(await page.locator('.host').nth(2).locator('.moss-k2cf-camera-cell select').nth(0).inputValue(),'200');
 
   const responsive=[];
   for(const width of [940,830,640,430]){
@@ -121,14 +133,21 @@ try {
     window.moss.graph.links.set(99,{origin_id:900,origin_slot:0});
     window.moss.inputs=[{name:'width_override',link:99}];window.moss.onConnectionsChange();
   });
-  await moss.locator('.k2cf-external-badge').waitFor({state:'visible'});
+  await moss.locator('.moss-k2cf-external-badge').waitFor({state:'visible'});
   assert.equal(await moss.locator('.moss-size-dimensions input').nth(0).inputValue(),'1280');
   const external=await metrics();assert.equal(external.overflow,false);
   assert(external.panels.every(p=>Math.abs(p.height-external.panels[0].height)<1));
-  assert.equal(await originalFooter.locator(':scope>.k2cf-panel').count(),2);
+  assert.equal(await originalFooter.locator(':scope>.moss-k2cf-panel').count(),2);
   assert.equal(await originalFooter.locator('.moss-size-panel').count(),0);
+  if(process.env.KREA2_UI_SOURCE){
+    await page.evaluate(()=>window.makeExternal());
+    assert.equal(await page.evaluate(()=>window.external.host.querySelectorAll('[class^="moss-k2cf-"]').length),0);
+    assert.equal(await page.evaluate(()=>window.external.host.querySelectorAll('[class^="k2cf-"]').length>0),true);
+  }
+  assert.equal(await page.evaluate(()=>localStorage.getItem('krea2_element_framing_v1_custom_latent_presets')),await page.evaluate(()=>window.legacyPresets));
+  assert(await page.evaluate(()=>localStorage.getItem('moss_bbox_custom_latent_presets')));
   assert.deepEqual(errors,[]);
-  const result={before_height:initial.oldHeight,after_height:initial.height,reduction_percent:Math.round(100*(1-initial.height/initial.oldHeight)),equal_panels:true,horizontal_latent_controls:true,size_presets:true,camera_values:true,canvas_preset_roundtrip:true,clone_restores:true,external_override_status:true,responsive,original_Krea_unchanged:true,page_errors:errors};
+  const result={standalone:!process.env.KREA2_UI_SOURCE,coexistence:!!process.env.KREA2_UI_SOURCE,legacy_presets_read:true,Krea_storage_unchanged:true,before_height:initial.oldHeight,after_height:initial.height,reduction_percent:Math.round(100*(1-initial.height/initial.oldHeight)),equal_panels:true,horizontal_latent_controls:true,size_presets:true,camera_values:true,canvas_preset_roundtrip:true,clone_restores:true,external_override_status:true,responsive,raw_controls_unchanged:true,page_errors:errors};
   await writeFile(resolve(artifacts,'canvas-footer-checks.json'),JSON.stringify(result,null,2));
   console.log(JSON.stringify(result));
 } finally {

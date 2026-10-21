@@ -4,9 +4,11 @@
       "author": "ukr8b3g-cmyk",
       "title": "MOSS BBOX Prompter",
       "reference": "https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter",
-      "files": ["https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter"],
+      "files": [
+        "https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter"
+      ],
       "install_type": "git-clone",
-      "description": "Manual five-color BBOX layout and Character/Object/Text prompt export for MOSS-Image. Reuses the Krea2 BBOX Prompter UI and supports traditional ComfyUI. Requires Krea2 BBOX Prompter Suite to be installed. MIT licensed."
+      "description": "Standalone five-color BBOX Canvas and Character/Object/Text prompt export for MOSS-Image. Includes the UI adapted from Krea2 BBOX Prompter Suite; no separate Krea2 installation required. Supports traditional ComfyUI. MIT licensed."
     }
   ]
 }

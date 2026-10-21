@@ -1,10 +1,13 @@
 # Attribution
 
-The current MOSS Canvas and Prompter delegate to the installed
-Krea2-BBOX-Prompter Canvas and Prompter implementations. The MOSS export adapter also calls the installed
-Krea2 text/framing/angle helpers; no Krea2 UI source is copied or modified.
-This integration requires that installed package. The notes below concern
-the earlier custom MOSS interface retained for existing workflows.
+The MOSS Canvas and Prompter include an adapted subset of the Krea2 BBOX
+Prompter Suite v1.0.2 Canvas/Prompter implementation, copyright 2026
+ukr8b3g-cmyk, MIT License. The corresponding code is in `canvas_controls.py`
+and `web/moss_controls.mjs`. It retains the input/state formats for saved
+workflows, with MOSS-owned CSS, browser hooks and preset writes. Prompt Effect,
+Background Effect, their preset catalogs, server APIs and debug tools are not
+included. Krea2 does not need to be installed separately and its files are not
+modified. The MIT copyright and permission notice are retained in `LICENSE`.
 
 The five-color Canvas interaction and portions of the drawing, hit testing,
 pointer movement and four-corner resize implementation are adapted from
