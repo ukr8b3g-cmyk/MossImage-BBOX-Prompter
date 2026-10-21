@@ -57,6 +57,7 @@ const server = createServer(async (request, response) => {
     if (request.url === "/") content = fixture;
     else if (request.url === "/external-krea.js" && process.env.KREA2_UI_SOURCE) content = await readFile(process.env.KREA2_UI_SOURCE);
     else if (request.url === "/web/moss_controls.mjs") content = await readFile(resolve(root, "web/moss_controls.mjs"));
+    else if (request.url === "/web/canvas_editing.mjs") content = await readFile(resolve(root, "web/canvas_editing.mjs"));
     else if (request.url === "/web/moss_shared_ui.js") content = await readFile(resolve(root, "web/moss_shared_ui.js"));
     else if (request.url === "/scripts/app.js") content = "export const app=window.comfyAPI.app.app;";
     else { response.writeHead(404); response.end(); return; }

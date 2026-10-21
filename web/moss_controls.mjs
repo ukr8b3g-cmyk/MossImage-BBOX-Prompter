@@ -2,6 +2,7 @@
 // Copyright (c) 2026 ukr8b3g-cmyk. MIT; see LICENSE and NOTICE.md.
 
 import { app } from "../../scripts/app.js";
+import { createCanvasHistory, nextOverlappingBox } from "./canvas_editing.mjs";
 
 const CANVAS_NODE = "MOSSSharedCanvas";
 
@@ -1394,6 +1395,11 @@ function setupCanvasNode(node) {
   const state = { activeSlot: "red", boxes: [], selectedId: null, drawing: null, moving: null, resizing: null, hideBoxes: false, drawMode: false };
   const externalPreviewSize = { width: null, height: null };
   const controls = {};
+  const history = createCanvasHistory();
+  let historyState = null;
+  let historySuspended = 0;
+  let applyingHistory = false;
+  let pointerStart = null;
   try { controls.cameraSetData = JSON.parse(widgets.camera_set_data?.value || readPresetStorage(CAMERA_SET_KEY) || '{"sets":[],"selected":""}'); } catch (_) { controls.cameraSetData = {sets:[], selected:""}; }
   if (!Array.isArray(controls.cameraSetData.sets)) controls.cameraSetData.sets = [];
   try { controls.canvasPresetData = JSON.parse(widgets.canvas_preset_data?.value || readPresetStorage(CANVAS_PRESET_KEY) || '{"sets":[],"selected":""}'); } catch (_) { controls.canvasPresetData = {sets:[], selected:""}; }
@@ -1473,6 +1479,12 @@ function setupCanvasNode(node) {
     };
     k2cfWriteLocalState(node, "canvas", node.properties.k2cfCanvasState);
     node.__k2cfConfiguredWidgetValues = null;
+    if (historyState && !historySuspended && !applyingHistory && !state.drawing && !state.moving && !state.resizing) {
+      const next = snapshotCanvasEdit();
+      history.record(historyState, next);
+      historyState = next;
+      updateHistoryButtons();
+    }
     try { app.graph?.setDirtyCanvas?.(true, true); } catch (_) {}
   }
 
@@ -1495,6 +1507,12 @@ function setupCanvasNode(node) {
   tools.className = "moss-k2cf-tools";
   const showBtn = button("◉ Show Boxes", "Show or hide all D-boxes");
   const drawBtn = button("▭ Draw Box", "Draw D-box");
+  const undoBtn = button("↶", "Undo Canvas edit (Ctrl/Cmd+Z)");
+  const redoBtn = button("↷", "Redo Canvas edit (Ctrl/Cmd+Shift+Z or Ctrl+Y)");
+  undoBtn.setAttribute("aria-label", "Undo Canvas edit");
+  redoBtn.setAttribute("aria-label", "Redo Canvas edit");
+  undoBtn.addEventListener("click", () => restoreHistory("undo"));
+  redoBtn.addEventListener("click", () => restoreHistory("redo"));
   drawBtn.addEventListener("click", () => { state.drawMode = true; drawBtn.classList.add("primary"); sync(); });
   const resetCanvasBtn = button("Reset Canvas", "Reset D-boxes, latent size, guide, and camera settings. Prompts are not changed.");
   function applyCanvasLabels() {
@@ -1528,6 +1546,7 @@ function setupCanvasNode(node) {
     sync();
   });
   resetCanvasBtn.addEventListener("click", () => {
+    historySuspended++;
     state.boxes = [];
     state.selectedId = null;
     setSize(DEFAULT_WIDTH, DEFAULT_HEIGHT, DEFAULT_PRESET);
@@ -1550,9 +1569,10 @@ function setupCanvasNode(node) {
     applyCanvasLabels();
     updateGuide();
     writeBoxes();
+    historySuspended--;
     sync();
   });
-  tools.prepend(showBtn, drawBtn, resetCanvasBtn);
+  tools.prepend(showBtn, drawBtn, resetCanvasBtn, undoBtn, redoBtn);
   const langSelect = document.createElement("select");
   langSelect.className = "moss-k2cf-select";
   langSelect.title = "Choose Canvas UI language. Auto keeps English until a language is selected.";
@@ -1591,6 +1611,16 @@ function setupCanvasNode(node) {
   guide.className = "moss-k2cf-guide thirds";
   const overlay = document.createElement("canvas");
   overlay.className = "moss-k2cf-overlay";
+  overlay.tabIndex = 0;
+  overlay.title = "Alt+click to cycle overlapping boxes; then drag the selected box. Ctrl/Cmd+Z: undo.";
+  // ComfyUI's early capture listener reserves editable targets for local history.
+  // These drawing controls own keyboard input, but never accept text insertion.
+  for (const target of [overlay, undoBtn, redoBtn]) {
+    target.contentEditable = "true";
+    target.spellcheck = false;
+    target.addEventListener("beforeinput", ev => ev.preventDefault());
+    target.addEventListener("paste", ev => ev.preventDefault());
+  }
   screen.append(bg, guide, overlay);
   monitor.append(screen);
   wrap.append(monitor);
@@ -1812,7 +1842,10 @@ function setupCanvasNode(node) {
     if (previewChanged) {
       remapBoxesForCurrentCanvas();
       resizeCanvases();
+      historySuspended++;
       writeBoxes();
+      historySuspended--;
+      if (historyState) historyState = snapshotCanvasEdit();
     }
   }
   sizePanel.append(
@@ -1866,6 +1899,7 @@ function setupCanvasNode(node) {
   }
   function applyCanvasPreset(set) {
     if (!set) return;
+    historySuspended++;
     state.boxes = Array.isArray(set.boxes) ? JSON.parse(JSON.stringify(set.boxes)) : [];
     state.activeSlot = set.activeSlot || "red";
     state.hideBoxes = !!set.hideBoxes;
@@ -1883,7 +1917,40 @@ function setupCanvasNode(node) {
     updateGuide();
     applyCanvasLabels();
     writeBoxes();
+    historySuspended--;
     sync();
+  }
+  function snapshotCanvasEdit() {
+    return { ...snapshotCanvasPreset(""), width: Number(widgets.width.value), height: Number(widgets.height.value), canvasSize: currentSize(), selectedId: state.selectedId,
+      canvasPresetSelected: controls.canvasPresetData.selected || "" };
+  }
+  function updateHistoryButtons() {
+    undoBtn.disabled = !history.canUndo;
+    redoBtn.disabled = !history.canRedo;
+  }
+  function restoreCanvasEdit(saved) {
+    applyingHistory = true;
+    try {
+      state.drawing = state.moving = state.resizing = null;
+      pointerStart = null;
+      applyCanvasPreset(saved);
+      const [w, h] = currentSize();
+      if (saved.canvasSize[0] === w && saved.canvasSize[1] === h) state.boxes = structuredClone(saved.boxes);
+      state.selectedId = saved.selectedId;
+      controls.canvasPresetData.selected = saved.canvasPresetSelected;
+      refreshCanvasPresetSelect();
+      tools.querySelectorAll(".moss-k2cf-sw").forEach(sw => sw.classList.toggle("active", sw.dataset.slot === state.activeSlot));
+      writeBoxes();
+      historyState = snapshotCanvasEdit();
+    } finally {
+      applyingHistory = false;
+      updateHistoryButtons();
+    }
+  }
+  function restoreHistory(direction) {
+    if (pointerStart) return;
+    const saved = history[direction](snapshotCanvasEdit());
+    if (saved) restoreCanvasEdit(saved);
   }
   canvasPresetSelect.addEventListener("change", () => {
     controls.canvasPresetData.selected = canvasPresetSelect.value || "";
@@ -2163,8 +2230,11 @@ function setupCanvasNode(node) {
     sync(); drawOverlay();
   }
   function hitTest(p) {
-    for (let i=state.boxes.length-1;i>=0;i--) {
-      const b=state.boxes[i], [x1,y1,x2,y2]=normBox(b);
+    const ordered = state.boxes.slice().reverse();
+    const selected = ordered.findIndex(b => b.id === state.selectedId);
+    if (selected > 0) ordered.unshift(ordered.splice(selected, 1)[0]);
+    for (const b of ordered) {
+      const [x1,y1,x2,y2]=normBox(b);
       if (Math.abs(p.x-x2)<=24 && Math.abs(p.y-y1)<=24) return { box:b, handle:"delete" };
       const near=14, handles={nw:[x1,y1],ne:[x2,y1],sw:[x1,y2],se:[x2,y2]};
       for (const [handle,[hx,hy]] of Object.entries(handles)) if (Math.abs(p.x-hx)<=near && Math.abs(p.y-hy)<=near) return {box:b,handle};
@@ -2173,10 +2243,20 @@ function setupCanvasNode(node) {
     return null;
   }
   overlay.addEventListener("pointerdown", (ev)=>{
-    if(ev.button!==0)return; ev.preventDefault(); ev.stopPropagation(); overlay.setPointerCapture(ev.pointerId);
-    const p=point(ev), hit=hitTest(p);
+    if(ev.button!==0 || pointerStart)return;
+    ev.preventDefault(); ev.stopPropagation(); overlay.focus({preventScroll:true});
+    const p=point(ev);
+    if(ev.altKey){
+      const selected = nextOverlappingBox(state.boxes, p, state.selectedId);
+      if(selected) state.selectedId=selected.id;
+      drawOverlay(); return;
+    }
+    overlay.setPointerCapture(ev.pointerId);
+    pointerStart=snapshotCanvasEdit();
+    historyState=pointerStart;
+    const hit=hitTest(p);
     if(!state.drawMode && hit){
-      if(hit.handle==="delete"){ state.boxes=state.boxes.filter((b)=>b.id!==hit.box.id); state.selectedId=null; writeBoxes(); return; }
+      if(hit.handle==="delete"){ state.boxes=state.boxes.filter((b)=>b.id!==hit.box.id); state.selectedId=null; writeBoxes(); pointerStart=null; return; }
       state.selectedId=hit.box.id;
       if(hit.handle==="move") state.moving={id:hit.box.id,x:p.x,y:p.y,box:{...hit.box}};
       else state.resizing={id:hit.box.id,handle:hit.handle};
@@ -2193,16 +2273,33 @@ function setupCanvasNode(node) {
   overlay.addEventListener("pointerup", ()=>{
     if(state.drawing){ const [x1,y1,x2,y2]=normBox(state.drawing); if(Math.abs(x2-x1)>8&&Math.abs(y2-y1)>8){ state.drawing.x1=x1;state.drawing.y1=y1;state.drawing.x2=x2;state.drawing.y2=y2;state.selectedId=state.drawing.id;state.boxes.push(state.drawing); state.drawMode=false; drawBtn.classList.remove("primary"); } state.drawing=null; writeBoxes(); }
     if(state.moving||state.resizing){ state.moving=null;state.resizing=null;writeBoxes(); }
+    pointerStart=null;
   });
-  document.addEventListener("keydown", (ev)=>{
-    if(ev.key!=="Delete"&&ev.key!=="Backspace")return;
+  function cancelPointerEdit() {
+    if (pointerStart) restoreCanvasEdit(pointerStart);
+  }
+  overlay.addEventListener("pointercancel", cancelPointerEdit);
+  overlay.addEventListener("lostpointercapture", cancelPointerEdit);
+  function onCanvasKeyDown(ev) {
+    if (!wrap.isConnected || !wrap.contains(ev.target)) return;
     const tag=ev.target?.tagName?.toLowerCase();
-    if(tag==="input"||tag==="textarea"||ev.target?.isContentEditable)return;
-    if(state.selectedId){ state.boxes=state.boxes.filter((b)=>b.id!==state.selectedId); state.selectedId=null; writeBoxes(); ev.preventDefault(); ev.stopPropagation(); }
-  }, true);
+    if(tag==="input"||tag==="textarea"||tag==="select")return;
+    if(ev.target?.isContentEditable && ![overlay, undoBtn, redoBtn].includes(ev.target))return;
+    const key=ev.key.toLowerCase();
+    if ((ev.ctrlKey || ev.metaKey) && !ev.altKey && (key==="z" || key==="y")) {
+      restoreHistory(key==="y" || ev.shiftKey ? "redo" : "undo");
+      ev.preventDefault(); ev.stopImmediatePropagation(); return;
+    }
+    if (pointerStart || (ev.key!=="Delete" && ev.key!=="Backspace")) return;
+    if(state.selectedId){ state.boxes=state.boxes.filter((b)=>b.id!==state.selectedId); state.selectedId=null; writeBoxes(); ev.preventDefault(); ev.stopImmediatePropagation(); }
+  }
+  window.addEventListener("keydown", onCanvasKeyDown, true);
 
   function hydrateCanvasFromWidgets() {
     isHydrating = true;
+    pointerStart = null;
+    state.drawing = state.moving = state.resizing = null;
+    state.selectedId = null;
     const savedState = k2cfBestSavedState(node, "canvas");
     if (savedState) applyConfiguredValuesToWidgets(node, CANVAS_WIDGETS, savedState.widgets_values);
     try {
@@ -2257,6 +2354,9 @@ function setupCanvasNode(node) {
       drawOverlay();
     } finally {
       isHydrating = false;
+      history.clear();
+      historyState = snapshotCanvasEdit();
+      updateHistoryButtons();
       requestAnimationFrame(updateExternalSizeStatus);
     }
   }
@@ -2296,6 +2396,8 @@ function setupCanvasNode(node) {
 
   const oldResize=node.onResize; node.onResize=function(){ const r = oldResize?.apply(this,arguments); scheduleCanvasRefresh(false); return r; };
   const oldRemoved=node.onRemoved; node.onRemoved=function(){
+    window.removeEventListener("keydown", onCanvasKeyDown, true);
+    history.clear();
     clearInterval(externalPreviewTimer);
     canvasResizeObserver?.disconnect();
     document.removeEventListener("visibilitychange", refreshAfterVisibility);

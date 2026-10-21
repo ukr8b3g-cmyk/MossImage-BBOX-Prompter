@@ -1,6 +1,63 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
+import { createCanvasHistory, nextOverlappingBox } from "../web/canvas_editing.mjs";
+
+const canvasSnapshot = x => ({ width: 896, height: 1184, boxes: [{ id: "a", slot: "red", x1: x, y1: 40, x2: x + 100, y2: 240 }] });
+
+test("Canvas undo/redo keeps independent snapshots and clears redo only on an edit", () => {
+  const history = createCanvasHistory();
+  const before = canvasSnapshot(40), after = canvasSnapshot(80);
+  history.record(before, after);
+  before.boxes[0].x1 = 900;
+  assert.deepEqual(history.undo(after), canvasSnapshot(40));
+  after.boxes[0].x1 = 700;
+  assert.deepEqual(history.redo(canvasSnapshot(40)), canvasSnapshot(80));
+  history.undo(canvasSnapshot(80));
+  assert.equal(history.record(canvasSnapshot(40), { ...canvasSnapshot(40), selectedId: "a", activeSlot: "blue", drawMode: true }), false);
+  assert.equal(history.canRedo, true);
+  history.record(canvasSnapshot(40), canvasSnapshot(100));
+  assert.equal(history.canRedo, false);
+  assert.equal(history.redo(canvasSnapshot(100)), null);
+});
+
+test("Canvas history ignores derived box metadata but records size, reset and camera edits", () => {
+  const history = createCanvasHistory();
+  const before = canvasSnapshot(40), derived = structuredClone(before);
+  Object.assign(derived.boxes[0], { nx1: 40 / 896, bbox: [40, 40, 140, 240], z: 0, position_hint: "left" });
+  assert.equal(history.record(before, derived), false);
+  for (const after of [{ ...before, width: 1024 }, { ...before, boxes: [] }, { ...before, camera: { iso: "200" } }]) {
+    assert.equal(history.record(before, after), true);
+    assert.deepEqual(history.undo(after), before);
+  }
+});
+
+test("Canvas history is bounded, clears on restore and is isolated per node", () => {
+  const first = createCanvasHistory(2), second = createCanvasHistory();
+  for (let x = 0; x < 3; x++) first.record(canvasSnapshot(x), canvasSnapshot(x + 1));
+  assert.deepEqual(first.undo(canvasSnapshot(3)), canvasSnapshot(2));
+  assert.deepEqual(first.undo(canvasSnapshot(2)), canvasSnapshot(1));
+  assert.equal(first.undo(canvasSnapshot(1)), null);
+  assert.equal(second.canUndo, false);
+  first.clear();
+  assert.equal(first.canUndo, false);
+  assert.equal(first.canRedo, false);
+});
+
+test("Alt selection cycles overlapping boxes without reordering or changing coordinates", () => {
+  const boxes = ["red", "blue", "green"].map(id => ({ id, x1: 40, y1: 40, x2: 200, y2: 240 }));
+  boxes.push({ id: "other", x1: 300, y1: 300, x2: 400, y2: 400 });
+  const before = structuredClone(boxes), p = { x: 100, y: 100 };
+  let id = null;
+  for (const expected of ["green", "blue", "red", "green"]) {
+    id = nextOverlappingBox(boxes, p, id)?.id;
+    assert.equal(id, expected);
+  }
+  assert.equal(nextOverlappingBox(boxes, { x: 500, y: 500 }, id), null);
+  assert.equal(nextOverlappingBox(boxes, { x: 350, y: 350 }, "other").id, "other");
+  assert.equal(nextOverlappingBox([{ id: "reversed", x1: 200, y1: 240, x2: 40, y2: 40 }], p, null).id, "reversed");
+  assert.deepEqual(boxes, before);
+});
 
 const source = await readFile(new URL("../web/moss_shared_ui.js", import.meta.url), "utf8");
 let extension;

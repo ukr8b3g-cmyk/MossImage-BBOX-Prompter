@@ -1,4 +1,43 @@
-# Validation record — updated 2026-10-21
+# Validation record — updated 2026-10-22
+
+## Canvas Undo/Redo and overlap selection — v0.1.4, 2026-10-22
+
+Based on v0.1.3 (`ef14d28d4e54069e61fcbeef3b62f1b1fe6ea4a0`).
+The Canvas has a bounded, per-instance editing history and Alt+click overlap
+selection. History uses the existing Canvas preset/restore machinery and is
+never serialized into a workflow. Selecting a covered box preserves item order;
+the next normal drag moves that selected box. Node IDs, sockets, saved widget
+order, Python generation code and both bundled workflow JSON files are unchanged.
+
+Local regression results:
+
+- **38 Python tests passed, no skips**, including byte-for-byte comparison of
+  both saved workflows' export results against the pre-change source.
+- **13 JavaScript unit tests passed, no skips**; browser modules pass syntax checks.
+- All three isolated browser fixtures pass. Canvas scenarios cover draw/move/
+  resize/delete/reset undo/redo, one history step per drag, no-op clicks, redo
+  invalidation, resolution restoration, external dimension overrides, input and
+  multiple-node isolation, pointer cancellation, reconfiguration during a drag,
+  and listener cleanup. The footer remains **93 CSS px** at an 830px node width.
+- An early capture-phase graph-history observer is included in the Canvas
+  fixture. It reproduces ComfyUI's shortcut ordering: Canvas keyboard controls
+  reserve local editing focus, block text insertion, and do not dispatch a
+  second graph Undo. This regression was added after reproducing the conflict
+  in the real frontend.
+
+Actual ComfyUI_test frontend checks also passed for **MOSS_BBOX_Standard.json**
+and **MOSS_BBOX_DMD.json**. Each unmodified file was loaded in a separate workflow
+tab in an isolated Chromium session connected to the existing service. Real
+pointer/keyboard events verified creation with button Undo/Redo, Alt selection
+and movement of the covered box, Ctrl+Z/Ctrl+Y, deletion and restoration. Other
+boxes retained their coordinates/order, and the original three-box layout was
+restored at the end. There were **zero page errors and zero prompt requests**;
+the queue was empty before and after. These are actual ComfyUI UI checks, distinct
+from the fixture tests, and are **not GPU-generation or image-quality tests**.
+
+The owned test browsers and fixture servers were closed. Existing user browser
+tabs and the running ComfyUI service were not restarted. Validation was completed
+before publication. Version 0.1.4 packages this change for the Registry.
 
 ## Standalone implementation — v0.1.2, 2026-10-21
 

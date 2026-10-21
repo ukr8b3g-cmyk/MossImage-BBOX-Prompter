@@ -18,6 +18,14 @@ const extensions=[];
 const graph={_nodes:[],extra:{},links:new Map(),getNodeById(id){return this._nodes.find(n=>n.id===id)},setDirtyCanvas(){}};
 const app={graph,rootGraph:graph,canvas:{canvas:document.querySelector('#graph-canvas'),ds:{scale:1}},registerExtension(e){extensions.push(e)},queuePrompt(){},graphToPrompt(){}};
 window.comfyAPI={app:{app}};
+// ComfyUI registers this capture-phase shortcut observer before custom nodes.
+window.graphHistoryKeys=0;
+window.addEventListener('keydown',event=>{
+  const el=document.activeElement;
+  if(el?.tagName==='INPUT'||el?.tagName==='TEXTAREA'||el?.isContentEditable)return;
+  if((event.ctrlKey||event.metaKey)&&['z','y'].includes(event.key.toLowerCase()))
+    requestAnimationFrame(()=>window.graphHistoryKeys++);
+},true);
 ${process.env.KREA2_UI_SOURCE ? "await import('/external-krea.js');" : ""}
 await import('/web/moss_shared_ui.js');const {installControls}=await import('/web/moss_controls.mjs');
 const legacyPresetKey='krea2_element_framing_v1_custom_latent_presets';
@@ -40,6 +48,7 @@ class Moss extends Node{constructor(){super('MOSSSharedCanvas')}}
 installControls(Shared,{name:'MOSSSharedCanvas'});
 for(const e of extensions)await e.beforeRegisterNodeDef?.(Moss,{name:'MOSSSharedCanvas'});
 window.original=new Shared();window.moss=new Moss();window.makeCopy=data=>{const node=new Moss();node.configure(data);return node};
+window.makeEditNode=()=>window.makeCopy({widgets_values:defaults.slice(),properties:{}});
 window.makeExternal=()=>{
  class External extends Node{constructor(){super('Krea2ElementFramingV1Canvas')}}
  for(const e of extensions)e.beforeRegisterNodeDef?.(External,{name:'Krea2ElementFramingV1Canvas'});
@@ -53,6 +62,7 @@ const server = createServer(async (request, response) => {
     if (request.url === "/") content = fixture;
     else if (request.url === "/external-krea.js" && process.env.KREA2_UI_SOURCE) content = await readFile(process.env.KREA2_UI_SOURCE);
     else if (request.url === "/web/moss_controls.mjs") content = await readFile(resolve(root, "web/moss_controls.mjs"));
+    else if (request.url === "/web/canvas_editing.mjs") content = await readFile(resolve(root, "web/canvas_editing.mjs"));
     else if (request.url === "/web/moss_shared_ui.js") content = await readFile(resolve(root, "web/moss_shared_ui.js"));
     else if (request.url === "/scripts/app.js") content = "export const app=window.comfyAPI.app.app;";
     else { response.writeHead(404); response.end(); return; }
@@ -146,8 +156,129 @@ try {
   }
   assert.equal(await page.evaluate(()=>localStorage.getItem('krea2_element_framing_v1_custom_latent_presets')),await page.evaluate(()=>window.legacyPresets));
   assert(await page.evaluate(()=>localStorage.getItem('moss_bbox_custom_latent_presets')));
+  // Real pointer and keyboard events against the same bundled renderer used by ComfyUI.
+  await page.evaluate(() => {
+    window.editNode = window.makeEditNode();
+    document.querySelector('#nodes').prepend(window.editNode.host);
+  });
+  const editing = page.locator('.host').first();
+  const overlay = editing.locator('.moss-k2cf-overlay');
+  const undo = editing.getByRole('button', { name: 'Undo Canvas edit', exact: true });
+  const redo = editing.getByRole('button', { name: 'Redo Canvas edit', exact: true });
+  const editValues = () => page.evaluate(() => Object.fromEntries(window.editNode.widgets.filter(w => w.name).map(w => [w.name, w.value])));
+  const boxes = async () => JSON.parse((await editValues()).layout_data).boxes;
+  // Match the exporter's 9-decimal coordinate precision after resolution remapping.
+  const geometry = list => list.map(({id,slot,x1,y1,x2,y2}) => ({id,slot,
+    x1:Number(x1.toFixed(9)),y1:Number(y1.toFixed(9)),x2:Number(x2.toFixed(9)),y2:Number(y2.toFixed(9))}));
+  const coords = async (x,y) => {
+    await overlay.scrollIntoViewIfNeeded();
+    const r = await overlay.boundingBox();
+    const size = await overlay.evaluate(el => [el.width,el.height]);
+    return { x:r.x+x*r.width/size[0], y:r.y+y*r.height/size[1] };
+  };
+  const drag = async (x1,y1,x2,y2) => {
+    const start=await coords(x1,y1), end=await coords(x2,y2);
+    await page.mouse.move(start.x,start.y); await page.mouse.down();
+    await page.mouse.move(end.x,end.y,{steps:8}); await page.mouse.up();
+  };
+  await overlay.waitFor({state:'visible'});
+  assert.equal(await undo.isDisabled(),true);
+  const untouched = await page.evaluate(() => window.original.save());
+  const originalBoxes = geometry(await boxes());
+  assert.equal(originalBoxes.length,1);
+  await editing.locator('[data-slot="blue"]').click();
+  await editing.getByRole('button',{name:'▭ Draw Box',exact:true}).click();
+  await drag(180,400,650,1000);
+  const drawn = geometry(await boxes());
+  assert.equal(drawn.length,2);
+  await undo.click(); assert.deepEqual(geometry(await boxes()),originalBoxes);
+  await redo.click(); assert.deepEqual(geometry(await boxes()),drawn);
+
+  // Select the covered original box, then drag it without moving/reordering the front box.
+  await page.keyboard.down('Alt');
+  const overlap = await coords(300,600); await page.mouse.click(overlap.x,overlap.y);
+  await page.keyboard.up('Alt');
+  await drag(300,600,340,630);
+  const moved = geometry(await boxes());
+  assert(moved[0].x1 > drawn[0].x1 + 35);
+  assert.deepEqual(moved[1],drawn[1]);
+  await overlay.press('Control+z'); assert.deepEqual(geometry(await boxes()),drawn);
+  await overlay.press('Control+Shift+z'); assert.deepEqual(geometry(await boxes()),moved);
+  await overlay.press('Control+z');
+  await overlay.press('Control+y'); assert.deepEqual(geometry(await boxes()),moved);
+  await undo.click();
+
+  // A click without movement must not add history or discard redo.
+  const single = await coords(90,300); await page.mouse.click(single.x,single.y);
+  assert.equal(await redo.isDisabled(),false);
+  await redo.click(); assert.deepEqual(geometry(await boxes()),moved);
+  await undo.click();
+  await drag(64,240,84,260);
+  const resized = geometry(await boxes());
+  assert(resized[0].x1 > drawn[0].x1 + 15);
+  assert.equal(await redo.isDisabled(),true);
+  await undo.click(); assert.deepEqual(geometry(await boxes()),drawn);
+  await redo.click(); assert.deepEqual(geometry(await boxes()),resized);
+
+  await overlay.press('Delete'); assert.equal((await boxes()).length,1);
+  await overlay.press('Control+z'); assert.deepEqual(geometry(await boxes()),resized);
+  await editing.getByRole('button',{name:'Reset Canvas',exact:true}).click();
+  assert.equal((await boxes()).length,0);
+  await undo.click(); assert.deepEqual(geometry(await boxes()),resized);
+  assert.equal((await editValues()).width,896); assert.equal((await editValues()).height,1184);
+  await editing.locator('.moss-size-preset select').selectOption('1024 x 1024');
+  const square = geometry(await boxes());
+  await undo.click();assert.deepEqual(geometry(await boxes()),resized);
+  assert.equal((await editValues()).width,896);assert.equal((await editValues()).height,1184);
+  await redo.click();assert.deepEqual(geometry(await boxes()),square);
+  await undo.click();
+  await overlay.press('x');assert.equal(await overlay.innerHTML(),'');
+  await undo.focus();await page.keyboard.press('x');assert.equal(await undo.textContent(),'↶');
+  assert.equal(await page.evaluate(()=>window.graphHistoryKeys),0);
+
+  // Native input undo/delete and other nodes must be left alone.
+  const field = editing.locator('.moss-size-dimensions input').first();
+  await field.focus(); await field.press('Delete');
+  assert.deepEqual(geometry(await boxes()),resized);
+  const stillUntouched = await page.evaluate(() => window.original.save());
+  assert.deepEqual(stillUntouched.widgets_values,untouched.widgets_values);
+  assert.deepEqual(stillUntouched.size,untouched.size);
+  await page.evaluate(() => {
+    const el=document.createElement('textarea');el.id='unrelated-input';document.body.append(el);el.focus();
+  });
+  await page.locator('#unrelated-input').press('Control+z');
+  await page.locator('#unrelated-input').press('Delete');
+  assert.deepEqual(geometry(await boxes()),resized);
+
+  // Pointer cancellation and configure during a drag never replay stale edits.
+  const start=await coords(300,600), end=await coords(360,650);
+  await page.mouse.move(start.x,start.y);await page.mouse.down();await page.mouse.move(end.x,end.y);
+  await overlay.dispatchEvent('pointercancel');await page.mouse.up();
+  assert.deepEqual(geometry(await boxes()),resized);
+  const savedEdit=await page.evaluate(() => window.editNode.save());
+  assert(!JSON.stringify(savedEdit).includes('canUndo'));
+  await page.mouse.move(start.x,start.y);await page.mouse.down();await page.mouse.move(end.x,end.y);
+  await page.evaluate(saved => window.editNode.configure(saved), savedEdit);await page.mouse.up();
+  assert.deepEqual(geometry(await boxes()),resized);
+  assert.equal(await undo.isDisabled(),true);assert.equal(await redo.isDisabled(),true);
+  await page.evaluate(() => {
+    window.editNode.inputs=[{name:'width_override',link:99}];window.editNode.onConnectionsChange();
+  });
+  await editing.locator('.moss-k2cf-external-badge').waitFor({state:'visible'});
+  assert.equal(await undo.isDisabled(),true);
+  await editing.getByRole('button',{name:'Reset Canvas',exact:true}).click();
+  await undo.click();
+  assert.equal((await boxes()).length,resized.length);
+  assert.equal((await editValues()).width,896);
+  assert.equal(await editing.locator('.moss-size-dimensions input').first().inputValue(),'1280');
+  await editing.screenshot({path:resolve(artifacts,'canvas-history.jpg'),type:'jpeg',quality:85});
+  await page.evaluate(() => window.editNode.onRemoved?.());
+  assert.equal(await overlay.evaluate(el => {
+    el.focus();return el.dispatchEvent(new KeyboardEvent('keydown',{key:'z',ctrlKey:true,bubbles:true,cancelable:true}));
+  }),true);
   assert.deepEqual(errors,[]);
   const result={standalone:!process.env.KREA2_UI_SOURCE,coexistence:!!process.env.KREA2_UI_SOURCE,legacy_presets_read:true,Krea_storage_unchanged:true,before_height:initial.oldHeight,after_height:initial.height,reduction_percent:Math.round(100*(1-initial.height/initial.oldHeight)),equal_panels:true,horizontal_latent_controls:true,size_presets:true,camera_values:true,canvas_preset_roundtrip:true,clone_restores:true,external_override_status:true,responsive,raw_controls_unchanged:true,page_errors:errors};
+  Object.assign(result,{canvas_history:true,overlap_select_and_drag:true,keyboard_isolation:true,early_graph_shortcut_isolation:true,pointer_cancel:true,configure_during_drag:true,external_size_history:true});
   await writeFile(resolve(artifacts,'canvas-footer-checks.json'),JSON.stringify(result,null,2));
   console.log(JSON.stringify(result));
 } finally {

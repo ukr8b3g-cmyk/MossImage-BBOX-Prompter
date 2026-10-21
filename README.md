@@ -24,6 +24,22 @@ Only the MOSS Canvas DOM is rearranged; Krea2 nodes, saved widgets, presets and
 box coordinates keep their existing behavior. Refresh the frontend to load this
 layout change; no backend restart is needed.
 
+### Canvas editing
+
+- **↶ / ↷** undo and redo Canvas edits, including drawing, moving, resizing,
+  deleting boxes and resetting the Canvas. A drag counts as one edit; each
+  Canvas keeps up to 60 edits for the current editing session.
+- With the Canvas or its history buttons focused, use **Ctrl/Cmd+Z** to undo,
+  and **Ctrl+Y** or **Ctrl/Cmd+Shift+Z** to redo. Text/number inputs retain their
+  normal editing behavior.
+- **Alt+click** inside overlapping boxes to cycle through them. The selected
+  box has a white outline; drag normally to move it. Selection does not change
+  box order or the generated prompt.
+
+History is cleared when a workflow is loaded/restored and is not added to saved
+workflows. Existing node IDs, sockets, widget order and example workflows are
+unchanged. Refresh the frontend to load these controls; no backend restart is needed.
+
 ### UI compatibility
 
 The standard MOSS BBOX template requires **Nodes 2.0**.
