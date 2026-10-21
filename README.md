@@ -4,6 +4,7 @@
 
 
 Repository: [MossImage-BBOX-Prompter](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter).
+Repository: [MossImage-BBOX-Prompter](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter).
 
 Based on [Krea2 BBOX Prompter Suite](https://github.com/ukr8b3g-cmyk/Krea2-BBOX-Prompter)
 by ukr8b3g-cmyk. This package is released under the **MIT License**; see
@@ -64,13 +65,19 @@ Connect:
 3. Export `prompt` → positive CLIP Text Encode; Export `width` / `height` → Empty Flux 2 Latent.
 4. For Save WEBP Meta, also connect Export `prompt` → `positive_text` to retain the exact generated prompt in metadata.
 
-Open `examples/MOSS_BBOX_Standard_WebP.json` or
-`examples/MOSS_BBOX_DMD_WebP.json`. Both contain the MOSS pair, MOSS
-export, model loaders and Save WEBP Meta (quality 70), at 896×1184. Standard:
-25 steps / CFG 2.5. DMD: installed `moss_image\\lora.safetensors`, strength 1,
-8 steps / CFG 1. Both use er_sde/simple as the local comparison setup.
-These are the only bundled generation workflows. The separate
-`moss_state_896x1184.json` is a state-import sample, not a generation workflow.
+Open the [Standard workflow](examples/MOSS_BBOX_Standard.json) or
+[DMD workflow](examples/MOSS_BBOX_DMD.json).
+These are the only two bundled generation workflows. Both use the MOSS pair,
+Export, a generation subgraph, rgthree Power Lora Loader and the standard
+Save Animated WEBP node (quality 80), at 896×1184. Install **rgthree-comfy** to
+load the templates. The Standard file disables the LoRA; the DMD file enables
+`moss_image\\lora_latest.safetensors` at strength 0.7. Both preserve the supplied
+8 steps / CFG 1 / er_sde / simple settings; these are sample values, not a
+recommendation that 8 steps is optimal for the standard model. Select locally
+installed model, CLIP, VAE and LoRA files before running. The subgraph routes
+the LoRA loader's model output to KSampler.
+The separate `moss_state_896x1184.json` is a state-import sample, not a generation
+workflow. Older workflow versions remain available in Git history.
 
 This path requires the already installed **Krea2-BBOX-Prompter** package.
 The node IDs are `MOSSSharedCanvas`, `MOSSSharedPrompter` and `MOSSFromKrea2`.
@@ -83,8 +90,8 @@ The exporter reads raw `x1/y1/x2/y2` from Canvas output, not Krea2's rounded
 pixel `yxyx` schema and hybrid prose. Connect its dimensions to the latent and
 choose multiples of 16. Each color's **Type** selects **Character**, **Object** or
 **Text**, exported as `character`, `object` or `text`. All boxes of that color
-share its type and content. New nodes default to Object; the examples set the
-woman to Character, the table to Object and the title to Text.
+share its type and content. New nodes default to Object. Select Character for
+people, Object for objects and Text for lettering in your composition.
 Old `obj` values remain accepted and are restored as Object. The shared Krea2
 nodes retain their original two choices and behavior.
 

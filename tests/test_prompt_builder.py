@@ -194,26 +194,55 @@ class BuilderTests(unittest.TestCase):
             self.assertEqual(js["warnings"], py["warnings"])
 
     def test_sample_links_and_portrait_state(self):
-        for name in ("MOSS_BBOX_Standard_WebP.json", "MOSS_BBOX_DMD_WebP.json"):
+        for name in ("MOSS_BBOX_Standard.json", "MOSS_BBOX_DMD.json"):
             with self.subTest(workflow=name):
                 workflow = json.loads((ROOT / "examples" / name).read_text(encoding="utf-8"))
                 nodes = {node["id"]: node for node in workflow["nodes"]}
                 canvas = next(node for node in nodes.values() if node["type"] == "MOSSSharedCanvas")
                 export = next(node for node in nodes.values() if node["type"] == "MOSSFromKrea2")
-                latent = next(node for node in nodes.values() if node["type"] == "EmptyFlux2LatentImage")
+                subgraph = workflow["definitions"]["subgraphs"][0]
+                host = next(node for node in nodes.values() if node["type"] == subgraph["id"])
+                inner = {node["id"]: node for node in subgraph["nodes"]}
+                latent = next(node for node in inner.values() if node["type"] == "EmptyFlux2LatentImage")
+                sampler = next(node for node in inner.values() if node["type"] == "KSampler")
+                lora = next(node for node in nodes.values() if node["type"] == "Power Lora Loader (rgthree)")
                 self.assertEqual(canvas["widgets_values"][:2], [896, 1184])
                 self.assertEqual(latent["widgets_values"][:2], [896, 1184])
+                self.assertEqual(lora["widgets_values_named"]["lora_1"]["on"], name == "MOSS_BBOX_DMD.json")
+                self.assertTrue(all("widget" not in item for item in host["inputs"][:4]))
                 for link_id, origin, slot, target, input_index, kind in workflow["links"]:
                     self.assertIn(link_id, nodes[origin]["outputs"][slot]["links"])
                     self.assertEqual(nodes[target]["inputs"][input_index]["link"], link_id)
-                width_link = next(link for link in workflow["links"] if link[1:3] == [export["id"], 1])
-                height_link = next(link for link in workflow["links"] if link[1:3] == [export["id"], 2])
-                self.assertEqual(width_link[3:5], [latent["id"], 0])
-                self.assertEqual(height_link[3:5], [latent["id"], 1])
+                links = {link["id"]: link for link in subgraph["links"]}
+                self.assertEqual(len(links), len(subgraph["links"]))
+                for link in links.values():
+                    origin, target = link["origin_id"], link["target_id"]
+                    if origin == -10:
+                        self.assertIn(link["id"], subgraph["inputs"][link["origin_slot"]]["linkIds"])
+                    else:
+                        self.assertIn(link["id"], inner[origin]["outputs"][link["origin_slot"]]["links"])
+                    if target == -20:
+                        self.assertIn(link["id"], subgraph["outputs"][link["target_slot"]]["linkIds"])
+                    else:
+                        self.assertEqual(inner[target]["inputs"][link["target_slot"]]["link"], link["id"])
+                model = links[sampler["inputs"][0]["link"]]
+                self.assertEqual((model["origin_id"], model["origin_slot"], model["type"]), (-10, 0, "MODEL"))
+                model_input = next(link for link in workflow["links"] if link[3:5] == [host["id"], 0])
+                self.assertEqual(model_input[1:3], [lora["id"], 0])
+                for output_index, name, latent_slot in [(1, "width", 0), (2, "height", 1)]:
+                    outer = next(link for link in workflow["links"] if link[1:3] == [export["id"], output_index])
+                    self.assertEqual(outer[3], host["id"])
+                    boundary = subgraph["inputs"][outer[4]]
+                    self.assertEqual(boundary["name"], name)
+                    entry = links[boundary["linkIds"][0]]
+                    reroute = inner[entry["target_id"]]
+                    self.assertEqual(reroute["type"], "Reroute")
+                    exit_link = links[reroute["outputs"][0]["links"][0]]
+                    self.assertEqual((exit_link["target_id"], exit_link["target_slot"]), (latent["id"], latent_slot))
 
     def test_png_webp_metadata_roundtrip_cpu(self):
         from PIL import Image, PngImagePlugin
-        workflow = json.loads((ROOT / "examples/MOSS_BBOX_Standard_WebP.json").read_text(encoding="utf-8"))
+        workflow = json.loads((ROOT / "examples/MOSS_BBOX_Standard.json").read_text(encoding="utf-8"))
         text = json.dumps(workflow, ensure_ascii=False)
         with tempfile.TemporaryDirectory() as temp:
             png = Path(temp) / "workflow.png"
