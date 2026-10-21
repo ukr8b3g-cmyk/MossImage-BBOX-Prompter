@@ -1,5 +1,8 @@
 # MOSS BBOX Prompter
 
+**Current version: 1.0.0** — [GitHub Release](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/tag/v1.0.0)
+· [Comfy Registry](https://registry.comfy.org/nodes/mossimage-bbox-prompter)
+
 <img width="1154" height="839" alt="image" src="https://github.com/user-attachments/assets/739cff51-f11a-4c25-88d5-7b0c5eb1a76c" />
 
 
@@ -24,14 +27,18 @@ Only the MOSS Canvas DOM is rearranged; Krea2 nodes, saved widgets, presets and
 box coordinates keep their existing behavior. Refresh the frontend to load this
 layout change; no backend restart is needed.
 
-### Canvas editing
+### What's new in 1.0.0
+
+Version **1.0.0** brings the Canvas editing improvements introduced in **0.1.4**
+under one release number. The version update does not change generation behavior
+or require workflow conversion.
 
 - **↶ / ↷** undo and redo Canvas edits, including drawing, moving, resizing,
   deleting boxes and resetting the Canvas. A drag counts as one edit; each
   Canvas keeps up to 60 edits for the current editing session.
 - With the Canvas or its history buttons focused, use **Ctrl/Cmd+Z** to undo,
-  and **Ctrl+Y** or **Ctrl/Cmd+Shift+Z** to redo. Text/number inputs retain their
-  normal editing behavior.
+  and **Ctrl+Y** or **Ctrl/Cmd+Shift+Z** to redo. Canvas shortcuts avoid triggering
+  ComfyUI's graph-level Undo. Text/number inputs retain their normal editing behavior.
 - **Alt+click** inside overlapping boxes to cycle through them. The selected
   box has a white outline; drag normally to move it. Selection does not change
   box order or the generated prompt.
@@ -39,6 +46,13 @@ layout change; no backend restart is needed.
 History is cleared when a workflow is loaded/restored and is not added to saved
 workflows. Existing node IDs, sockets, widget order and example workflows are
 unchanged. Refresh the frontend to load these controls; no backend restart is needed.
+
+The 0.1.4 implementation passed **38 Python tests**, **13 JavaScript unit tests**
+and all three isolated browser fixtures. Actual ComfyUI frontend checks passed
+with both bundled Standard and DMD workflows, covering history buttons, keyboard
+shortcuts, selection and movement of covered boxes, and deletion/restoration.
+Those frontend checks submitted no generation jobs. See [TEST_REPORT.md](TEST_REPORT.md)
+for the tested scope and the earlier GPU validation record.
 
 ### UI compatibility
 

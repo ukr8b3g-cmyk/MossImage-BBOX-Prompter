@@ -1,5 +1,16 @@
 # Validation record — updated 2026-10-22
 
+## Version 1.0.0 release — 2026-10-22
+
+Version 1.0.0 standardizes the package metadata, README and release naming.
+It contains the same runtime code and bundled workflow JSON files as 0.1.4
+(`6e9a35de27f3c6e981bad2cba9d23b9dd217d629`). The changes from that commit are
+limited to `pyproject.toml`, `README.md` and this validation record.
+The 0.1.4 CPU, browser-fixture and actual ComfyUI frontend checks below remain
+applicable. Publication runs the Python/JavaScript regression suites, Registry
+warning checks and source ZIP verification again. No new GPU test is claimed
+for this version-number and documentation update.
+
 ## Canvas Undo/Redo and overlap selection — v0.1.4, 2026-10-22
 
 Based on v0.1.3 (`ef14d28d4e54069e61fcbeef3b62f1b1fe6ea4a0`).
