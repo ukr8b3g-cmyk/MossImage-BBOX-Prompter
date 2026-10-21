@@ -166,6 +166,56 @@ class ExportOptionsTests(unittest.TestCase):
         self.assertTrue(any("Layout JSON omits" in warning for warning in result["warnings"]))
         self.assertIn(state["slots"]["blue"], builder.build_prompt(state, "caption")["prompt"])
 
+    def test_unboxed_literal_text_warns_independently_of_style(self):
+        framing, _ = self.inputs("A red circle.", "object")
+        literal = '  UNPLACED 日本語 "A | B"\nsecond line  '
+        prompts = package.NODE_CLASS_MAPPINGS["MOSSSharedPrompter"]().execute(
+            scene="A minimalist poster", red_type="object", red_prompt="A red circle.",
+            yellow_type="text", yellow_prompt=literal)[0]
+        for mode in ("auto", "layout_json", "hybrid"):
+            for style in ("", "White serif letters"):
+                with self.subTest(mode=mode, style=style):
+                    result = bridge.build_from_krea(framing, prompts, output_mode=mode,
+                                                    text_mode="literal", text_style=style)
+                    warnings = [warning for warning in result["warnings"] if "yellow: text has no box" in warning]
+                    self.assertEqual(len(warnings), 1)
+                    self.assertIn("omitted", warnings[0])
+                    self.assertIn("caption", warnings[0])
+                    self.assertNotIn("UNPLACED", result["prompt"])
+                    self.assertEqual(len(json.loads(result["moss_json"])["items"]), 1)
+        exporter = package.NODE_CLASS_MAPPINGS["MOSSFromKrea2"]()
+        with self.assertLogs(package.__name__ + ".nodes", level="WARNING") as messages:
+            output = exporter.build(framing, prompts, output_mode="auto", text_mode="literal", text_style="")
+        self.assertEqual(len(output), 4)
+        self.assertTrue(any("yellow: text has no box" in message for message in messages.output))
+
+    def test_literal_text_omission_warning_excludes_retained_or_empty_text(self):
+        framing, _ = self.inputs("A red circle.", "object")
+        literal = '  UNPLACED 日本語 "A | B"\nsecond line  '
+        for mode, boxes_present in (("caption", True), ("auto", False)):
+            data = json.loads(framing)
+            if not boxes_present:
+                data["layout"]["boxes"] = []
+            prompts = package.NODE_CLASS_MAPPINGS["MOSSSharedPrompter"]().execute(
+                yellow_type="text", yellow_prompt=literal)[0]
+            with self.subTest(mode=mode, boxes_present=boxes_present):
+                result = bridge.build_from_krea(json.dumps(data), prompts, output_mode=mode,
+                                                text_mode="literal", text_style="")
+                self.assertIn(literal, result["prompt"])
+                self.assertFalse(any("text has no box" in warning for warning in result["warnings"]))
+        for mode in builder.OUTPUT_MODES:
+            with self.subTest(mode=mode):
+                framed_text, prompts = self.inputs(literal)
+                result = bridge.build_from_krea(framed_text, prompts, output_mode=mode,
+                                                text_mode="literal", text_style="")
+                self.assertEqual(json.loads(result["moss_json"])["items"][0]["text"], literal)
+                self.assertFalse(any("text has no box" in warning for warning in result["warnings"]))
+                empty = package.NODE_CLASS_MAPPINGS["MOSSSharedPrompter"]().execute(
+                    red_prompt="A red circle.", yellow_type="text", yellow_prompt="")[0]
+                result = bridge.build_from_krea(framing, empty, output_mode=mode,
+                                                text_mode="literal", text_style="")
+                self.assertEqual(result["warnings"], [])
+
     def test_geometry_diagnostics_preserve_coordinates_and_inputs(self):
         framing, prompts = self.inputs()
         data = json.loads(framing)

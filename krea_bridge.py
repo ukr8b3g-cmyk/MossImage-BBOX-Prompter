@@ -70,10 +70,17 @@ def build_from_krea(framing_data, prompt_ui_data, auto_position_hint=False,
         label, text = metadata[slot]
         state["boxes"].append({"id": str(index), "slot": slot, "label": label, "text": text,
                                **{key: source[key] for key in ("x1", "y1", "x2", "y2")}})
-    if output_mode == "caption" or (output_mode == "auto" and not state["boxes"]):
-        used = {box["slot"] for box in state["boxes"]}
+    used = {box["slot"] for box in state["boxes"]}
+    caption_output = output_mode == "caption" or (output_mode == "auto" and not state["boxes"])
+    if caption_output:
         for slot, (kind, text) in metadata.items():
             if slot not in used and kind == "text" and text:
                 caption = state["slots"][slot]
                 state["slots"][slot] = caption + ('\n' if caption else '') + '"' + text + '"'
-    return build_prompt(state, output_mode)
+    result = build_prompt(state, output_mode)
+    if text_mode == "literal" and not caption_output:
+        for slot, (kind, text) in metadata.items():
+            if slot not in used and kind == "text" and text:
+                result["warnings"].append(
+                    f"{slot}: text has no box and is omitted; add a box or choose caption output.")
+    return result

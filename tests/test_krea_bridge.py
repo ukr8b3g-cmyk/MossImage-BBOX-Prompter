@@ -19,6 +19,39 @@ shared_source = sys.modules[package.__name__ + ".canvas_controls"]
 
 
 class KreaBridgeTests(unittest.TestCase):
+    def test_canvas_rejects_invalid_nonempty_layout_data(self):
+        canvas = package.NODE_CLASS_MAPPINGS["MOSSSharedCanvas"]()
+        values = {key: entry[1]["default"] for key, entry in canvas.INPUT_TYPES()["required"].items()}
+        invalid = ('{"boxes": [', '[]', 'null', '"layout"', 'false', '123',
+                   '{"boxes": null}', '{"boxes": {}}', '{"boxes": "invalid"}')
+        for layout_data in invalid:
+            with self.subTest(layout_data=layout_data), self.assertRaisesRegex(ValueError, "layout_data"):
+                canvas.execute(**dict(values, layout_data=layout_data))
+
+    def test_canvas_preserves_intentional_empty_layouts_and_scene_only_export(self):
+        canvas = package.NODE_CLASS_MAPPINGS["MOSSSharedCanvas"]()
+        values = {key: entry[1]["default"] for key, entry in canvas.INPUT_TYPES()["required"].items()}
+        prompts = package.NODE_CLASS_MAPPINGS["MOSSSharedPrompter"]().execute(scene="A simple poster.")[0]
+        for layout_data in (None, "", " \n\t ", "{}", '{"boxes": []}'):
+            with self.subTest(layout_data=layout_data):
+                framing = canvas.execute(**dict(values, layout_data=layout_data))[0]
+                expected = {} if layout_data == "{}" else {"boxes": []}
+                self.assertEqual(json.loads(framing)["layout"], expected)
+                result = bridge.build_from_krea(framing, prompts, output_mode="auto")
+                self.assertEqual(result["prompt"], "A simple poster.")
+                self.assertEqual(result["warnings"], [])
+
+    def test_canvas_keeps_camera_and_preset_fallbacks(self):
+        canvas = package.NODE_CLASS_MAPPINGS["MOSSSharedCanvas"]()
+        values = {key: entry[1]["default"] for key, entry in canvas.INPUT_TYPES()["required"].items()}
+        values.update(layout_data='{"boxes": [], "saved_key": "keep"}', camera_data="{",
+                      camera_set_data="[]", canvas_preset_data="null")
+        result = json.loads(canvas.execute(**values)[0])
+        self.assertEqual(result["layout"], {"boxes": [], "saved_key": "keep"})
+        self.assertEqual(result["camera"], {})
+        self.assertEqual(result["camera_set_data"], {"sets": [], "selected": ""})
+        self.assertEqual(result["canvas_preset_data"], {"sets": [], "selected": ""})
+
     def test_standalone_without_registered_krea_nodes(self):
         with patch.dict(sys.modules, {"nodes": SimpleNamespace(NODE_CLASS_MAPPINGS={})}):
             canvas = package.NODE_CLASS_MAPPINGS["MOSSSharedCanvas"]()

@@ -316,7 +316,13 @@ class CanvasControls:
             width_override=width_override,
             height_override=height_override,
         )
-        layout = _safe_json_loads(layout_data, {"boxes": []})
+        raw_layout = str(layout_data or "")
+        try:
+            layout = json.loads(raw_layout) if raw_layout.strip() else {"boxes": []}
+        except json.JSONDecodeError as exc:
+            raise ValueError("MOSS Canvas layout_data is invalid JSON; restore or redraw the boxes.") from exc
+        if not isinstance(layout, dict) or not isinstance(layout.get("boxes", []), list):
+            raise ValueError("MOSS Canvas layout_data must be a JSON object; boxes must be an array.")
         camera = _safe_json_loads(camera_data, {})
         data = {
             "version": "krea2_element_framing_v1",
