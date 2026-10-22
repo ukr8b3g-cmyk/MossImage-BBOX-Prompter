@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
-import { createCanvasHistory, nextOverlappingBox, resizeBoxWithAspect, snapBoxToGuides } from "../web/canvas_editing.mjs";
+import { createCanvasHistory, nextOverlappingBox, resizeBoxWithAspect, snapBoxToGuides, moveBoxSelection } from "../web/canvas_editing.mjs";
 import { HELP, helpText, setHelpLocaleReader, widgetHelpKey } from "../web/help.mjs";
 
 test("All help entries have Japanese and English text; unsupported locales fall back to English", () => {
@@ -42,6 +42,39 @@ test("Native MOSS tooltips follow Comfy.Locale without changing values, hooks or
 });
 
 const canvasSnapshot = x => ({ width: 896, height: 1184, boxes: [{ id: "a", slot: "red", x1: x, y1: 40, x2: x + 100, y2: 240 }] });
+
+test("Selection translation clamps the group without changing sizes, spacing, metadata or order", () => {
+  const boxes = [{id:"a",slot:"red",x1:20,y1:30,x2:120,y2:180,text:"A"},
+    {id:"b",slot:"blue",x1:200,y1:250,x2:350,y2:320,text:"B"}];
+  const before = structuredClone(boxes), bounds = {minX:10,minY:10,maxX:590,maxY:890};
+  for (const [dx,dy,expectedX,expectedY] of [[500,800,240,570],[-200,-300,-10,-20],[17.5,29.25,17.5,29.25]]) {
+    const moved = moveBoxSelection(boxes,dx,dy,bounds);
+    assert.deepEqual(moved,boxes.map(b=>({...b,x1:b.x1+expectedX,x2:b.x2+expectedX,y1:b.y1+expectedY,y2:b.y2+expectedY})));
+  }
+  assert.deepEqual(boxes,before);
+  assert.deepEqual(moveBoxSelection([],5,6,bounds),[]);
+});
+
+test("Selection snapping uses the combined envelope and leaves keyboard-sized movement exact without snap", () => {
+  const boxes = [{id:"a",x1:100,y1:100,x2:200,y2:200},{id:"b",x1:300,y1:300,x2:400,y2:400}];
+  const bounds={minX:10,minY:10,maxX:590,maxY:890};
+  const moved=moveBoxSelection(boxes,48,198,bounds,{width:600,height:900,toleranceX:6,toleranceY:6});
+  assert.equal(moved[0].x1,150);assert.equal(moved[1].x2,450);
+  assert.equal(moved[0].y1,300);assert.equal(moved[1].y2,600);
+  assert.equal(moveBoxSelection(boxes,1,0,bounds)[0].x1,101);
+});
+
+test("Group history preserves selection snapshots but selection-only changes preserve Redo", () => {
+  const history=createCanvasHistory();
+  const start={...canvasSnapshot(40),selectedId:"a",selectedIds:["a"]};
+  const end={...canvasSnapshot(60),selectedId:"a",selectedIds:["a"]};
+  history.record(start,end);const restored=history.undo(end);
+  assert.deepEqual(restored.selectedIds,["a"]);
+  const cleared={...restored,selectedId:null,selectedIds:[]};
+  assert.equal(history.record(restored,cleared),false);assert(history.canRedo);
+  assert.deepEqual(history.redo(cleared),end);
+  start.selectedIds.length=0;assert.deepEqual(restored.selectedIds,["a"]);
+});
 
 const guideOptions = {
   width: 600, height: 900,

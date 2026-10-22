@@ -3,7 +3,7 @@
 
 import { app } from "../../scripts/app.js";
 import { bindHelp } from "./help.mjs";
-import { createCanvasHistory, nextOverlappingBox, snapBoxToGuides, resizeBoxWithAspect } from "./canvas_editing.mjs";
+import { createCanvasHistory, nextOverlappingBox, snapBoxToGuides, resizeBoxWithAspect, moveBoxSelection } from "./canvas_editing.mjs";
 
 const CANVAS_NODE = "MOSSSharedCanvas";
 
@@ -1397,7 +1397,7 @@ function setupCanvasNode(node) {
   const savedCanvasState = k2cfBestSavedState(node, "canvas");
   if (savedCanvasState) applyConfiguredValuesToWidgets(node, CANVAS_WIDGETS, savedCanvasState.widgets_values);
 
-  const state = { activeSlot: "red", boxes: [], selectedId: null, drawing: null, moving: null, resizing: null, hideBoxes: false, drawMode: false, layoutError: null };
+  const state = { activeSlot: "red", boxes: [], selectedId: null, selectedIds: [], drawing: null, moving: null, resizing: null, hideBoxes: false, drawMode: false, layoutError: null };
   const externalPreviewSize = { width: null, height: null };
   const controls = {};
   const history = createCanvasHistory();
@@ -1407,6 +1407,13 @@ function setupCanvasNode(node) {
   let pointerStart = null;
   let altDrag = null;
   let boxSequence = 0;
+  function selectBoxes(ids, primary = ids.at(-1)) {
+    state.selectedIds = [...new Set(ids)].filter(id => state.boxes.some(b => b.id === id));
+    state.selectedId = state.selectedIds.includes(primary) ? primary : state.selectedIds.at(-1) ?? null;
+  }
+  function selectedBoxes() {
+    return state.boxes.filter(b => state.selectedIds.includes(b.id));
+  }
   try { controls.cameraSetData = JSON.parse(widgets.camera_set_data?.value || readPresetStorage(CAMERA_SET_KEY) || '{"sets":[],"selected":""}'); } catch (_) { controls.cameraSetData = {sets:[], selected:""}; }
   if (!Array.isArray(controls.cameraSetData.sets)) controls.cameraSetData.sets = [];
   try { controls.canvasPresetData = JSON.parse(widgets.canvas_preset_data?.value || readPresetStorage(CANVAS_PRESET_KEY) || '{"sets":[],"selected":""}'); } catch (_) { controls.canvasPresetData = {sets:[], selected:""}; }
@@ -1567,7 +1574,7 @@ function setupCanvasNode(node) {
     overlay.title = canvasHelp;
     overlay.setAttribute("aria-invalid", "false");
     state.boxes = [];
-    state.selectedId = null;
+    selectBoxes([]);
     setSize(DEFAULT_WIDTH, DEFAULT_HEIGHT, DEFAULT_PRESET);
     if (controls.grid) controls.grid.value = "Thirds";
     if (controls.iso) controls.iso.set("");
@@ -1657,15 +1664,16 @@ function setupCanvasNode(node) {
     input.addEventListener("change", () => {
       const box = state.boxes.find(b => b.id === state.selectedId);
       const value = input.value.trim() === "" ? NaN : Number(input.value);
-      if (!box || state.layoutError || pointerStart || !Number.isFinite(value)) {
+      if (!box || state.layoutError || pointerStart || !Number.isFinite(value)
+        || ((key === "width" || key === "height") && value <= 0)) {
         refreshPrecision(true); return;
       }
+      selectBoxes([box.id]);
       const [x1,y1,x2,y2] = normBox(box), f = frameBounds();
       if (key === "x" || key === "y") {
         moveWithin(box, {x1:key === "x" ? value : x1, y1:key === "y" ? value : y1,
           x2:(key === "x" ? value : x1)+x2-x1, y2:(key === "y" ? value : y1)+y2-y1});
       } else {
-        if (value <= 0) { refreshPrecision(true); return; }
         Object.assign(box, {x1,y1,x2,y2});
         if (key === "width") box.x2 = x1 + Math.min(value, f.maxX-x1);
         else box.y2 = y1 + Math.min(value, f.maxY-y1);
@@ -1997,6 +2005,7 @@ function setupCanvasNode(node) {
     if (!set || state.layoutError) return;
     historySuspended++;
     state.boxes = Array.isArray(set.boxes) ? JSON.parse(JSON.stringify(set.boxes)) : [];
+    selectBoxes([]);
     state.activeSlot = set.activeSlot || "red";
     state.hideBoxes = !!set.hideBoxes;
     state.drawMode = set.drawMode !== false;
@@ -2017,7 +2026,7 @@ function setupCanvasNode(node) {
     sync();
   }
   function snapshotCanvasEdit() {
-    return { ...snapshotCanvasPreset(""), width: Number(widgets.width.value), height: Number(widgets.height.value), canvasSize: currentSize(), selectedId: state.selectedId,
+    return { ...snapshotCanvasPreset(""), width: Number(widgets.width.value), height: Number(widgets.height.value), canvasSize: currentSize(), selectedId: state.selectedId, selectedIds: state.selectedIds.slice(),
       canvasPresetSelected: controls.canvasPresetData.selected || "" };
   }
   function updateHistoryButtons() {
@@ -2033,7 +2042,7 @@ function setupCanvasNode(node) {
       applyCanvasPreset(saved);
       const [w, h] = currentSize();
       if (saved.canvasSize[0] === w && saved.canvasSize[1] === h) state.boxes = structuredClone(saved.boxes);
-      state.selectedId = saved.selectedId;
+      selectBoxes(saved.selectedIds || (saved.selectedId ? [saved.selectedId] : []), saved.selectedId);
       controls.canvasPresetData.selected = saved.canvasPresetSelected;
       refreshCanvasPresetSelect();
       tools.querySelectorAll(".moss-k2cf-sw").forEach(sw => sw.classList.toggle("active", sw.dataset.slot === state.activeSlot));
@@ -2255,7 +2264,7 @@ function setupCanvasNode(node) {
     refreshPrecision();
     overlayCtx.clearRect(0, 0, overlay.width, overlay.height);
     if (state.hideBoxes) return;
-    for (const b of state.boxes) drawBox(b, b.id === state.selectedId);
+    for (const b of state.boxes) drawBox(b, state.selectedIds.includes(b.id));
     if (state.drawing) drawBox(state.drawing, true);
   }
   function drawBox(b, selected=false) {
@@ -2335,6 +2344,16 @@ function setupCanvasNode(node) {
       toleranceX: 6 * width / Math.max(rect.width, 1),
       toleranceY: 6 * height / Math.max(rect.height, 1) }));
   }
+  function moveSelection(boxes, dx, dy, snapping = false) {
+    const rect = overlay.getBoundingClientRect(), [width, height] = currentSize();
+    const snap = snapping && snapToggle.checked ? { width, height,
+      toleranceX: 6 * width / Math.max(rect.width, 1),
+      toleranceY: 6 * height / Math.max(rect.height, 1) } : null;
+    for (const moved of moveBoxSelection(boxes, dx, dy, frameBounds(), snap)) {
+      const target = state.boxes.find(b => b.id === moved.id);
+      if (target) Object.assign(target, moved);
+    }
+  }
   function writeBoxes() {
     state.boxes.forEach((b,i)=>{ const [x1,y1,x2,y2]=normBox(b); b.x1=x1;b.y1=y1;b.x2=x2;b.y2=y2;addNormalizedBoxData(b);b.bbox=[Math.round(x1),Math.round(y1),Math.round(x2),Math.round(y2)];b.position_hint=positionHint(b);b.z=i; });
     sync(); drawOverlay();
@@ -2345,10 +2364,10 @@ function setupCanvasNode(node) {
     while (state.boxes.some(box => box.id === id));
     return id;
   }
-  function hitTest(p, preferResize = false) {
+  function hitTest(p, preferResize = false, prioritizeSelection = true) {
     const ordered = state.boxes.slice().reverse();
-    const selected = ordered.findIndex(b => b.id === state.selectedId);
-    if (selected > 0) ordered.unshift(ordered.splice(selected, 1)[0]);
+    if (prioritizeSelection) ordered.sort((a,b) => Number(b.id === state.selectedId) - Number(a.id === state.selectedId)
+      || Number(state.selectedIds.includes(b.id)) - Number(state.selectedIds.includes(a.id)));
     for (const b of ordered) {
       const [x1,y1,x2,y2]=normBox(b);
       const near=14, handles={nw:[x1,y1],ne:[x2,y1],sw:[x1,y2],se:[x2,y2]};
@@ -2365,39 +2384,54 @@ function setupCanvasNode(node) {
     if(ev.button!==0 || pointerStart || state.layoutError)return;
     ev.preventDefault(); ev.stopPropagation(); overlay.focus({preventScroll:true});
     const p=point(ev);
-    if(ev.altKey && state.hideBoxes)return;
+    if((ev.altKey || ev.ctrlKey || ev.metaKey) && state.hideBoxes)return;
     overlay.setPointerCapture(ev.pointerId);
     pointerStart=snapshotCanvasEdit();
     historyState=pointerStart;
+    if ((ev.ctrlKey || ev.metaKey) && !ev.altKey && !state.drawMode) {
+      const hit = hitTest(p, false, false)?.box;
+      if (hit) selectBoxes(state.selectedIds.includes(hit.id)
+        ? state.selectedIds.filter(id => id !== hit.id) : [...state.selectedIds, hit.id]);
+      pointerStart = null;
+      sync(); drawOverlay(); return;
+    }
     if(ev.altKey && !state.drawMode){
-      const selected = state.boxes.find(b => b.id === state.selectedId &&
+      const selected = selectedBoxes().find(b =>
         p.x >= Math.min(b.x1,b.x2) && p.x <= Math.max(b.x1,b.x2) &&
         p.y >= Math.min(b.y1,b.y2) && p.y <= Math.max(b.y1,b.y2));
       const source = selected || nextOverlappingBox(state.boxes, p, null);
-      altDrag = { source: source ? structuredClone(source) : null, point: p,
+      altDrag = { sources: source ? structuredClone(selected ? selectedBoxes() : [source]) : [], point: p,
         clientX: ev.clientX, clientY: ev.clientY, created: false };
       return;
     }
-    const hit=hitTest(p, ev.shiftKey);
+    const hit=state.hideBoxes ? null : hitTest(p, ev.shiftKey);
     if(!state.drawMode && hit){
-      if(hit.handle==="delete"){ state.boxes=state.boxes.filter((b)=>b.id!==hit.box.id); state.selectedId=null; writeBoxes(); pointerStart=null; return; }
-      state.selectedId=hit.box.id;
-      if(hit.handle==="move") state.moving={id:hit.box.id,x:p.x,y:p.y,box:{...hit.box}};
-      else state.resizing={id:hit.box.id,handle:hit.handle,box:{...hit.box}};
+      if(hit.handle==="delete"){ state.boxes=state.boxes.filter((b)=>b.id!==hit.box.id); selectBoxes(state.selectedIds); writeBoxes(); pointerStart=null; return; }
+      if(hit.handle==="move") {
+        selectBoxes(state.selectedIds.includes(hit.box.id) ? state.selectedIds : [hit.box.id], hit.box.id);
+        state.moving={x:p.x,y:p.y,boxes:structuredClone(selectedBoxes())};
+      } else {
+        selectBoxes([hit.box.id]);
+        state.resizing={id:hit.box.id,handle:hit.handle,box:{...hit.box}};
+      }
       drawOverlay(); return;
     }
+    if (!state.drawMode) selectBoxes([]);
     state.drawing={id:newBoxId(),slot:state.activeSlot,x1:p.x,y1:p.y,x2:p.x,y2:p.y};
   });
   overlay.addEventListener("pointermove", (ev)=>{
     const p=point(ev);
     if(altDrag && !altDrag.created){
-      if(!altDrag.source || Math.hypot(ev.clientX-altDrag.clientX,ev.clientY-altDrag.clientY)<4)return;
-      const copy={...structuredClone(altDrag.source),id:newBoxId()};
-      state.boxes.push(copy);state.selectedId=copy.id;altDrag.created=true;
-      state.moving={id:copy.id,x:altDrag.point.x,y:altDrag.point.y,box:{...copy}};
+      if(!altDrag.sources.length || Math.hypot(ev.clientX-altDrag.clientX,ev.clientY-altDrag.clientY)<4)return;
+      const copies=altDrag.sources.map(source => {
+        const copy={...structuredClone(source),id:newBoxId()};
+        state.boxes.push(copy); return copy;
+      });
+      selectBoxes(copies.map(b=>b.id));altDrag.created=true;
+      state.moving={x:altDrag.point.x,y:altDrag.point.y,boxes:structuredClone(copies)};
     }
     if(state.drawing){ state.drawing.x2=p.x; state.drawing.y2=p.y; clampBox(state.drawing); drawOverlay(); return; }
-    if(state.moving){ const b=state.boxes.find((x)=>x.id===state.moving.id); if(!b)return; const dx=p.x-state.moving.x, dy=p.y-state.moving.y; moveWithin(b,{x1:state.moving.box.x1+dx,x2:state.moving.box.x2+dx,y1:state.moving.box.y1+dy,y2:state.moving.box.y2+dy}); snapPointerBox(b,"move"); drawOverlay(); return; }
+    if(state.moving){ moveSelection(state.moving.boxes,p.x-state.moving.x,p.y-state.moving.y,true); drawOverlay(); return; }
     if(state.resizing){
       const {id,handle,box}=state.resizing, b=state.boxes.find(x=>x.id===id);if(!b)return;
       if(ev.shiftKey) Object.assign(b,resizeBoxWithAspect(box,p,handle,frameBounds()));
@@ -2413,13 +2447,14 @@ function setupCanvasNode(node) {
   overlay.addEventListener("pointerup", ()=>{
     if(altDrag && !altDrag.created){
       const selected=nextOverlappingBox(state.boxes,altDrag.point,state.selectedId);
-      if(selected)state.selectedId=selected.id;
+      if(selected)selectBoxes([selected.id]);
       drawOverlay();
     }
-    if(state.drawing){ const [x1,y1,x2,y2]=normBox(state.drawing); if(Math.abs(x2-x1)>8&&Math.abs(y2-y1)>8){ state.drawing.x1=x1;state.drawing.y1=y1;state.drawing.x2=x2;state.drawing.y2=y2;state.selectedId=state.drawing.id;state.boxes.push(state.drawing); state.drawMode=false; drawBtn.classList.remove("primary"); } state.drawing=null; writeBoxes(); }
+    if(state.drawing){ const [x1,y1,x2,y2]=normBox(state.drawing); if(Math.abs(x2-x1)>8&&Math.abs(y2-y1)>8){ state.drawing.x1=x1;state.drawing.y1=y1;state.drawing.x2=x2;state.drawing.y2=y2;state.boxes.push(state.drawing);selectBoxes([state.drawing.id]); state.drawMode=false; drawBtn.classList.remove("primary"); } state.drawing=null; writeBoxes(); }
     if(state.moving||state.resizing){ state.moving=null;state.resizing=null;writeBoxes(); }
     pointerStart=null;
     altDrag=null;
+    sync();
     refreshPrecision();
   });
   function cancelPointerEdit() {
@@ -2433,22 +2468,27 @@ function setupCanvasNode(node) {
     if(tag==="input"||tag==="textarea"||tag==="select")return;
     if(ev.target?.isContentEditable && ![overlay, undoBtn, redoBtn].includes(ev.target))return;
     const key=ev.key.toLowerCase();
+    if (ev.key === "Escape" && ev.target === overlay) {
+      if (pointerStart) cancelPointerEdit();
+      else { selectBoxes([]); sync(); drawOverlay(); }
+      ev.preventDefault(); ev.stopImmediatePropagation(); return;
+    }
     if ((ev.ctrlKey || ev.metaKey) && !ev.altKey && (key==="z" || key==="y")) {
       restoreHistory(key==="y" || ev.shiftKey ? "redo" : "undo");
       ev.preventDefault(); ev.stopImmediatePropagation(); return;
     }
     const direction = {ArrowLeft:[-1,0], ArrowRight:[1,0], ArrowUp:[0,-1], ArrowDown:[0,1]}[ev.key];
     if (direction && ev.target === overlay && !ev.ctrlKey && !ev.metaKey && !ev.altKey && !pointerStart && !state.layoutError && !state.hideBoxes) {
-      const box = state.boxes.find(b => b.id === state.selectedId);
-      if (!box) return;
-      const [x1,y1,x2,y2] = normBox(box), step = ev.shiftKey ? 10 : 1;
+      const boxes = selectedBoxes();
+      if (!boxes.length) return;
+      const step = ev.shiftKey ? 10 : 1;
       const dx = direction[0]*step, dy = direction[1]*step;
-      moveWithin(box, {x1:x1+dx,y1:y1+dy,x2:x2+dx,y2:y2+dy});
+      moveSelection(boxes, dx, dy);
       writeBoxes();
       ev.preventDefault(); ev.stopImmediatePropagation(); return;
     }
-    if (pointerStart || (ev.key!=="Delete" && ev.key!=="Backspace")) return;
-    if(state.selectedId){ state.boxes=state.boxes.filter((b)=>b.id!==state.selectedId); state.selectedId=null; writeBoxes(); ev.preventDefault(); ev.stopImmediatePropagation(); }
+    if (pointerStart || state.layoutError || state.hideBoxes || (ev.key!=="Delete" && ev.key!=="Backspace")) return;
+    if(state.selectedIds.length){ state.boxes=state.boxes.filter((b)=>!state.selectedIds.includes(b.id)); selectBoxes([]); writeBoxes(); ev.preventDefault(); ev.stopImmediatePropagation(); }
   }
   window.addEventListener("keydown", onCanvasKeyDown, true);
 
@@ -2458,7 +2498,7 @@ function setupCanvasNode(node) {
     pointerStart = null;
     altDrag = null;
     state.drawing = state.moving = state.resizing = null;
-    state.selectedId = null;
+    selectBoxes([]);
     const savedState = k2cfBestSavedState(node, "canvas");
     if (savedState) applyConfiguredValuesToWidgets(node, CANVAS_WIDGETS, savedState.widgets_values);
     try {

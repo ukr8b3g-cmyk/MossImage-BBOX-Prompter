@@ -736,6 +736,153 @@ try {
   assert.equal(await drawToggle.evaluate(el=>el.classList.contains('primary')),true);
   await drawToggle.click();assert.equal(await drawMode(),false);
   Object.assign(result,{draw_mode_toggle:true,draw_mode_saved_on_off:true,draw_toggle_preserves_history:true,draw_toggle_restores_existing_editing:true});
+  // Multiple selection is session-only; all group translations share one delta.
+  await page.evaluate(() => {
+    const data=structuredClone(window.gestureData), layout=JSON.parse(data.widgets_values[3]);
+    layout.boxes=[
+      {id:'a',slot:'red',text:'first',label:'character',x1:100,y1:200,x2:250,y2:400},
+      {id:'b',slot:'blue',text:'second',label:'object',x1:350,y1:500,x2:500,y2:700},
+      {id:'c',slot:'yellow',text:'title',label:'text',x1:650,y1:800,x2:800,y2:1000},
+    ];
+    data.widgets_values[3]=JSON.stringify(layout);data.properties={};
+    window.multiData=data;window.gestureNode.configure(data);
+  });
+  const multiOriginal=await gestureBoxes();
+  const resetMulti=()=>page.evaluate(()=>window.gestureNode.configure(window.multiData));
+  const selectAt=async(x,y,key='Control')=>{
+    await page.keyboard.down(key);
+    try {await clickAt(x,y);} finally {await page.keyboard.up(key);}
+  };
+  const selectPair=async()=>{await clickAt(160,300);await selectAt(410,600);};
+  const assertMoved=(actual,before,dx,dy)=>{
+    assert.equal(actual.id,before.id);assert.equal(actual.slot,before.slot);
+    for(const key of ['x1','x2'])assertGestureClose(actual[key],before[key]+dx);
+    for(const key of ['y1','y2'])assertGestureClose(actual[key],before[key]+dy);
+  };
+  const multiLayoutHeight=await gestureCanvas.evaluate(el=>el.getBoundingClientRect().height);
+  await selectPair();
+  assert.equal(await gu.isDisabled(),true);
+  assertGestureClose(await gestureCanvas.evaluate(el=>el.getBoundingClientRect().height),multiLayoutHeight);
+  await drag(160,300,210,340,gestureCanvas); // Drag non-primary member, retaining both.
+  let group=await gestureBoxes();
+  assertMoved(group[0],multiOriginal[0],50,40);assertMoved(group[1],multiOriginal[1],50,40);
+  assert.deepEqual(geometry([group[2]]),geometry([multiOriginal[2]]));
+  const groupMoved=geometry(group);
+  await gu.click();assert.deepEqual(geometry(await gestureBoxes()),geometry(multiOriginal));
+  assert.equal(await gu.isDisabled(),true);assert.equal(await gr.isDisabled(),false);
+  await selectAt(410,600);await selectAt(410,600); // Toggle off/on must preserve Redo.
+  assert.equal(await gr.isDisabled(),false);
+  await gr.click();assert.deepEqual(geometry(await gestureBoxes()),groupMoved);
+  await gestureCanvas.press('Shift+ArrowRight');
+  group=await gestureBoxes();assertMoved(group[0],multiOriginal[0],60,40);assertMoved(group[1],multiOriginal[1],60,40);
+  await gu.click();await gu.click();
+  await gestureCanvas.press('ArrowRight'); // Undo restored the original pair selection.
+  group=await gestureBoxes();assertMoved(group[0],multiOriginal[0],1,0);assertMoved(group[1],multiOriginal[1],1,0);
+  assert.equal(await gr.isDisabled(),true);
+
+  // Meta-click is the macOS equivalent; Ctrl-click does not trigger a corner/delete handle.
+  await resetMulti();await clickAt(160,300);await selectAt(500,500,'Meta');
+  assert.equal((await gestureBoxes()).length,3);
+  await gestureCanvas.press('ArrowDown');group=await gestureBoxes();
+  assertMoved(group[0],multiOriginal[0],0,1);assertMoved(group[1],multiOriginal[1],0,1);
+  await selectAt(410,600);await gestureCanvas.press('ArrowRight');group=await gestureBoxes();
+  assertMoved(group[0],multiOriginal[0],1,1);assertMoved(group[1],multiOriginal[1],0,1);
+
+  // Group bounds stop all members together rather than collapsing their spacing.
+  await resetMulti();await selectPair();await drag(160,300,890,1180,gestureCanvas);
+  group=await gestureBoxes();assertMoved(group[0],multiOriginal[0],368,456);assertMoved(group[1],multiOriginal[1],368,456);
+  await gestureCanvas.press('ArrowRight');assert.deepEqual(geometry(await gestureBoxes()),geometry(group));
+  await gu.click();assert.equal(await gu.isDisabled(),true); // Blocked arrow adds no edit.
+  await drag(160,300,0,0,gestureCanvas);group=await gestureBoxes();
+  assertMoved(group[0],multiOriginal[0],-72,-172);assertMoved(group[1],multiOriginal[1],-72,-172);
+
+  // Snap uses the whole selection's outer bounds, preserving internal offsets.
+  await resetMulti();await selectPair();
+  await gestures.getByRole('checkbox',{name:'Snap to guides',exact:true}).check();
+  await drag(160,300,306,440,gestureCanvas);group=await gestureBoxes();
+  assertGestureClose((group[0].x1+group[1].x2)/2,448);
+  assertGestureClose((group[0].y1+group[1].y2)/2,592);
+  assertGestureClose(group[1].x1-group[0].x1,250);assertGestureClose(group[1].y1-group[0].y1,300);
+  const snapGroup=structuredClone(group);await gestureCanvas.press('ArrowRight');group=await gestureBoxes();
+  assertMoved(group[0],snapGroup[0],1,0);assertMoved(group[1],snapGroup[1],1,0);
+
+  // One Alt drag duplicates every selected member once, keeps originals and metadata.
+  await resetMulti();await selectPair();await modifierDrag('Alt',160,300,220,350);
+  group=await gestureBoxes();assert.equal(group.length,5);assert.equal(new Set(group.map(b=>b.id)).size,5);
+  assert.deepEqual(geometry(group.slice(0,3)),geometry(multiOriginal));
+  for(let i=0;i<2;i++){
+    assert.equal(group[3+i].text,multiOriginal[i].text);assert.equal(group[3+i].label,multiOriginal[i].label);
+    assertMoved({...group[3+i],id:multiOriginal[i].id},multiOriginal[i],60,50);
+  }
+  const pairCopies=geometry(group);
+  await gu.click();assert.deepEqual(geometry(await gestureBoxes()),geometry(multiOriginal));
+  assert.equal(await gu.isDisabled(),true);
+  await gr.click();assert.deepEqual(geometry(await gestureBoxes()),pairCopies);
+  await gestureCanvas.press('ArrowRight');group=await gestureBoxes();
+  assert.deepEqual(geometry(group.slice(0,3)),geometry(multiOriginal));
+  assertGestureClose(group[3].x1,161);assertGestureClose(group[4].x1,411);
+  const groupSaved=await page.evaluate(()=>window.gestureNode.save());
+  assert.equal(groupSaved.widgets_values.length,9);
+  assert.equal(JSON.stringify(groupSaved).includes('selectedIds'),false);
+  const groupSavedGeometry=geometry(group);
+  await page.evaluate(data=>window.gestureNode.configure(data),groupSaved);
+  assert.deepEqual(geometry(await gestureBoxes()),groupSavedGeometry);
+  await gestureCanvas.press('ArrowRight');assert.deepEqual(geometry(await gestureBoxes()),groupSavedGeometry);
+  assert.equal(await gu.isDisabled(),true);assert.equal(await gr.isDisabled(),true);
+
+  // Cancellation rolls back all copies/moves AND selection, with no history entry.
+  for (const [key,event] of [['Alt','pointercancel'],[null,'lostpointercapture'],['Alt','Escape']]) {
+    await resetMulti();await selectPair();
+    const from=await coords(160,300,gestureCanvas),to=await coords(230,360,gestureCanvas);
+    if(key)await page.keyboard.down(key);
+    await page.mouse.move(from.x,from.y);await page.mouse.down();await page.mouse.move(to.x,to.y);
+    if(event==='Escape')await gestureCanvas.press('Escape');else await gestureCanvas.dispatchEvent(event);
+    await page.mouse.up();if(key)await page.keyboard.up(key);
+    assert.deepEqual(geometry(await gestureBoxes()),geometry(multiOriginal));assert.equal(await gu.isDisabled(),true);
+    await gestureCanvas.press('ArrowRight');group=await gestureBoxes();
+    assertMoved(group[0],multiOriginal[0],1,0);assertMoved(group[1],multiOriginal[1],1,0);
+  }
+  // Single-box edits, empty clicks and Escape have explicit selection behavior.
+  await resetMulti();await selectPair();await clickAt(710,900);await gestureCanvas.press('ArrowRight');group=await gestureBoxes();
+  assertMoved(group[0],multiOriginal[0],0,0);assertMoved(group[1],multiOriginal[1],0,0);assertMoved(group[2],multiOriginal[2],1,0);
+  await resetMulti();await selectPair();await clickAt(550,80);await gestureCanvas.press('ArrowRight');
+  assert.deepEqual(geometry(await gestureBoxes()),geometry(multiOriginal));assert.equal(await gu.isDisabled(),true);
+  await selectPair();await gestureCanvas.press('Escape');await gestureCanvas.press('ArrowRight');
+  assert.deepEqual(geometry(await gestureBoxes()),geometry(multiOriginal));
+  await selectPair();await gestures.getByRole('spinbutton',{name:'BBOX x',exact:true}).fill('360');
+  await gestures.getByRole('spinbutton',{name:'BBOX x',exact:true}).press('Enter');
+  await gestureCanvas.press('ArrowRight');group=await gestureBoxes();
+  assertMoved(group[0],multiOriginal[0],0,0);assertMoved(group[1],multiOriginal[1],11,0);
+  await resetMulti();await selectPair();await modifierDrag('Shift',250,400,280,440);group=await gestureBoxes();
+  assert.deepEqual(geometry([group[1]]),geometry([multiOriginal[1]]));
+  assertGestureClose((group[0].x2-group[0].x1)/(group[0].y2-group[0].y1),.75);
+  await gestureCanvas.press('ArrowRight');assertMoved((await gestureBoxes())[1],multiOriginal[1],0,0);
+
+  // Delete applies to the selection; the corner X still removes only its own box.
+  await resetMulti();await selectPair();await gestureCanvas.press('Delete');
+  assert.deepEqual(geometry(await gestureBoxes()),geometry([multiOriginal[2]]));
+  await gu.click();assert.deepEqual(geometry(await gestureBoxes()),geometry(multiOriginal));
+  await gestureCanvas.press('ArrowRight');group=await gestureBoxes();
+  assertMoved(group[0],multiOriginal[0],1,0);assertMoved(group[1],multiOriginal[1],1,0);
+  await resetMulti();await selectPair();await clickAt(250,200);
+  assert.deepEqual((await gestureBoxes()).map(b=>b.id),['b','c']);
+  await gestureCanvas.press('ArrowRight');assertGestureClose((await gestureBoxes())[0].x1,351);
+
+  // Existing Draw Box / hidden-box rules still govern selection gestures.
+  await resetMulti();await selectPair();await drawToggle.click();
+  await modifierDrag('Control',50,50,150,150);assert.equal((await gestureBoxes()).length,4);
+  assert.equal(await drawMode(),false);
+  await resetMulti();await selectPair();await gestures.locator('button[data-moss-help="show"]').click();
+  await selectAt(710,900);await modifierDrag('Alt',160,300,230,360);await gestureCanvas.press('Delete');
+  assert.deepEqual(geometry(await gestureBoxes()),geometry(multiOriginal));
+  await gestures.locator('button[data-moss-help="show"]').click();
+  await gestureCanvas.press('ArrowRight');group=await gestureBoxes();
+  assertMoved(group[0],multiOriginal[0],1,0);assertMoved(group[1],multiOriginal[1],1,0);
+  await gestures.screenshot({path:resolve(artifacts,'canvas-multi-selection.jpg'),type:'jpeg',quality:85});
+  Object.assign(result,{multi_select_ctrl_meta:true,multi_select_toggle_history:true,multi_move:true,multi_move_bounds:true,
+    multi_move_snap:true,multi_move_keyboard:true,multi_duplicate:true,multi_duplicate_metadata:true,multi_duplicate_history:true,
+    multi_selection_restore:true,multi_selection_session_only:true,multi_reload:true,multi_cancel:true,multi_single_edit:true,
+    multi_delete:true,multi_draw_hidden_rules:true,multi_layout_stable:true});
   assert.deepEqual(errors,[]);
   await snapping.screenshot({path:resolve(artifacts,'canvas-snap.jpg'),type:'jpeg',quality:85});
   Object.assign(result,{snap_default_off:true,snap_center_move:true,snap_thirds_resize:true,snap_history:true,snap_numeric_keyboard_exact:true,snap_reload:true,snap_zoom:true,snap_cancel:true});

@@ -27,6 +27,38 @@ Only the MOSS Canvas DOM is rearranged; Krea2 nodes, saved widgets, presets and
 box coordinates keep their existing behavior. Refresh the frontend to load this
 layout change; no backend restart is needed.
 
+### Unreleased: multiple selection and group movement/duplication
+
+- With **Draw Box OFF**, **Ctrl + click** (macOS: **Cmd + click**) adds/removes
+  a box from the selection. White borders identify selected boxes. A plain
+  click on an unselected box selects only that box; Escape or a click on empty
+  space clears selection. Dragging empty space still draws a box as before.
+- Drag **inside any selected box** to move the selection together. **Alt + drag**
+  duplicates all selected boxes when starting inside one of them; starting over
+  an unselected box duplicates that box only. Copies retain their individual
+  colors/prompts and metadata, receive new IDs, and become the new selection.
+- Canvas bounds and optional Snap apply to the selection's combined outer
+  rectangle, preserving every box's size and relative position. Arrow keys move
+  all selected boxes by exactly 1 pixel (Shift: 10), subject to Canvas bounds.
+- Each completed group drag/duplicate is one Undo/Redo edit. Selection changes
+  alone preserve Redo. Escape during a drag cancels it; Delete/Backspace removes
+  the selection. A corner's X removes only its own box.
+- Corner resizing and numeric edits select/edit **one box only**. Numeric fields
+  show the last selected box. Shift-corner aspect locking and Alt-click overlap
+  cycling remain available; Alt-click selects one box. Turn Draw Box OFF before
+  using selection gestures. Hidden boxes cannot be selected or duplicated.
+- Selection is local to each Canvas and is not saved to workflows. Edited and
+  duplicated boxes use the existing saved format; reload clears selection/history.
+  The UI keeps its existing controls and dimensions.
+
+**複数選択:** Draw BoxをOFFにし、Ctrl＋クリック（MacはCmd＋クリック）で枠を追加・解除します。
+白線の選択枠の内側をドラッグすると一括移動、Alt＋ドラッグで一括複製できます。
+色・説明・枠同士の間隔を保ち、Canvas端や吸着は全体に適用します。
+矢印キーは全選択枠を1px、Shift併用で10px移動。数値欄と角のリサイズは1枠だけを編集します。
+Escapeは選択解除（ドラッグ中は取消）、Deleteは選択枠を一括削除、右上の×はその1枠だけを削除します。
+一括操作はUndo／Redoに対応し、選択だけの変更ではRedoを消しません。
+配置は従来のWorkflow形式で保存し、選択状態と履歴は再読み込み時にクリアします。
+
 ### 1.0.5: Alt-drag duplication, Shift-resize and Draw Box toggle
 
 - **Draw Box** toggles new-box drawing ON/OFF. When highlighted, dragging

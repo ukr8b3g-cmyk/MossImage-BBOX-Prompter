@@ -1,6 +1,6 @@
 // Session-only Canvas history; workflow serialization stays in moss_controls.
 function editKey(snapshot) {
-  const { selectedId, activeSlot, drawMode, canvasPresetSelected, canvasSize, ...values } = snapshot;
+  const { selectedId, selectedIds, activeSlot, drawMode, canvasPresetSelected, canvasSize, ...values } = snapshot;
   values.boxes = snapshot.boxes.map(({ id, slot, x1, y1, x2, y2 }) => ({ id, slot, x1, y1, x2, y2 }));
   return JSON.stringify(values);
 }
@@ -38,6 +38,28 @@ export function nextOverlappingBox(boxes, point, selectedId) {
   if (!hits.length) return null;
   const index = hits.findIndex(box => box.id === selectedId);
   return hits[(index + 1) % hits.length];
+}
+
+// Translate a selection as one rectangle so clamping/snapping never changes spacing.
+export function moveBoxSelection(boxes, dx, dy, bounds, snap = null) {
+  if (!boxes.length) return [];
+  const envelope = {
+    x1: Math.min(...boxes.map(b => Math.min(b.x1, b.x2))),
+    y1: Math.min(...boxes.map(b => Math.min(b.y1, b.y2))),
+    x2: Math.max(...boxes.map(b => Math.max(b.x1, b.x2))),
+    y2: Math.max(...boxes.map(b => Math.max(b.y1, b.y2))),
+  };
+  const limit = (delta, low, high) => low <= high ? Math.max(low, Math.min(high, delta)) : 0;
+  dx = limit(dx, bounds.minX - envelope.x1, bounds.maxX - envelope.x2);
+  dy = limit(dy, bounds.minY - envelope.y1, bounds.maxY - envelope.y2);
+  if (snap) {
+    const moved = { x1: envelope.x1 + dx, y1: envelope.y1 + dy,
+      x2: envelope.x2 + dx, y2: envelope.y2 + dy };
+    const snapped = snapBoxToGuides(moved, { ...snap, bounds, handle: "move" });
+    dx += snapped.x1 - moved.x1; dy += snapped.y1 - moved.y1;
+  }
+  return boxes.map(b => ({ ...b, x1: b.x1 + dx, y1: b.y1 + dy,
+    x2: b.x2 + dx, y2: b.y2 + dy }));
 }
 
 // A fixed opposite corner and one shared scale keep the starting ratio at bounds.

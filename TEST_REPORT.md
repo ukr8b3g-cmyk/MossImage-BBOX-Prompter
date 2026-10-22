@@ -1,3 +1,47 @@
+## 2026-10-23: multiple-selection publication and user confirmation
+
+After local deployment, the user confirmed that the editing behavior worked in
+their ComfyUI session. This is user-reported real-environment confirmation;
+the agent's browser evidence is the isolated CPU fixture recorded below.
+The publication includes group selection/movement/duplication, regression tests,
+and English/Japanese operation guidance. Both workflow JSON files and version
+1.0.5 remain unchanged. The push Action runs Python/JavaScript, syntax, Ruff and
+archive checks; Registry publication and a new Release are excluded.
+The following entry describes the preceding local implementation and tests.
+
+## 2026-10-23: local multiple selection, group movement and duplication
+
+With Draw Box OFF, Ctrl/Cmd-click toggles membership without changing box order
+or adding an Undo entry. Dragging inside a selected box moves the selection;
+Alt-drag duplicates it after the existing screen-pixel threshold. A common
+translation clamps/snaps the combined bounds so relative spacing is preserved.
+Selection is per Canvas, restored by Undo/Redo, and excluded from workflow data.
+Numeric/corner edits select one box; arrow keys and Delete apply to the selection.
+Escape clears selection or cancels a live edit. Existing UI rows and dimensions,
+node IDs, sockets, widget order, backend and both workflow JSON files are unchanged.
+
+Validation against the local v1.0.5 baseline:
+
+- Python: 45 passed, zero failures/skips. JavaScript: 34 passed, zero failures/skips.
+- JavaScript syntax checks passed for all web and test JS/MJS files.
+- The full isolated, headless CPU Canvas fixture passed with no page errors:
+  Ctrl and Meta selection, corner selection without accidental deletion,
+  add/remove without clearing Redo, group moves/duplicates, shared boundary and
+  snap behavior, exact arrow moves, fresh IDs and retained slot/text/label data,
+  one-step Undo/Redo, selection restoration, Escape/pointer cancellation,
+  group deletion versus individual corner X, numeric/corner single-box edits,
+  Draw Box and hidden-box rules, stable layout, and save/configure round trips.
+- Existing gesture, numeric, snapping, corrupt-layout and UI regressions passed.
+  Hover-help checks found Japanese/English help on all 34 visible controls.
+- Fixture service PID 34176, port 49904, stopped after the successful run;
+  `http_listening=false`. Earlier failed runs also closed their services.
+
+Evidence: local `canvas-footer-checks.json` (`multi_*` flags) and
+`canvas-multi-selection.jpg`. This is isolated browser evidence, not a new live
+ComfyUI UI or GPU test. Source and ComfyUI_test receive the seven changed
+frontend/test/documentation files only. No restart, generation, commit, push,
+version bump, Release or Registry publication is part of this local change.
+
 ## 1.0.5 release preparation
 
 Version 1.0.5 packages the Alt-drag duplication, Shift-corner aspect lock and
