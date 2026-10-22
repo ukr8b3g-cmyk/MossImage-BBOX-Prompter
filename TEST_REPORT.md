@@ -1,5 +1,20 @@
 # Validation record — updated 2026-10-22
 
+## Version 1.0.2 Registry package — 2026-10-22
+
+Version 1.0.2 packages the precise BBOX inputs, arrow movement and optional
+center/thirds snapping already committed and validated in
+`1bfe0f578c1793d705c359c4d7287020f06f72a7`. This version update changes only
+package metadata and release documentation; runtime code and the two bundled
+workflows retain the tested behavior. Earlier sections below record the version
+at the time of each test, before this packaging update.
+
+The source CI passed Python 38, JavaScript 22, syntax/Ruff and 30-file archive
+checks. Both Standard and DMD workflows also passed the recorded real-ComfyUI
+editing, Undo/Redo, Export/import and server Save As/fresh-session reload checks.
+The publishing workflow reruns source checks before upload. No new GPU inference
+is part of this version update.
+
 ## Actual ComfyUI guide snapping — 2026-10-22
 
 Both bundled Standard and DMD workflows passed real ComfyUI_test frontend checks

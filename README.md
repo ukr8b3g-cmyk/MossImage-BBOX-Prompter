@@ -1,6 +1,6 @@
 # MOSS BBOX Prompter
 
-**Current version: 1.0.1** — [GitHub Releases](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases)
+**Current version: 1.0.2** — [GitHub Releases](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases)
 · [Comfy Registry](https://registry.comfy.org/nodes/mossimage-bbox-prompter)
 
 <img width="1154" height="839" alt="image" src="https://github.com/user-attachments/assets/739cff51-f11a-4c25-88d5-7b0c5eb1a76c" />
@@ -27,7 +27,7 @@ Only the MOSS Canvas DOM is rearranged; Krea2 nodes, saved widgets, presets and
 box coordinates keep their existing behavior. Refresh the frontend to load this
 layout change; no backend restart is needed.
 
-### Unreleased: center/thirds snapping
+### 1.0.2: center/thirds snapping
 
 The compact **Snap** checkbox next to Grid enables snapping during box movement
 and corner resizing. Moving boxes align their nearest edge or center to the
@@ -43,7 +43,7 @@ movement always keep their exact requested values subject to Canvas bounds.
 Each completed pointer drag is one Undo/Redo operation. New-box drawing remains
 freehand. Refresh the frontend to load the new checkbox.
 
-### Unreleased: precise BBOX editing
+### 1.0.2: precise BBOX editing
 
 Select a box to show compact X / Y / W / H fields in pixels. Enter or leaving a
 field applies its value; Escape cancels uncommitted typing. Position changes
