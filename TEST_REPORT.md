@@ -1,3 +1,14 @@
+## 1.0.6 release preparation
+
+Version 1.0.6 packages multiple selection and group movement/duplication from
+commit 1f13ed2497a61d15feedecf94316eeb425c02cb5. GitHub Actions run 39807192022
+passed 45 Python and 34 JavaScript tests, syntax, Ruff S102/E702 and verification
+of all 39 packed files. Isolated browser tests and the user's ComfyUI confirmation
+are recorded below. This version bump changes only version and documentation;
+the Standard/DMD workflow JSON files remain byte-identical to v1.0.5 and will
+also be attached to the v1.0.6 Release. Fresh CI checks gate Registry publication.
+No additional GPU or live ComfyUI test is claimed for this version update.
+
 ## 2026-10-23: multiple-selection publication and user confirmation
 
 After local deployment, the user confirmed that the editing behavior worked in
