@@ -27,6 +27,20 @@ Only the MOSS Canvas DOM is rearranged; Krea2 nodes, saved widgets, presets and
 box coordinates keep their existing behavior. Refresh the frontend to load this
 layout change; no backend restart is needed.
 
+### Unreleased: precise BBOX editing
+
+Select a box to show compact X / Y / W / H fields in pixels. Enter or leaving a
+field applies its value; Escape cancels uncommitted typing. Position changes
+preserve box size and clamp to the existing editable Canvas bounds. Positive
+width/height values are limited to the available space; blank or invalid values
+are discarded. The fields use the same dark styling as the size controls.
+
+With the Canvas focused, arrow keys move the selected box by 1 pixel;
+Shift+arrow moves it by 10 pixels. Text and number inputs retain native keyboard
+behavior. Each committed field change or arrow-key event uses Canvas Undo/Redo;
+a movement blocked at the boundary adds no history. Coordinates keep the existing
+workflow format and numeric fields add no serialized widgets.
+
 ### What's new in 1.0.0
 
 Version **1.0.0** brings the Canvas editing improvements introduced in **0.1.4**

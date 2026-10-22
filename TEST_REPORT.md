@@ -1,5 +1,42 @@
 # Validation record — updated 2026-10-22
 
+## Actual ComfyUI precision editing — 2026-10-22
+
+Both bundled Standard and DMD workflows passed real ComfyUI_test frontend checks
+at `http://127.0.0.9:8188` in isolated Chrome sessions. The existing title BBOX was
+selected with the pointer, then X/Y/W/H were changed through the visible inputs.
+Four numeric changes could be undone and redone. All four arrow directions,
+1px and Shift+10px movement, Ctrl+Z/Ctrl+Y and fractional X=130.5 were verified
+against the actual node state. Other boxes and the source workflow files stayed
+unchanged. Screenshots confirmed the compact dark numeric row in the real UI.
+
+Workflow actions > Export produced JSON with the edited geometry in both
+widgets_values and saved state. Importing that JSON restored all coordinates
+and numeric controls, reset session history, and allowed a new edit/Undo cycle.
+Both workflows also passed Workflow actions > Save As (HTTP 200), server JSON
+inspection, and reopening from the Workflows sidebar in fresh browser sessions
+(GET 200). The exact serialized layouts survived both server round trips.
+
+Prompt requests: 0. Page errors: 0. Queues were empty before/after. The two
+uniquely named temporary server workflows were deleted and confirmed absent
+(DELETE 204, GET 404); test-owned browsers were closed. These validation runs made no generation
+requests or service changes; commit/push and publication are tracked separately.
+
+## Unreleased precision editing — 2026-10-22
+
+Added selected-box X/Y/W/H inputs and 1px / Shift+10px keyboard movement.
+Python: 38 passed, no skips (installed ComfyUI reference and pre-change snapshot).
+JavaScript unit tests: 17 passed. The isolated Chrome Canvas fixture exercises
+real input/pointer/keyboard events, numeric edits, Undo/Redo, all four arrow keys,
+modifier/input isolation, invalid/empty sizes, boundary clamping and boundary
+no-op history, serialized geometry and reload with the original nine widgets.
+Existing overlap selection, pointer cancellation, external dimensions, responsive
+footer and corrupt-layout preservation/recovery checks also pass.
+
+These are CPU/isolated-browser checks, not a new real-ComfyUI or GPU run.
+The fixture closes its own browser and HTTP server. Package version remains
+1.0.1; Registry publication is separate from this change.
+
 ## Version 1.0.1 Registry package — 2026-10-22
 
 Version 1.0.1 packages the damaged-layout recovery fix and verification records

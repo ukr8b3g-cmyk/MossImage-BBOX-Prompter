@@ -1616,6 +1616,60 @@ function setupCanvasNode(node) {
   gridTop.addEventListener("change", () => { updateGuide(); sync(); });
   langSelect.addEventListener("change", () => { applyCanvasLabels(); sync(); });
   wrap.appendChild(toolbar);
+  // DOM-only controls: keep the saved widget order and layout schema unchanged.
+  const precisionBar = document.createElement("div");
+  precisionBar.className = "moss-k2cf-rowline";
+  precisionBar.style.cssText = "display:none;flex-wrap:wrap;gap:6px;padding:3px 6px";
+  precisionBar.setAttribute("aria-label", "Selected BBOX geometry");
+  const precisionInputs = {};
+  for (const [key, label] of [["x", "X"], ["y", "Y"], ["width", "W"], ["height", "H"]]) {
+    const field = document.createElement("label");
+    field.style.cssText = "display:flex;align-items:center;gap:3px";
+    field.textContent = label;
+    const input = document.createElement("input");
+    input.type = "number"; input.step = "any";
+    input.className = "moss-k2cf-num";
+    input.style.width = "66px";
+    input.setAttribute("aria-label", `BBOX ${key}`);
+    input.title = `BBOX ${key} (px)`;
+    precisionInputs[key] = input;
+    input.addEventListener("change", () => {
+      const box = state.boxes.find(b => b.id === state.selectedId);
+      const value = input.value.trim() === "" ? NaN : Number(input.value);
+      if (!box || state.layoutError || pointerStart || !Number.isFinite(value)) {
+        refreshPrecision(true); return;
+      }
+      const [x1,y1,x2,y2] = normBox(box), f = frameBounds();
+      if (key === "x" || key === "y") {
+        moveWithin(box, {x1:key === "x" ? value : x1, y1:key === "y" ? value : y1,
+          x2:(key === "x" ? value : x1)+x2-x1, y2:(key === "y" ? value : y1)+y2-y1});
+      } else {
+        if (value <= 0) { refreshPrecision(true); return; }
+        Object.assign(box, {x1,y1,x2,y2});
+        if (key === "width") box.x2 = x1 + Math.min(value, f.maxX-x1);
+        else box.y2 = y1 + Math.min(value, f.maxY-y1);
+      }
+      writeBoxes(); refreshPrecision(true);
+    });
+    input.addEventListener("keydown", ev => {
+      if (ev.key === "Enter") { input.blur(); overlay.focus({preventScroll:true}); ev.preventDefault(); }
+      if (ev.key === "Escape") { refreshPrecision(true); input.blur(); overlay.focus({preventScroll:true}); ev.preventDefault(); }
+    });
+    field.append(input); precisionBar.append(field);
+  }
+  wrap.appendChild(precisionBar);
+  function refreshPrecision(force = false) {
+    const box = state.boxes.find(b => b.id === state.selectedId);
+    const visible = box && !state.layoutError && !state.hideBoxes;
+    precisionBar.style.display = visible ? "flex" : "none";
+    if (!visible) return;
+    const [x,y,x2,y2] = normBox(box);
+    for (const [key,value] of Object.entries({x,y,width:x2-x,height:y2-y})) {
+      if (!force && document.activeElement === precisionInputs[key]) continue;
+      precisionInputs[key].value = String(Number(value.toFixed(9)));
+    }
+  }
+
 
   const monitor = document.createElement("div");
   monitor.className = "moss-k2cf-monitor";
@@ -2168,6 +2222,7 @@ function setupCanvasNode(node) {
   function colorFor(slot) { return SLOTS.find((s) => s[0] === slot)?.[2] || "#fff"; }
   function normBox(b) { return [Math.min(b.x1,b.x2), Math.min(b.y1,b.y2), Math.max(b.x1,b.x2), Math.max(b.y1,b.y2)]; }
   function drawOverlay() {
+    refreshPrecision();
     overlayCtx.clearRect(0, 0, overlay.width, overlay.height);
     if (state.hideBoxes) return;
     for (const b of state.boxes) drawBox(b, b.id === state.selectedId);
@@ -2306,6 +2361,16 @@ function setupCanvasNode(node) {
     const key=ev.key.toLowerCase();
     if ((ev.ctrlKey || ev.metaKey) && !ev.altKey && (key==="z" || key==="y")) {
       restoreHistory(key==="y" || ev.shiftKey ? "redo" : "undo");
+      ev.preventDefault(); ev.stopImmediatePropagation(); return;
+    }
+    const direction = {ArrowLeft:[-1,0], ArrowRight:[1,0], ArrowUp:[0,-1], ArrowDown:[0,1]}[ev.key];
+    if (direction && ev.target === overlay && !ev.ctrlKey && !ev.metaKey && !ev.altKey && !pointerStart && !state.layoutError && !state.hideBoxes) {
+      const box = state.boxes.find(b => b.id === state.selectedId);
+      if (!box) return;
+      const [x1,y1,x2,y2] = normBox(box), step = ev.shiftKey ? 10 : 1;
+      const dx = direction[0]*step, dy = direction[1]*step;
+      moveWithin(box, {x1:x1+dx,y1:y1+dy,x2:x2+dx,y2:y2+dy});
+      writeBoxes();
       ev.preventDefault(); ev.stopImmediatePropagation(); return;
     }
     if (pointerStart || (ev.key!=="Delete" && ev.key!=="Backspace")) return;

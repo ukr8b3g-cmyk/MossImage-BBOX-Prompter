@@ -123,7 +123,7 @@ try {
   assert.equal(JSON.parse((await values()).camera_data).iso,'200');
   const saved=await page.evaluate(()=>window.moss.save());
   await page.evaluate(data=>{window.copy=window.makeCopy(data)},saved);
-  await page.waitForFunction(()=>window.copy?.host.querySelector('input[type=number]')?.value==='896');
+  await page.waitForFunction(()=>window.copy?.host.querySelector('.moss-k2cf-panels input[type=number]')?.value==='896');
   assert.equal(await page.locator('.host').nth(2).locator('.moss-k2cf-panels>.moss-k2cf-panel').count(),3);
   assert.equal(await page.locator('.host').nth(2).locator('.moss-k2cf-camera-cell select').nth(0).inputValue(),'200');
 
@@ -349,6 +349,70 @@ try {
   });
   assert.deepEqual(errors,[]);
   const result={standalone:!process.env.KREA2_UI_SOURCE,coexistence:!!process.env.KREA2_UI_SOURCE,legacy_presets_read:true,Krea_storage_unchanged:true,before_height:initial.oldHeight,after_height:initial.height,reduction_percent:Math.round(100*(1-initial.height/initial.oldHeight)),equal_panels:true,horizontal_latent_controls:true,size_presets:true,camera_values:true,canvas_preset_roundtrip:true,clone_restores:true,external_override_status:true,responsive,raw_controls_unchanged:true,page_errors:errors};
+  // Precision controls use real DOM edits and keyboard events, including serialization.
+  await page.evaluate(() => {
+    window.preciseNode = window.makeEditNode();
+    document.querySelector('#nodes').prepend(window.preciseNode.host);
+  });
+  const precise = page.locator('.host').first();
+  const preciseCanvas = precise.locator('.moss-k2cf-overlay');
+  const precisionBox = () => page.evaluate(() => JSON.parse(window.preciseNode.widgets.find(w=>w.name==='layout_data').value).boxes[0]);
+  const px = precise.getByRole('spinbutton',{name:'BBOX x',exact:true});
+  const py = precise.getByRole('spinbutton',{name:'BBOX y',exact:true});
+  const pw = precise.getByRole('spinbutton',{name:'BBOX width',exact:true});
+  const ph = precise.getByRole('spinbutton',{name:'BBOX height',exact:true});
+  const pu = precise.getByRole('button',{name:'Undo Canvas edit',exact:true});
+  const pr = precise.getByRole('button',{name:'Redo Canvas edit',exact:true});
+  assert.equal(await px.isVisible(),false);
+  const point = await coords(200,500,preciseCanvas);
+  await page.mouse.click(point.x,point.y);
+  await px.waitFor({state:'visible'});
+  const precisionInitial = geometry([await precisionBox()]);
+  for (const [field,value] of [[pw,'200'],[ph,'400'],[px,'100'],[py,'300']]) {
+    await field.fill(value); await field.press('Enter');
+  }
+  let pbox = await precisionBox();
+  assert.deepEqual([pbox.x1,pbox.y1,pbox.x2,pbox.y2],[100,300,300,700]);
+  for(let i=0;i<4;i++) await pu.click();
+  assert.deepEqual(geometry([await precisionBox()]),precisionInitial);
+  for(let i=0;i<4;i++) await pr.click();
+  await preciseCanvas.focus(); await page.keyboard.press('ArrowRight');
+  await page.keyboard.press('Shift+ArrowDown');
+  pbox=await precisionBox();
+  assert.deepEqual([pbox.x1,pbox.y1,pbox.x2,pbox.y2],[101,310,301,710]);
+  await preciseCanvas.press('Control+z');
+  assert.equal((await precisionBox()).y1,300);
+  await preciseCanvas.press('Control+y');
+  assert.equal((await precisionBox()).y1,310);
+  assert.equal(await py.inputValue(),'310');
+  await preciseCanvas.press('ArrowLeft'); await preciseCanvas.press('Shift+ArrowUp');
+  assert.deepEqual([(await precisionBox()).x1,(await precisionBox()).y1],[100,300]);
+  await pu.click(); await pu.click();
+  await preciseCanvas.focus(); await preciseCanvas.press('Control+ArrowRight');
+  assert.equal((await precisionBox()).x1,101);
+  // Input editing must not move the selected box until committed.
+  await px.fill('123'); await px.press('ArrowLeft');
+  assert.equal((await precisionBox()).x1,101);
+  await px.press('Escape');
+  for (const value of ['', '0', '-2']) {
+    await pw.fill(value); await pw.press('Enter');
+    assert.equal((await precisionBox()).x2-(await precisionBox()).x1,200);
+  }
+  await px.fill('-100'); await px.press('Enter');
+  assert.equal((await precisionBox()).x1,28);
+  await preciseCanvas.press('ArrowLeft');
+  await pu.click(); // Boundary no-op adds no history.
+  assert.equal((await precisionBox()).x1,101);
+  await py.fill('99999'); await py.press('Enter');
+  assert.equal((await precisionBox()).y2,1156);
+  await pw.fill('99999'); await pw.press('Enter');
+  assert.equal((await precisionBox()).x2,868);
+  const savedPrecision = await page.evaluate(()=>window.preciseNode.save());
+  await page.evaluate(data=>{window.precisionCopy=window.makeCopy(data)},savedPrecision);
+  assert.deepEqual(await page.evaluate(()=>JSON.parse(window.precisionCopy.widgets.find(w=>w.name==='layout_data').value).boxes),[await precisionBox()]);
+  assert.equal(savedPrecision.widgets_values.length,9);
+  await precise.screenshot({path:resolve(artifacts,'canvas-precision.jpg'),type:'jpeg',quality:85});
+  Object.assign(result,{precision_inputs:true,arrow_nudge:true,precision_history:true,precision_bounds:true,precision_reload:true});
   Object.assign(result,{canvas_history:true,overlap_select_and_drag:true,keyboard_isolation:true,early_graph_shortcut_isolation:true,pointer_cancel:true,configure_during_drag:true,external_size_history:true});
   Object.assign(result,{corrupt_layouts_preserved:corruptLayouts.length,corrupt_serialization_roundtrip:true,corrupt_prompt_preparation:true,explicit_reset_recovery:true,valid_reload_recovery:true,intentional_empty_layouts:true});
   await writeFile(resolve(artifacts,'canvas-footer-checks.json'),JSON.stringify(result,null,2));
