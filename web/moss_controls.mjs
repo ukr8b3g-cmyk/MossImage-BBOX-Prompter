@@ -2,7 +2,7 @@
 // Copyright (c) 2026 ukr8b3g-cmyk. MIT; see LICENSE and NOTICE.md.
 
 import { app } from "../../scripts/app.js";
-import { createCanvasHistory, nextOverlappingBox } from "./canvas_editing.mjs";
+import { createCanvasHistory, nextOverlappingBox, snapBoxToGuides } from "./canvas_editing.mjs";
 
 const CANVAS_NODE = "MOSSSharedCanvas";
 
@@ -1536,6 +1536,7 @@ function setupCanvasNode(node) {
     if (headers[0]) headers[0].textContent = tr(lang, "latentSize");
     if (headers[1]) headers[1].textContent = tr(lang, "cameraSettings");
     if (gridLabelTop) gridLabelTop.textContent = "Grid";
+    snapLabel.textContent = lang === "ja" ? "吸着" : "Snap";
     if (languageLabel) languageLabel.textContent = tr(lang, "uiLanguage");
   }
   for (const [key, label, color] of SLOTS) {
@@ -1578,6 +1579,7 @@ function setupCanvasNode(node) {
     state.activeSlot = "red";
     state.hideBoxes = false;
     state.drawMode = false;
+    snapToggle.checked = false;
     drawBtn.classList.remove("primary");
     saveCameraSets();
     saveCanvasPresets();
@@ -1607,12 +1609,24 @@ function setupCanvasNode(node) {
   gridLabelTop.textContent = "Grid";
   gridBox.append(gridLabelTop, gridTop);
 
+  // Editing aid only: every node/workflow starts OFF, with no saved widget added.
+  const snapBox = document.createElement("label");
+  snapBox.className = "moss-k2cf-rowline";
+  const snapToggle = document.createElement("input");
+  snapToggle.type = "checkbox";
+  snapToggle.checked = false;
+  snapToggle.setAttribute("aria-label", "Snap to guides");
+  snapToggle.title = "Snap dragged box edges/centers and resize edges to center/thirds within 6 screen pixels. Numeric inputs and arrow keys stay exact. Resets OFF on workflow load.";
+  const snapLabel = document.createElement("span");
+  snapLabel.textContent = "Snap";
+  snapBox.append(snapToggle, snapLabel);
+
   const languageBox = document.createElement("div");
   languageBox.className = "moss-k2cf-rowline";
   const languageLabel = document.createElement("span");
   languageLabel.textContent = tr(resolveLang(langSelect.value), "uiLanguage");
   languageBox.append(languageLabel, langSelect);
-  toolbar.append(tools, gridBox, languageBox);
+  toolbar.append(tools, gridBox, snapBox, languageBox);
   gridTop.addEventListener("change", () => { updateGuide(); sync(); });
   langSelect.addEventListener("change", () => { applyCanvasLabels(); sync(); });
   wrap.appendChild(toolbar);
@@ -1661,7 +1675,9 @@ function setupCanvasNode(node) {
   function refreshPrecision(force = false) {
     const box = state.boxes.find(b => b.id === state.selectedId);
     const visible = box && !state.layoutError && !state.hideBoxes;
-    precisionBar.style.display = visible ? "flex" : "none";
+    // Revealing the numeric row during pointerdown would shift the Canvas under
+    // the pointer and move the guide positions midway through the first drag.
+    if (!visible || !pointerStart) precisionBar.style.display = visible ? "flex" : "none";
     if (!visible) return;
     const [x,y,x2,y2] = normBox(box);
     for (const [key,value] of Object.entries({x,y,width:x2-x,height:y2-y})) {
@@ -2298,6 +2314,13 @@ function setupCanvasNode(node) {
     const y = cy < .34 ? "upper" : cy > .66 ? "lower" : "middle";
     return `${y}-${x} area, centered around ${Math.round(cx*100)}% from the left and ${Math.round(cy*100)}% from the top`;
   }
+  function snapPointerBox(box, handle) {
+    if (!snapToggle.checked) return;
+    const rect = overlay.getBoundingClientRect(), [width, height] = currentSize();
+    Object.assign(box, snapBoxToGuides(box, { width, height, bounds: frameBounds(), handle,
+      toleranceX: 6 * width / Math.max(rect.width, 1),
+      toleranceY: 6 * height / Math.max(rect.height, 1) }));
+  }
   function writeBoxes() {
     state.boxes.forEach((b,i)=>{ const [x1,y1,x2,y2]=normBox(b); b.x1=x1;b.y1=y1;b.x2=x2;b.y2=y2;addNormalizedBoxData(b);b.bbox=[Math.round(x1),Math.round(y1),Math.round(x2),Math.round(y2)];b.position_hint=positionHint(b);b.z=i; });
     sync(); drawOverlay();
@@ -2340,13 +2363,14 @@ function setupCanvasNode(node) {
   overlay.addEventListener("pointermove", (ev)=>{
     const p=point(ev);
     if(state.drawing){ state.drawing.x2=p.x; state.drawing.y2=p.y; clampBox(state.drawing); drawOverlay(); return; }
-    if(state.moving){ const b=state.boxes.find((x)=>x.id===state.moving.id); if(!b)return; const dx=p.x-state.moving.x, dy=p.y-state.moving.y; moveWithin(b,{x1:state.moving.box.x1+dx,x2:state.moving.box.x2+dx,y1:state.moving.box.y1+dy,y2:state.moving.box.y2+dy}); drawOverlay(); return; }
-    if(state.resizing){ const b=state.boxes.find((x)=>x.id===state.resizing.id); if(!b)return; if(state.resizing.handle.includes("n"))b.y1=p.y;if(state.resizing.handle.includes("s"))b.y2=p.y;if(state.resizing.handle.includes("w"))b.x1=p.x;if(state.resizing.handle.includes("e"))b.x2=p.x;clampBox(b);drawOverlay(); }
+    if(state.moving){ const b=state.boxes.find((x)=>x.id===state.moving.id); if(!b)return; const dx=p.x-state.moving.x, dy=p.y-state.moving.y; moveWithin(b,{x1:state.moving.box.x1+dx,x2:state.moving.box.x2+dx,y1:state.moving.box.y1+dy,y2:state.moving.box.y2+dy}); snapPointerBox(b,"move"); drawOverlay(); return; }
+    if(state.resizing){ const b=state.boxes.find((x)=>x.id===state.resizing.id); if(!b)return; if(state.resizing.handle.includes("n"))b.y1=p.y;if(state.resizing.handle.includes("s"))b.y2=p.y;if(state.resizing.handle.includes("w"))b.x1=p.x;if(state.resizing.handle.includes("e"))b.x2=p.x;clampBox(b);snapPointerBox(b,state.resizing.handle);drawOverlay(); }
   });
   overlay.addEventListener("pointerup", ()=>{
     if(state.drawing){ const [x1,y1,x2,y2]=normBox(state.drawing); if(Math.abs(x2-x1)>8&&Math.abs(y2-y1)>8){ state.drawing.x1=x1;state.drawing.y1=y1;state.drawing.x2=x2;state.drawing.y2=y2;state.selectedId=state.drawing.id;state.boxes.push(state.drawing); state.drawMode=false; drawBtn.classList.remove("primary"); } state.drawing=null; writeBoxes(); }
     if(state.moving||state.resizing){ state.moving=null;state.resizing=null;writeBoxes(); }
     pointerStart=null;
+    refreshPrecision();
   });
   function cancelPointerEdit() {
     if (pointerStart) restoreCanvasEdit(pointerStart);
@@ -2380,6 +2404,7 @@ function setupCanvasNode(node) {
 
   function hydrateCanvasFromWidgets() {
     isHydrating = true;
+    snapToggle.checked = false;
     pointerStart = null;
     state.drawing = state.moving = state.resizing = null;
     state.selectedId = null;

@@ -1,5 +1,63 @@
 # Validation record — updated 2026-10-22
 
+## Actual ComfyUI guide snapping — 2026-10-22
+
+Both bundled Standard and DMD workflows passed real ComfyUI_test frontend checks
+at `http://127.0.0.9:8188` in isolated Chrome sessions. The title BBOX was selected
+and prepared through the visible numeric inputs; actual pointer events then
+verified OFF without attraction, ON with center and thirds alignment during both
+movement and corner resizing. Movement preserved size. Toggling Snap changed
+neither geometry nor Redo availability. Undo/Redo restored each complete drag.
+
+With Snap ON, X=447.5 and width=170.5 remained exact, arrow-right moved 1px,
+and Shift+arrow-down moved 10px. Ctrl+Z/Ctrl+Y restored those edits. Other boxes
+and the two original workflow files were unchanged.
+
+Workflow actions > Export retained edited geometry in both widgets_values and
+saved state. Importing the exported JSON restored the geometry and numeric
+controls, returned Snap to OFF, cleared session history and allowed a new
+edit/Undo cycle. Workflow actions > Save As also passed for each workflow
+(POST 200), with exact stored layouts in server JSON. Fresh browser sessions
+reopened both entries through the Workflows sidebar (GET 200), preserving
+geometry and returning Snap to OFF.
+
+Prompt requests: 0. Page errors: 0. Queues remained empty. The two uniquely named
+temporary server workflows were removed (DELETE 204 / GET 404); owned browsers
+were closed. These validation runs made no generation requests or service
+changes; commit/push and publication are tracked separately. Results and
+screenshots are retained in the existing local validation artifacts directory.
+
+## Unreleased guide snapping — 2026-10-22
+
+Implemented optional center/thirds snapping for pointer movement and resizing.
+The new checkbox is OFF on creation, workflow restore and Reset; no widget or
+layout schema field is added. The existing nine Canvas widgets, node IDs,
+sockets, example workflow files and version 1.0.1 remain unchanged.
+
+- Python: 38 passed, no skips (installed ComfyUI reference and pre-change snapshot).
+- JavaScript: 22 passed, no failures/skips; five new helper tests cover nearest
+  edge/center selection, fractional thirds, separate axis tolerances, all four
+  resize corners, bounds, distant targets, zero-size rejection and immutability.
+- All 11 JavaScript source/test files passed syntax checking.
+- Isolated Chrome Canvas fixture: passed real pointer/input/keyboard operations
+  for default-OFF movement, center snapping, thirds resizing, single-drag
+  Undo/Redo, toggle preserving geometry/Redo, reload preserving snapped geometry
+  while returning OFF, and exact numeric/fractional and arrow edits while ON.
+- Narrow zoom and 4px/9px proximity cases confirm the 6 displayed-pixel threshold,
+  including Grid Off. Pointer cancellation restores pre-drag geometry. Japanese
+  label and Reset behavior also pass. Existing precision, overlap, history,
+  corrupt-layout recovery and responsive footer checks pass; page errors: 0.
+
+The first-drag check exposed the numeric row shifting the Canvas when selection
+started. Revealing that row after pointer completion now keeps the guide/pointer
+coordinates stable during the drag. This is covered by starting the snap test
+with no box selected.
+
+These initial checks used CPU and isolated browsers. Subsequent real-ComfyUI
+verification is recorded above; GPU inference remains untested for this change.
+Test-owned browser and HTTP server were closed (listener false). Registry
+publication is separate from this change.
+
 ## Actual ComfyUI precision editing — 2026-10-22
 
 Both bundled Standard and DMD workflows passed real ComfyUI_test frontend checks

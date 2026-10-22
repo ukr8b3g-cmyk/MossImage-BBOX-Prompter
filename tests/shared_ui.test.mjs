@@ -1,9 +1,74 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
-import { createCanvasHistory, nextOverlappingBox } from "../web/canvas_editing.mjs";
+import { createCanvasHistory, nextOverlappingBox, snapBoxToGuides } from "../web/canvas_editing.mjs";
 
 const canvasSnapshot = x => ({ width: 896, height: 1184, boxes: [{ id: "a", slot: "red", x1: x, y1: 40, x2: x + 100, y2: 240 }] });
+
+const guideOptions = {
+  width: 600, height: 900,
+  bounds: { minX: 10, minY: 10, maxX: 590, maxY: 890 },
+  toleranceX: 6, toleranceY: 6,
+};
+
+test("Guide movement chooses the nearest box edge or center on each axis and preserves size", () => {
+  for (const [box, expected] of [
+    [{ x1: 196, y1: 446, x2: 276, y2: 526 }, [200, 450, 280, 530]],
+    [{ x1: 257, y1: 560, x2: 337, y2: 640 }, [260, 560, 340, 640]],
+    [{ x1: 114, y1: 214, x2: 194, y2: 294 }, [120, 220, 200, 300]],
+  ]) {
+    const snapped = snapBoxToGuides(box, guideOptions);
+    assert.deepEqual([snapped.x1, snapped.y1, snapped.x2, snapped.y2], expected);
+    assert.equal(snapped.x2 - snapped.x1, box.x2 - box.x1);
+    assert.equal(snapped.y2 - snapped.y1, box.y2 - box.y1);
+  }
+});
+
+test("Thirds retain fractional canvas coordinates with separate X and Y tolerances", () => {
+  const x = 896 / 3, y = 1184 * 2 / 3;
+  const box = { x1: x - 2.25, y1: y + 3, x2: x + 97.75, y2: y + 63 };
+  const snapped = snapBoxToGuides(box, {
+    width: 896, height: 1184,
+    bounds: { minX: 28, minY: 28, maxX: 868, maxY: 1156 },
+    toleranceX: 2.5, toleranceY: 2.5,
+  });
+  assert(Math.abs(snapped.x1 - x) < 1e-9);
+  assert(Math.abs(snapped.x2 - (x + 100)) < 1e-9);
+  assert.equal(snapped.y1, box.y1);
+  assert.equal(snapped.y2, box.y2);
+});
+
+test("Each resize corner snaps only its two moving edges", () => {
+  const box = { x1: 198, y1: 448, x2: 402, y2: 602 };
+  for (const [handle, expected] of [
+    ["nw", [200, 450, 402, 602]],
+    ["ne", [198, 450, 400, 602]],
+    ["sw", [200, 448, 402, 600]],
+    ["se", [198, 448, 400, 600]],
+  ]) {
+    const snapped = snapBoxToGuides(box, { ...guideOptions, handle });
+    assert.deepEqual([snapped.x1, snapped.y1, snapped.x2, snapped.y2], expected);
+  }
+});
+
+test("Guide snapping rejects distant or out-of-bounds movement and zero-size resize", () => {
+  const distant = { x1: 60, y1: 80, x2: 100, y2: 100 };
+  assert.deepEqual(snapBoxToGuides(distant, guideOptions), distant);
+  const bounded = { x1: 195, y1: 380, x2: 590, y2: 570 };
+  assert.deepEqual(snapBoxToGuides(bounded, { ...guideOptions, toleranceX: 10 }), bounded);
+  const narrow = { x1: 200, y1: 480, x2: 203, y2: 600 };
+  assert.deepEqual(snapBoxToGuides(narrow, { ...guideOptions, handle: "ne" }), narrow);
+});
+
+test("Guide snapping copies coordinates without changing input or metadata", () => {
+  const box = { id: "red-1", slot: "red", label: "Character", extra: { text: "keep" },
+    x1: 196, y1: 446, x2: 276, y2: 526 };
+  const original = structuredClone(box);
+  const snapped = snapBoxToGuides(box, guideOptions);
+  assert.notEqual(snapped, box);
+  assert.deepEqual(box, original);
+  assert.deepEqual({ ...snapped, x1: box.x1, y1: box.y1, x2: box.x2, y2: box.y2 }, original);
+});
 
 test("Canvas undo/redo keeps independent snapshots and clears redo only on an edit", () => {
   const history = createCanvasHistory();

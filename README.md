@@ -27,6 +27,22 @@ Only the MOSS Canvas DOM is rearranged; Krea2 nodes, saved widgets, presets and
 box coordinates keep their existing behavior. Refresh the frontend to load this
 layout change; no backend restart is needed.
 
+### Unreleased: center/thirds snapping
+
+The compact **Snap** checkbox next to Grid enables snapping during box movement
+and corner resizing. Moving boxes align their nearest edge or center to the
+Canvas center or one-third/two-thirds lines; resizing aligns only the dragged
+edges. The grab distance is 6 displayed pixels, including at different zooms.
+The visible Grid selection is independent of snapping. Existing Canvas bounds
+still apply and movement preserves the box size.
+
+Snap starts **OFF** for each node and returns OFF on workflow load or Reset.
+It is a session editing aid, adds no saved widgets and does not alter existing
+workflow data when toggled. Numeric X/Y/W/H edits and 1px / Shift+10px arrow
+movement always keep their exact requested values subject to Canvas bounds.
+Each completed pointer drag is one Undo/Redo operation. New-box drawing remains
+freehand. Refresh the frontend to load the new checkbox.
+
 ### Unreleased: precise BBOX editing
 
 Select a box to show compact X / Y / W / H fields in pixels. Enter or leaving a
