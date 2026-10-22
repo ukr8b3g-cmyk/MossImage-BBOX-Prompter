@@ -1,6 +1,6 @@
 # MOSS BBOX Prompter
 
-**Current version: 1.0.2** — [GitHub Releases](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases)
+**Current version: 1.0.3** — [GitHub Releases](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases)
 · [Comfy Registry](https://registry.comfy.org/nodes/mossimage-bbox-prompter)
 
 <img width="1154" height="839" alt="image" src="https://github.com/user-attachments/assets/739cff51-f11a-4c25-88d5-7b0c5eb1a76c" />
@@ -27,7 +27,7 @@ Only the MOSS Canvas DOM is rearranged; Krea2 nodes, saved widgets, presets and
 box coordinates keep their existing behavior. Refresh the frontend to load this
 layout change; no backend restart is needed.
 
-### Unreleased: generated-image BBOX preview
+### 1.0.3: generated-image BBOX preview
 
 Add **MOSS BBOX Preview** (`image/MOSS`) to compare a generated image with the
 requested Canvas boxes. Connect VAE Decode's `IMAGE` to `images`, and branch
@@ -141,7 +141,7 @@ required installation. An existing Krea2 installation can remain in place.
   running work is finished, then refresh the browser with Ctrl+F5. Use a ComfyUI
   version with MOSS-Image support and select your installed model files.
 
-`pyproject.toml` supplies MIT/package metadata. `node_list.json` lists the three
+`pyproject.toml` supplies MIT/package metadata. `node_list.json` lists the four
 current node IDs and three retained legacy IDs. `manager-entry.json` records the entry submitted in
 [ComfyUI-Manager PR #3399](https://github.com/Comfy-Org/ComfyUI-Manager/pull/3399).
 Registry publication uses the **Test and publish to Comfy Registry** GitHub Action
@@ -388,7 +388,7 @@ Chromium; they never contact the running ComfyUI or submit a queue.
 ```powershell
 $env:COMFYUI_ROOT = 'D:\StabilityMatrix\Data\Packages\ComfyUI-Q'
 python -B -m unittest discover -s tests -p "test_*.py"
-node --test tests/state.test.mjs tests/shared_ui.test.mjs
+node --test tests/state.test.mjs tests/shared_ui.test.mjs tests/preview.test.mjs
 node --check web/moss_bbox.js
 node --check web/editor.mjs
 # Optional: point PLAYWRIGHT_MODULE and CHROMIUM_PATH at installed copies.

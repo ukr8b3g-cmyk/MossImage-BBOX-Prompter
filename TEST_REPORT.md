@@ -1,5 +1,19 @@
 # Validation record — updated 2026-10-22
 
+## Version 1.0.3 Registry package — 2026-10-22
+
+Version 1.0.3 packages the optional BBOX image preview committed in
+`0ef65e5c6fa3683b542df2cdb9298a7b51497248`. That commit passed GitHub Actions
+run `39761785465`: 45 Python tests, 24 JavaScript tests, syntax and Ruff checks,
+and exact verification of all 37 archive files. The version bump changes only
+package metadata and documentation; implementation and examples are unchanged.
+
+The live ComfyUI_test checks below cover existing-image preview controls,
+Save As / reload and both unchanged templates. These checks did not generate
+new GPU images. Publication uses the existing manual workflow, which repeats
+all CI gates and refuses to overwrite an existing Registry version. API/CDN
+availability and Pending/Active review state are verified separately after upload.
+
 ## Version 1.0.2 Registry package — 2026-10-22
 
 Version 1.0.2 packages the precise BBOX inputs, arrow movement and optional
