@@ -34,8 +34,14 @@ class PreviewTests(unittest.TestCase):
             "MOSSSharedCanvas", "MOSSSharedPrompter", "MOSSFromKrea2", "MOSSBBoxCanvasPrompt",
             "MOSSBBoxCanvas", "MOSSBBoxPrompter", "MOSSBBoxPreview"})
         cls = package.NODE_CLASS_MAPPINGS["MOSSBBoxPreview"]
-        self.assertEqual(cls.INPUT_TYPES()["required"]["framing_data"],
+        inputs = cls.INPUT_TYPES()["required"]
+        self.assertEqual(list(inputs), ["images", "framing_data"])
+        self.assertEqual(inputs["framing_data"][:1],
                          package.NODE_CLASS_MAPPINGS["MOSSSharedCanvas"].RETURN_TYPES)
+        self.assertEqual(inputs["images"][0], "IMAGE")
+        for spec in inputs.values():
+            self.assertEqual(set(spec[1]), {"tooltip"})
+            self.assertTrue(spec[1]["tooltip"])
         self.assertEqual(cls.RETURN_TYPES, ("IMAGE",))
         self.assertTrue(cls.OUTPUT_NODE)
 

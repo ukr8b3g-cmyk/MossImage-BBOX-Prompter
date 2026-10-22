@@ -19,6 +19,8 @@ const graph={_nodes:[],extra:{},setDirtyCanvas(){}};
 const app={graph,rootGraph:graph,canvas:{canvas:document.querySelector('#graph-canvas'),ds:{scale:1}},
 registerExtension(e){extensions.push(e)},queuePrompt(){},graphToPrompt(){}};
 window.comfyAPI={app:{app}};
+app.ui={settings:{getSettingValue:()=>window.helpLocale||'en'}};
+await import('/web/moss_help.js');
 ${process.env.KREA2_UI_SOURCE ? "await import('/external-krea.js');" : ""}
 await import('/web/moss_shared_ui.js');const {installControls}=await import('/web/moss_controls.mjs');
 const colors=['red','blue','yellow','green','magenta'];
@@ -59,6 +61,7 @@ const server = createServer(async (request, response) => {
     else if (request.url === "/web/moss_controls.mjs") content = await readFile(resolve(root, "web/moss_controls.mjs"));
     else if (request.url === "/web/canvas_editing.mjs") content = await readFile(resolve(root, "web/canvas_editing.mjs"));
     else if (request.url === "/web/moss_shared_ui.js") content = await readFile(resolve(root, "web/moss_shared_ui.js"));
+    else if (["/web/help.mjs", "/web/moss_help.js"].includes(request.url)) content = await readFile(resolve(root, request.url.slice(1)));
     else if (request.url === "/scripts/app.js") content = "export const app=window.comfyAPI.app.app;";
     else { response.writeHead(404); response.end(); return; }
     response.setHeader("Content-Type", request.url === "/" ? "text/html; charset=utf-8" : "text/javascript; charset=utf-8");
@@ -75,6 +78,20 @@ try {
   const errors=[];page.on("pageerror", error=>errors.push(error.message));
   await page.goto(`http://127.0.0.1:${server.address().port}`);
   await page.waitForFunction(()=>window.ready);
+  const helpCheck = await page.evaluate(() => {
+    const node = window.nodes.first;
+    const before = node.widgets.filter(w=>!w.element).map(w=>w.value);
+    const controls = [...node.host.querySelectorAll('button,input,select,textarea')].filter(e=>e.getClientRects().length);
+    const missing = controls.filter(e=>!e.dataset.mossHelp).map(e=>e.outerHTML.slice(0,150));
+    window.helpLocale='ja';
+    const japanese = controls.every(e=>{e.dispatchEvent(new Event('pointerenter'));return /[ぁ-んァ-ヶ一-龠]/.test(e.title)});
+    window.helpLocale='en';
+    const english = controls.every(e=>{e.dispatchEvent(new Event('focusin'));return e.title && !/[ぁ-んァ-ヶ一-龠]/.test(e.title)});
+    return {missing,japanese,english,count:controls.length,unchanged:JSON.stringify(before)===JSON.stringify(node.widgets.filter(w=>!w.element).map(w=>w.value))};
+  });
+  assert.deepEqual(helpCheck.missing, []);
+  assert(helpCheck.japanese && helpCheck.english && helpCheck.unchanged, JSON.stringify(helpCheck));
+  console.log('Localized hover coverage', JSON.stringify(helpCheck));
   const first=page.locator('.host').nth(0);
   assert.deepEqual(await first.locator('.moss-k2cf-type').first().locator('option').evaluateAll(es=>es.map(e=>e.value)),['character','object','text']);
   await first.locator('.moss-k2cf-type').nth(0).selectOption('character');

@@ -39,8 +39,8 @@ class MOSSBBoxPreview:
     @classmethod
     def INPUT_TYPES(cls):
         return {"required": {
-            "images": ("IMAGE",),
-            "framing_data": ("KREA2_ELEMENT_FRAMING_DATA",),
+            "images": ("IMAGE", {"tooltip": "Connect generation subgraph IMAGE, VAE Decode IMAGE, or Load Image IMAGE. The preview appears inside this node after execution."}),
+            "framing_data": ("KREA2_ELEMENT_FRAMING_DATA", {"tooltip": "Branch MOSS BBOX Canvas framing_data here; keep its Export connection."}),
         }}
 
     RETURN_TYPES = ("IMAGE",)
@@ -48,7 +48,9 @@ class MOSSBBoxPreview:
     FUNCTION = "preview"
     OUTPUT_NODE = True
     CATEGORY = "image/MOSS"
-    DESCRIPTION = ("Compare generated images with the connected MOSS Canvas boxes. "
+    DESCRIPTION = ("Add this optional node to Standard or DMD; bundled templates do not contain it. "
+                   "Connect generation IMAGE (or Load Image IMAGE) to images, and MOSS BBOX Canvas framing_data to framing_data. "
+                   "Run to display the image and requested boxes inside this node. "
                    "Show Boxes and opacity affect only this preview, without re-running generation. "
                    "The IMAGE output is the original input, without boxes.")
 

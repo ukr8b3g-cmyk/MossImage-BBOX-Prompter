@@ -18,6 +18,8 @@ const extensions=[];
 const graph={_nodes:[],extra:{},links:new Map(),getNodeById(id){return this._nodes.find(n=>n.id===id)},setDirtyCanvas(){}};
 const app={graph,rootGraph:graph,canvas:{canvas:document.querySelector('#graph-canvas'),ds:{scale:1}},registerExtension(e){extensions.push(e)},queuePrompt(){},graphToPrompt(){}};
 window.comfyAPI={app:{app}};
+app.ui={settings:{getSettingValue:()=>window.helpLocale||'en'}};
+await import('/web/moss_help.js');
 // ComfyUI registers this capture-phase shortcut observer before custom nodes.
 window.graphHistoryKeys=0;
 window.addEventListener('keydown',event=>{
@@ -64,6 +66,7 @@ const server = createServer(async (request, response) => {
     else if (request.url === "/web/moss_controls.mjs") content = await readFile(resolve(root, "web/moss_controls.mjs"));
     else if (request.url === "/web/canvas_editing.mjs") content = await readFile(resolve(root, "web/canvas_editing.mjs"));
     else if (request.url === "/web/moss_shared_ui.js") content = await readFile(resolve(root, "web/moss_shared_ui.js"));
+    else if (["/web/help.mjs", "/web/moss_help.js"].includes(request.url)) content = await readFile(resolve(root, request.url.slice(1)));
     else if (request.url === "/scripts/app.js") content = "export const app=window.comfyAPI.app.app;";
     else { response.writeHead(404); response.end(); return; }
     response.setHeader("Content-Type", request.url === "/" ? "text/html; charset=utf-8" : "text/javascript; charset=utf-8");
@@ -80,6 +83,20 @@ try {
   const errors=[];page.on("pageerror", error=>errors.push(error.message));
   await page.goto(`http://127.0.0.1:${server.address().port}`);
   await page.waitForFunction(()=>window.ready);
+  const helpCheck = await page.evaluate(() => {
+    const node = window.moss;
+    const before = node.widgets.filter(w=>!w.element).map(w=>w.value);
+    const controls = [...node.host.querySelectorAll('button,input,select,textarea')].filter(e=>e.getClientRects().length);
+    const missing = controls.filter(e=>!e.dataset.mossHelp).map(e=>e.outerHTML.slice(0,150));
+    window.helpLocale='ja';
+    const japanese = controls.every(e=>{e.dispatchEvent(new Event('pointerenter'));return /[ぁ-んァ-ヶ一-龠]/.test(e.title)});
+    window.helpLocale='en';
+    const english = controls.every(e=>{e.dispatchEvent(new Event('focusin'));return e.title && !/[ぁ-んァ-ヶ一-龠]/.test(e.title)});
+    return {missing,japanese,english,count:controls.length,unchanged:JSON.stringify(before)===JSON.stringify(node.widgets.filter(w=>!w.element).map(w=>w.value))};
+  });
+  assert.deepEqual(helpCheck.missing, []);
+  assert(helpCheck.japanese && helpCheck.english && helpCheck.unchanged, JSON.stringify(helpCheck));
+  console.log('Localized hover coverage', JSON.stringify(helpCheck));
   const metrics=()=>page.evaluate(()=>{
     const box=e=>{const r=e.getBoundingClientRect();return{x:r.x,y:r.y,width:r.width,height:r.height}};
     const footer=window.moss.host.querySelector('.moss-k2cf-panels');
@@ -136,7 +153,7 @@ try {
     responsive.push({width,height:current.height});
   }
   await page.evaluate(()=>{window.moss.host.style.width='830px';window.moss.size[0]=830;window.moss.onResize?.(window.moss.size)});
-  await moss.getByTitle('Choose Canvas UI language. Auto keeps English until a language is selected.').selectOption('Japanese');
+  await moss.locator('select[data-moss-help=ui_language]').selectOption('Japanese');
   const translated=await metrics();assert.equal(translated.overflow,false);
   await page.evaluate(()=>{
     window.moss.graph._nodes.push({id:900,type:'PrimitiveNode',outputs:[{name:'width'}],widgets:[{name:'width',value:1280}]});
@@ -299,7 +316,7 @@ try {
     assert.equal(await guardedUndo.isDisabled(),true);
     assert.equal(await guardedRedo.isDisabled(),true);
     await guarded.locator('[data-slot="blue"]').click();
-    await guarded.getByTitle('Show or hide all D-boxes').click();
+    await guarded.locator('button[data-moss-help=show]').click();
     await guarded.locator('.moss-k2cf-camera-cell select').first().selectOption('200');
     await drag(100,200,400,600,guardedOverlay);
     const saved=await page.evaluate(() => {
@@ -364,9 +381,37 @@ try {
   const pu = precise.getByRole('button',{name:'Undo Canvas edit',exact:true});
   const pr = precise.getByRole('button',{name:'Redo Canvas edit',exact:true});
   assert.equal(await px.isVisible(),false);
+  const precisionLayout = () => page.evaluate(async () => {
+    await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
+    const host=window.preciseNode.host, origin=host.getBoundingClientRect();
+    return ['[aria-label="Selected BBOX geometry"]','.moss-k2cf-monitor','.moss-k2cf-overlay','.moss-k2cf-panels'].map(selector=>{
+      const r=host.querySelector(selector).getBoundingClientRect();
+      return {x:r.x-origin.x,y:r.y-origin.y,width:r.width,height:r.height};
+    });
+  });
+  const unselectedLayout = await precisionLayout();
+  assert(unselectedLayout[0].height > 0);
   const point = await coords(200,500,preciseCanvas);
   await page.mouse.click(point.x,point.y);
   await px.waitFor({state:'visible'});
+  assert.deepEqual(await precisionLayout(),unselectedLayout);
+  await precise.locator('button[data-moss-help=show]').click();
+  assert.equal(await px.isVisible(),false);
+  assert.deepEqual(await precisionLayout(),unselectedLayout);
+  await precise.locator('button[data-moss-help=show]').click();
+  assert.deepEqual(await precisionLayout(),unselectedLayout);
+  await preciseCanvas.focus();await preciseCanvas.press('Delete');
+  assert.equal(await px.isVisible(),false);
+  assert.deepEqual(await precisionLayout(),unselectedLayout);
+  await pu.click();
+  assert.deepEqual(await precisionLayout(),unselectedLayout);
+  await precise.locator('button[data-moss-help=draw]').click();
+  await drag(600,400,780,700,preciseCanvas);
+  assert.equal(await px.isVisible(),true);
+  assert.deepEqual(await precisionLayout(),unselectedLayout);
+  await pu.click();
+  assert.deepEqual(await precisionLayout(),unselectedLayout);
+  await page.mouse.click(point.x,point.y);
   const precisionInitial = geometry([await precisionBox()]);
   for (const [field,value] of [[pw,'200'],[ph,'400'],[px,'100'],[py,'300']]) {
     await field.fill(value); await field.press('Enter');
@@ -412,7 +457,7 @@ try {
   assert.deepEqual(await page.evaluate(()=>JSON.parse(window.precisionCopy.widgets.find(w=>w.name==='layout_data').value).boxes),[await precisionBox()]);
   assert.equal(savedPrecision.widgets_values.length,9);
   await precise.screenshot({path:resolve(artifacts,'canvas-precision.jpg'),type:'jpeg',quality:85});
-  Object.assign(result,{precision_inputs:true,arrow_nudge:true,precision_history:true,precision_bounds:true,precision_reload:true});
+  Object.assign(result,{precision_inputs:true,precision_layout_stable:true,arrow_nudge:true,precision_history:true,precision_bounds:true,precision_reload:true});
   // Session-only guide snapping, exercised with real pointer events at two zooms.
   await page.evaluate(() => {
     window.snapNode = window.makeEditNode();
@@ -481,7 +526,7 @@ try {
   assertClose((snappedBox.x1+snappedBox.x2)/2,448);assertClose((snappedBox.y1+snappedBox.y2)/2,592);
   // Threshold is six displayed pixels, including when the visible Grid is off.
   await snapUndo.click();
-  await snapping.getByTitle('Choose the canvas guide overlay.').selectOption('Off');
+  await snapping.locator('select[data-moss-help=grid_mode]').selectOption('Off');
   const displayed = await snapCanvas.boundingBox();
   const nearX = 4 * 896 / displayed.width, nearY = 4 * 1184 / displayed.height;
   await drag(180,280,448-nearX,592-nearY,snapCanvas);
@@ -494,7 +539,7 @@ try {
   assert(Math.abs((snappedBox.x1+snappedBox.x2)/2-448)>1);
   assert(Math.abs((snappedBox.y1+snappedBox.y2)/2-592)>1);
   await snapUndo.click();
-  await snapping.getByTitle('Choose the canvas guide overlay.').selectOption('Thirds');
+  await snapping.locator('select[data-moss-help=grid_mode]').selectOption('Thirds');
   // Cancelling an in-progress snapped drag restores its starting geometry.
   const snapStart=await coords(180,280,snapCanvas),snapEnd=await coords(446,590,snapCanvas);
   await page.mouse.move(snapStart.x,snapStart.y);await page.mouse.down();await page.mouse.move(snapEnd.x,snapEnd.y);
@@ -504,7 +549,7 @@ try {
   assert.equal(await snapToggle.isChecked(),false);
   await snapUndo.click();assert.deepEqual(geometry(await snapBoxes()),snapInitial);
   await snapToggle.check();
-  await snapping.getByTitle('Choose Canvas UI language. Auto keeps English until a language is selected.').selectOption('Japanese');
+  await snapping.locator('select[data-moss-help=ui_language]').selectOption('Japanese');
   assert.equal(await snapToggle.locator('..').textContent(),'吸着');
   assert.deepEqual(errors,[]);
   await snapping.screenshot({path:resolve(artifacts,'canvas-snap.jpg'),type:'jpeg',quality:85});

@@ -29,6 +29,10 @@ layout change; no backend restart is needed.
 
 ### 1.0.3: generated-image BBOX preview
 
+**Works with both Standard and DMD, and with the classic ComfyUI interface.
+Nodes 2.0 is not required. The two bundled templates do not include this optional
+node: running an unchanged template will not display a BBOX preview.**
+
 Add **MOSS BBOX Preview** (`image/MOSS`) to compare a generated image with the
 requested Canvas boxes. Connect VAE Decode's `IMAGE` to `images`, and branch
 the same **MOSS BBOX Canvas** `framing_data` output to its `framing_data` input.
@@ -50,6 +54,112 @@ Temporary previews may disappear after ComfyUI clears its temporary directory.
 
 Restart ComfyUI and refresh the frontend to register this new node. Existing
 Canvas/Prompter controls, node IDs and the two bundled workflows are unchanged.
+
+#### Add and connect the preview (Standard or DMD)
+
+1. Save your current workflow. Double-click empty graph space, search for
+   **MOSS BBOX Preview**, and add it (`image/MOSS`).
+2. In either bundled template, find **New Subgraph**, the generation node with
+   model/steps/CFG settings. Branch its **right-side `IMAGE` output** to the
+   Preview node's **left-side `images` input**. Use `IMAGE`, not `MODEL`, `LATENT`,
+   or a filename. If your graph is expanded, use VAE Decode's `IMAGE` instead.
+3. Branch **MOSS BBOX Canvas → `framing_data`** to
+   **MOSS BBOX Preview → `framing_data`**. Keep its existing Export connection.
+4. Keep the generation `IMAGE` connection to **Save Animated WEBP** (or your
+   existing WebP Meta save node). One output can feed both Save and Preview.
+5. Run the workflow. The image and colored boxes appear **inside MOSS BBOX
+   Preview**, not inside the drawing Canvas or the save node. Adding the node
+   alone does not display an earlier generation automatically.
+
+```text
+New Subgraph (or VAE Decode) IMAGE ─┬─→ Save Animated WEBP images
+                                  └─→ MOSS BBOX Preview images
+MOSS BBOX Canvas framing_data ─────┬─→ MOSS BBOX Export framing_data
+                                  └─→ MOSS BBOX Preview framing_data
+```
+
+The Preview `images` output is optional. It passes the original pixels through
+unchanged, so you may also place Preview between generation and Save. The frames
+are a display overlay only; they are never burned into that output or saved images.
+
+**To inspect an already saved image without regenerating it:** use a separate
+small workflow containing **Load Image**, **MOSS BBOX Canvas** with the layout used
+for that image, and **MOSS BBOX Preview**. Connect Load Image's `IMAGE` → Preview
+`images`, and Canvas `framing_data` → Preview `framing_data`, then Run. This path
+has no sampler or model generation. Do not run a larger generation workflow if
+you only want to inspect an existing image. A different layout merely overlays
+different requested boxes; this node does not detect subjects or recover boxes
+from arbitrary images.
+
+**Show Boxes** hides/shows only the overlay. **Opacity** changes border opacity;
+0% is invisible and 100% is opaque. Both work immediately without Run. Their state
+is saved with the workflow and applies to the next result too. Canvas **Show
+Boxes** affects the drawing editor, independently of this Preview switch.
+
+If nothing appears, check that Preview is enabled (not muted/bypassed), both
+inputs are connected, and that execution reached Preview successfully. If only
+the image appears, enable Show Boxes, increase Opacity above 0%, and check that
+the connected Canvas has boxes. After reloading, temporary preview images may
+be unavailable; use the existing-image method above to recreate the preview.
+If the node cannot be found after installation/update, finish running work,
+restart ComfyUI, and refresh the browser after saving your workflow.
+
+#### プレビューの接続・表示場所（日本語）
+
+**通常版・DMD版の両方で使用できます。従来UIでも使用でき、Nodes 2.0は不要です。
+同梱テンプレートにはPreviewを追加していないため、そのまま生成するだけでは表示されません。**
+
+1. 現在のWorkflowを保存します。キャンバスの空白をダブルクリックし、
+   **MOSS BBOX Preview**を検索して追加します（`image/MOSS`）。
+2. テンプレートの**New Subgraph右側の`IMAGE`出力**を、
+   **Preview左側の`images`入力**につなぎます。`MODEL`や`LATENT`ではありません。
+   生成処理を展開している場合はVAE Decodeの`IMAGE`を使います。
+3. **MOSS BBOX Canvasの`framing_data`出力**を、
+   **Previewの`framing_data`入力**にも分岐接続します。Exportへの接続は残します。
+4. `IMAGE`からWebP保存ノードへの接続も残します。同じ出力から複数の入力へ分岐できます。
+5. 実行すると、**MOSS BBOX Previewノード内**に画像と枠が出ます。
+   Canvas内や保存ノード内に自動表示される機能ではありません。
+   ノードを追加するだけでは、過去に生成した画像は自動で入りません。
+
+**既存画像を再生成せず確認する場合**は、別の小さなWorkflowにLoad Image、
+その画像に使った配置のMOSS BBOX Canvas、MOSS BBOX Previewを置きます。
+Load Imageの`IMAGE`→Previewの`images`、Canvasの`framing_data`→Previewの
+`framing_data`をつないで実行します。サンプラーやモデルを含まないので画像の再生成は不要です。
+確認だけの場合は、生成用Workflow全体を実行しないでください。
+
+Preview内の**Show Boxes**は枠の表示だけを切り替え、**Opacity**は枠の不透明度を
+0〜100%で調整します。どちらも再実行不要で、その場で変わります。設定は保存・再読込後と
+次の結果にも引き継ぎます。Canvas側のShow Boxesとは別の操作です。
+Previewの出力`images`は任意接続で、元画像をそのまま渡します。保存画像に枠は描き込みません。
+
+画像が出ない場合は、Previewがミュート／バイパスされていないこと、2本の入力の接続、
+Previewまで正常に実行されたことを確認してください。画像だけが出て枠が見えない場合は、
+Show Boxes、Opacityが0%でないこと、接続したCanvasに枠があることを確認します。
+一時画像が消去された場合は、上記のLoad Imageを使う方法で表示し直せます。
+枠は指定した配置の確認用であり、被写体の検出結果ではありません。切り抜きの補正もしません。
+
+#### Hover help and Export settings
+
+Hover over MOSS controls for explanations. Help follows **ComfyUI Settings →
+Language** (`Comfy.Locale`): Japanese for `ja`, English otherwise. The node's own
+UI Language selector controls its labels independently; an older workflow saved
+with English labels still gets Japanese help in Japanese ComfyUI. Standard
+ComfyUI widget tooltips must be enabled in ComfyUI's tooltip settings.
+
+| Export setting | What it does |
+| --- | --- |
+| `auto_position_hint` | Adds a box-derived position phrase to **caption/hybrid prose**. It does **not** move boxes or automatically arrange subjects. No effect on `layout_json`, or `auto` when boxes exist. |
+| `output_mode` | `auto`: layout JSON with boxes, prose without boxes. `layout_json`: JSON only; unboxed content is omitted. `caption`: prose only. `hybrid`: prose plus JSON. |
+| `text_mode` | `literal`: each Text card is exact visible wording, including whitespace, newlines, quotes and `\|`. `legacy`: `visible words \| appearance`. |
+| `text_style` | Shared font/color/outline description for all Text cards in `literal` mode. Put visible wording in the Text card, not here. Ignored in `legacy` mode. |
+
+日本語のComfyUIではマウスオーバー説明も日本語になります。ノード内のUI Languageは
+ラベル表示用で、説明の言語はComfyUI本体の設定に従います。標準ウィジェットの説明は
+ComfyUIのツールチップ設定を有効にしてください。
+`auto_position_hint`は「左上」などの位置を表す英文をcaption／hybridに補う機能で、
+枠の自動配置ではありません。`layout_json`と、BBOXがある場合の`auto`には影響しません。
+`literal`ではText欄に描く文字そのもの、`text_style`に共通の書体・色・縁取りを入力します。
+Textには対応する色のBBOXも用意してください。枠がないTextは配置JSONから省略されます。
 
 ### 1.0.2: center/thirds snapping
 
@@ -169,6 +279,40 @@ installed model, CLIP, VAE and LoRA files before running. The subgraph routes
 the LoRA loader's model output to KSampler.
 The separate `moss_state_896x1184.json` is a state-import sample, not a generation
 workflow. Older workflow versions remain available in Git history.
+
+### Versioned workflow downloads and compatibility
+
+Use the workflow associated with your installed node version. The existing
+Standard and DMD workflows remain compatible with the current nodes; node IDs,
+sockets and saved values are preserved. The v1.0.0 files below are byte-identical
+to the currently bundled generation workflows. They do not include Preview.
+
+| Release | Standard | DMD |
+| --- | --- | --- |
+| [v1.0.0](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/tag/v1.0.0) | [Download JSON](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/raw/refs/tags/v1.0.0/examples/MOSS_BBOX_Standard.json) | [Download JSON](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/raw/refs/tags/v1.0.0/examples/MOSS_BBOX_DMD.json) |
+
+For future GitHub Releases, attach the corresponding Standard and DMD JSON files
+as release assets and add that release to this table. Keep existing tags and
+assets intact so older workflows remain downloadable. Keep only the two current
+generation templates in `examples/`; historical copies belong to their releases,
+not additional files in the current template folder. Registry versions and
+GitHub Releases are separate; a Registry publication alone does not create a
+GitHub Release or attach workflow files.
+
+The next replacement workflows are awaiting the maintainer's files. Until then,
+the current two templates remain unchanged. Workflows using **MOSS BBOX Preview**
+require node version **1.0.3 or newer**; older node versions do not register it.
+The zoom/hover/layout fixes described in the unreleased validation record require
+the updated source until the next package version is published. Installed model
+names and other custom-node dependencies must still be available; compatibility
+does not promise identical pixels across model or ComfyUI updates.
+
+旧Workflowは現在のノードでも使用できます。v1.0.0の通常版・DMD版は現在の同梱2本と
+同一内容です。今後は各GitHub Releaseに、その版に対応する通常版・DMD版のJSONを添付し、
+旧版のタグとファイルも保持します。上の表から旧版を直接ダウンロードできます。
+新しい差し替え用Workflowは提供待ちで、今回は既存2本を変更していません。
+Preview入りWorkflowにはv1.0.3以降が必要です。今回の未リリース修正は更新済みソースに
+含まれ、Registry版へは次回公開時に反映されます。
 
 This path runs entirely from the bundled MOSS package.
 The node IDs are `MOSSSharedCanvas`, `MOSSSharedPrompter` and `MOSSFromKrea2`.

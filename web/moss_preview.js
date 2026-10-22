@@ -14,7 +14,7 @@ app.registerExtension({
       const result = created?.apply(this, args);
       const view = mountPreview(this, image => api.apiURL(`/view?${new URLSearchParams(image)}`));
       this._mossBBoxPreview = view;
-      this.addDOMWidget("bbox_preview", "moss_bbox_preview", view.element, {serialize: false});
+      this.addDOMWidget("bbox_preview", "moss_bbox_preview", view.element, {serialize: false, hideOnZoom: false});
       this.setSize([420, 520]);
       return result;
     };

@@ -1,5 +1,83 @@
 # Validation record — updated 2026-10-22
 
+## Publication preparation and user display confirmation — 2026-10-22
+
+The user reported that the display was working after the localized help,
+Preview zoom visibility and fixed coordinate-row changes. This is **user-reported
+visual confirmation**, separate from the agent's isolated tests below. The agent
+did not resume the cancelled live ComfyUI check or submit GPU generation.
+
+The current Standard/DMD workflow Git blob hashes match their v1.0.0 release-tag
+versions (`218acac4e0b413add16ba2b0756dc69a5c402182` and
+`0492df34285a1d109e3717f884bdf8f11f156177`). Replacement workflow files are pending
+from the user. README now provides release-specific download links and records
+the policy to attach both templates to future GitHub Releases while preserving
+historical assets. No workflow, version number or Registry publication setting
+was changed for this source commit.
+
+## Unreleased: stable Canvas layout for coordinate controls — 2026-10-22
+
+The X/Y/W/H row now reserves its layout space while no box is selected. Controls
+use `visibility: hidden` rather than removing the row with `display: none`.
+Selecting or drawing a box reveals the controls without changing the drawing
+area or footer geometry. This also avoids shifting the canvas during a gesture.
+No node size, saved widget order or workflow data was changed.
+
+The isolated Chrome fixture measured the row, monitor, drawing overlay and
+footer relative to the node. Their positions and dimensions were identical
+before/after selection, Show Boxes toggles, deletion/Undo and drawing/Undo.
+The existing precise input, arrow keys, Undo/Redo, snapping, corrupt-state
+preservation, responsive footer and save/reload checks also passed with zero
+page errors. JavaScript unit tests: **27 passed**. These were isolated tests,
+not operations on the user's running ComfyUI or GPU generation.
+
+## Unreleased: keep Preview visible when zooming out — 2026-10-22
+
+The user's screenshot showed the ordinary saved-image preview remaining visible
+while the MOSS Preview became blank on graph zoom-out. The installed ComfyUI
+frontend defaults DOM widgets to `hideOnZoom: true` and hides them at low zoom.
+MOSS Preview had inherited that default; it now explicitly uses `hideOnZoom: false`,
+as the existing MOSS Canvas and ComfyUI's built-in image viewer do. Image pixels,
+box settings, connections and workflow serialization are unchanged.
+
+A regression check executes the actual extension registration and verifies the
+override against ComfyUI's default. JavaScript tests: **27 passed**. No backend
+or generation code was changed. The requested live check was cancelled by the
+user, who will check the display. No live zoom success is claimed, no generation
+was submitted, and no commit, push or Registry publication was performed.
+
+## Unreleased: localized hover help and Preview setup instructions — 2026-10-22
+
+Added ComfyUI-language-aware Japanese/English hover explanations for the current
+Canvas, Prompter, Export and Preview controls. The ComfyUI `Comfy.Locale` setting
+controls help independently of saved node label preferences. Export help explains
+that `auto_position_hint` adds position prose, not automatic placement, and has no
+effect on JSON-only output. Preview's empty state and README now explain exactly
+which outputs connect to its two inputs, where the image appears, how to retain
+the save connection, and how to inspect a saved image without regeneration.
+Neither bundled workflow JSON was changed; Preview remains an optional addition.
+
+Local validation (not GitHub CI or a new GPU test):
+
+- Python: **45 passed, no failures or skips**, with the installed official MOSS
+  reference and the pre-edit 1.0.3 source snapshot supplied. Bundled workflow
+  prompt/JSON/dimensions match the pre-edit implementation byte for byte.
+- JavaScript: **26 passed**, including bilingual help coverage, live locale changes
+  on native widget tooltips, preserved callback return values, unchanged widget
+  values and exclusion of unrelated node types.
+- Isolated Chrome fixtures: Canvas **30** visible controls and Prompter **14**
+  initially visible controls had Japanese pointer-hover and English focus help;
+  no widget values changed. Preview controls also passed both languages and its
+  Japanese empty-state connection guidance was checked.
+- Existing Canvas history, overlap selection, precise numeric/arrow edits,
+  snapping, malformed-layout preservation and save/reload tests passed. Prompter
+  type/literal-text restoration and Preview ON/OFF, opacity, next-result state,
+  batching, scaling and save/reload passed, with no browser page errors.
+
+These are CPU and isolated browser checks. The user's open ComfyUI workflow was
+not reloaded or modified, and no prompt was queued. No commit, push, version bump
+or Registry publication is part of this change.
+
 ## Version 1.0.3 Registry package — 2026-10-22
 
 Version 1.0.3 packages the optional BBOX image preview committed in

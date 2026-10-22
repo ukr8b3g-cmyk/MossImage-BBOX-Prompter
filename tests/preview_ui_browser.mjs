@@ -13,7 +13,8 @@ const fixture = `<!DOCTYPE html><meta charset="utf-8"><title>MOSS BBOX Preview f
 <style>body{background:#111;color:#ddd;font:14px sans-serif}main{display:flex;gap:20px}.host{width:420px;height:520px}</style>
 <h2>MOSS BBOX Preview — synthetic CPU test image</h2><main></main>
 <script type="module">
-const extensions=[];window.app={registerExtension:e=>extensions.push(e)};
+const extensions=[];window.app={registerExtension:e=>extensions.push(e),ui:{settings:{getSettingValue:()=>window.helpLocale||'en'}}};
+await import('/web/moss_help.js');
 class Node {
  constructor(){this.properties={};this.widgets=[];this.host=document.createElement('div');this.host.className='host';document.querySelector('main').append(this.host);this.onNodeCreated?.()}
  addDOMWidget(name,type,element,options){this.host.append(element);this.widgets.push({name,type,options});return this.widgets.at(-1)}
@@ -38,7 +39,7 @@ const server = createServer(async (req,res) => {
     const url = new URL(req.url, "http://localhost");
     let body, mime = "text/javascript";
     if (url.pathname === "/") {body=fixture;mime="text/html";}
-    else if (["/web/moss_preview.js","/web/preview_ui.mjs","/web/state.mjs"].includes(url.pathname)) body=await readFile(resolve(root,url.pathname.slice(1)));
+    else if (["/web/moss_preview.js","/web/preview_ui.mjs","/web/state.mjs","/web/help.mjs","/web/moss_help.js"].includes(url.pathname)) body=await readFile(resolve(root,url.pathname.slice(1)));
     else if(url.pathname==="/scripts/app.js") body="export const app=window.app;";
     else if(url.pathname==="/scripts/api.js") body="export const api={apiURL:path=>path};";
     else if(url.pathname==="/view") {
@@ -63,6 +64,19 @@ try {
   await page.goto(`http://127.0.0.1:${server.address().port}`);
   await page.waitForFunction(()=>window.ready && document.querySelectorAll('svg rect').length===3);
   const host=page.locator('.host').first();
+  const help = await page.evaluate(()=>{
+    const elements=[...window.node.host.querySelectorAll('button,input')];
+    window.helpLocale='ja';
+    const japanese=elements.every(e=>{e.dispatchEvent(new Event('pointerenter'));return /[ぁ-んァ-ヶ一-龠]/.test(e.title)});
+    const empty=window.make(); const guidance=empty.host.querySelector('[role=status]').textContent;
+    empty.onRemoved();empty.host.remove();
+    window.helpLocale='en';
+    const english=elements.every(e=>{e.dispatchEvent(new Event('pointerenter'));return e.title && !/[ぁ-んァ-ヶ一-龠]/.test(e.title)});
+    return {japanese,english,guidance};
+  });
+  assert(help.japanese && help.english);
+  assert.match(help.guidance,/Load Image/);assert.match(help.guidance,/ここに画像/);
+  console.log('Localized Preview help', JSON.stringify(help));
   const show=host.getByRole('checkbox',{name:'Show Boxes'});
   const opacity=host.getByRole('slider',{name:'Box opacity'});
   const overlay=host.locator('svg');

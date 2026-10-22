@@ -1,5 +1,6 @@
 import { app } from "../../scripts/app.js";
 import { installControls } from "./moss_controls.mjs";
+import { helpText } from "./help.mjs";
 
 const sharedTypes = new Set(["MOSSSharedCanvas", "MOSSSharedPrompter"]);
 const slots = ["red", "blue", "yellow", "green", "magenta"];
@@ -26,7 +27,7 @@ function normalizePromptConfig(node, info) {
 
 function updateTypeHelp(root) {
   for (const select of root.querySelectorAll(".moss-k2cf-type")) {
-    select.title = "MOSS element type: character, object or text. The selected type is kept in the output.";
+    select.title = helpText("type");
     if (select.previousElementSibling) select.previousElementSibling.title = select.title;
   }
 }

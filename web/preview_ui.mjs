@@ -1,4 +1,5 @@
 import { SLOTS } from "./state.mjs";
+import { bindHelp, helpText } from "./help.mjs";
 
 const colors = new Map(SLOTS);
 const svgNS = "http://www.w3.org/2000/svg";
@@ -42,6 +43,7 @@ export function mountPreview(node, imageURL) {
   next.textContent = "›";
   next.setAttribute("aria-label", "Next image");
   const count = document.createElement("span");
+  for (const [el, key] of [[label,"preview_show"], [show,"preview_show"], [opacityLabel,"preview_opacity"], [opacity,"preview_opacity"], [previous,"previous"], [next,"next"]]) bindHelp(el, key);
   toolbar.append(label, opacityLabel, previous, count, next);
   const status = document.createElement("div");
   status.setAttribute("role", "status");
@@ -54,6 +56,7 @@ export function mountPreview(node, imageURL) {
   overlay.setAttribute("preserveAspectRatio", "none");
   overlay.setAttribute("aria-label", "Canvas BBOX overlay");
   overlay.style.cssText = "position:absolute;inset:0;width:100%;height:100%;pointer-events:none";
+  bindHelp(status, "preview_info");
   root.append(toolbar, status, stage);
   let payload = null, index = 0, revision = 0, disposed = false, activeImage = null;
   function fitImage() {
@@ -96,7 +99,7 @@ export function mountPreview(node, imageURL) {
     overlay.replaceChildren();
     preferences();
     if (!images.length) {
-      status.textContent = "Connect images + Canvas framing_data, then run the workflow.";
+      status.textContent = helpText("preview_empty");
       return;
     }
     status.textContent = "Loading preview…";
@@ -129,7 +132,7 @@ export function mountPreview(node, imageURL) {
       const [imageWidth, imageHeight] = payload.image_size;
       const scaled = width !== imageWidth || height !== imageHeight;
       status.textContent = `${boxes.length} boxes · Layout ${width} × ${height} · Image ${imageWidth} × ${imageHeight}${scaled ? " · scaled to image" : ""}`;
-      status.title = "Requested Canvas positions from this execution, not detected objects. Scaling assumes the full canvas; cropping is not corrected.";
+      status.title = helpText("preview_info");
     };
     img.onerror = () => {
       if (disposed || ticket !== revision) return;

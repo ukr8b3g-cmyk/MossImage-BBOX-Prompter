@@ -74,7 +74,7 @@ class MOSSFromKrea2:
         return {"required": {
             "framing_data": ("KREA2_ELEMENT_FRAMING_DATA",),
             "prompt_ui_data": ("KREA2_ELEMENT_PROMPT_DATA",),
-            "auto_position_hint": ("BOOLEAN", {"default": False}),
+            "auto_position_hint": ("BOOLEAN", {"default": False, "tooltip": "Add position words derived from boxes to caption/hybrid prose. Does not move boxes; no effect on layout_json or auto with boxes."}),
         }, "optional": {
             "output_mode": (list(OUTPUT_MODES), {"default": "hybrid", "tooltip": "hybrid keeps the existing output; caption is prose; layout_json is compact JSON; auto uses JSON when boxes exist and prose otherwise."}),
             "text_mode": (["legacy", "literal"], {"default": "legacy", "tooltip": "legacy: visible words | appearance. literal: each Text card is exact visible text, including quotes, spaces, line breaks and |."}),

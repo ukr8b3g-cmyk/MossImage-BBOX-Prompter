@@ -2,6 +2,7 @@
 // Copyright (c) 2026 ukr8b3g-cmyk. MIT; see LICENSE and NOTICE.md.
 
 import { app } from "../../scripts/app.js";
+import { bindHelp } from "./help.mjs";
 import { createCanvasHistory, nextOverlappingBox, snapBoxToGuides } from "./canvas_editing.mjs";
 
 const CANVAS_NODE = "MOSSSharedCanvas";
@@ -1544,7 +1545,7 @@ function setupCanvasNode(node) {
     sw.className = `moss-k2cf-sw${key === state.activeSlot ? " active" : ""}`;
     sw.dataset.slot = key;
     sw.style.background = color;
-    sw.title = label;
+    bindHelp(sw, "color");
     sw.addEventListener("click", () => {
       state.activeSlot = key;
       tools.querySelectorAll(".moss-k2cf-sw").forEach((x) => x.classList.toggle("active", x.dataset.slot === key));
@@ -1590,6 +1591,7 @@ function setupCanvasNode(node) {
     sync();
     if (!historyState) historyState = snapshotCanvasEdit();
   });
+  for (const [el, key] of [[showBtn,"show"], [drawBtn,"draw"], [resetCanvasBtn,"reset"], [undoBtn,"undo"], [redoBtn,"redo"]]) bindHelp(el, key);
   tools.prepend(showBtn, drawBtn, resetCanvasBtn, undoBtn, redoBtn);
   const langSelect = document.createElement("select");
   langSelect.className = "moss-k2cf-select";
@@ -1626,6 +1628,9 @@ function setupCanvasNode(node) {
   const languageLabel = document.createElement("span");
   languageLabel.textContent = tr(resolveLang(langSelect.value), "uiLanguage");
   languageBox.append(languageLabel, langSelect);
+  bindHelp(langSelect, "ui_language");
+  bindHelp(gridTop, "grid_mode");
+  bindHelp(snapBox, "snap"); bindHelp(snapToggle, "snap");
   toolbar.append(tools, gridBox, snapBox, languageBox);
   gridTop.addEventListener("change", () => { updateGuide(); sync(); });
   langSelect.addEventListener("change", () => { applyCanvasLabels(); sync(); });
@@ -1633,7 +1638,7 @@ function setupCanvasNode(node) {
   // DOM-only controls: keep the saved widget order and layout schema unchanged.
   const precisionBar = document.createElement("div");
   precisionBar.className = "moss-k2cf-rowline";
-  precisionBar.style.cssText = "display:none;flex-wrap:wrap;gap:6px;padding:3px 6px";
+  precisionBar.style.cssText = "display:flex;visibility:hidden;flex-wrap:wrap;gap:6px;padding:3px 6px";
   precisionBar.setAttribute("aria-label", "Selected BBOX geometry");
   const precisionInputs = {};
   for (const [key, label] of [["x", "X"], ["y", "Y"], ["width", "W"], ["height", "H"]]) {
@@ -1645,7 +1650,7 @@ function setupCanvasNode(node) {
     input.className = "moss-k2cf-num";
     input.style.width = "66px";
     input.setAttribute("aria-label", `BBOX ${key}`);
-    input.title = `BBOX ${key} (px)`;
+    bindHelp(input, "geometry");
     precisionInputs[key] = input;
     input.addEventListener("change", () => {
       const box = state.boxes.find(b => b.id === state.selectedId);
@@ -1675,9 +1680,8 @@ function setupCanvasNode(node) {
   function refreshPrecision(force = false) {
     const box = state.boxes.find(b => b.id === state.selectedId);
     const visible = box && !state.layoutError && !state.hideBoxes;
-    // Revealing the numeric row during pointerdown would shift the Canvas under
-    // the pointer and move the guide positions midway through the first drag.
-    if (!visible || !pointerStart) precisionBar.style.display = visible ? "flex" : "none";
+    // Keep the row's space so selection never changes the Canvas geometry.
+    precisionBar.style.visibility = visible ? "visible" : "hidden";
     if (!visible) return;
     const [x,y,x2,y2] = normBox(box);
     for (const [key,value] of Object.entries({x,y,width:x2-x,height:y2-y})) {
@@ -1699,6 +1703,7 @@ function setupCanvasNode(node) {
   overlay.className = "moss-k2cf-overlay";
   overlay.tabIndex = 0;
   const canvasHelp = "Alt+click to cycle overlapping boxes; then drag the selected box. Ctrl/Cmd+Z: undo.";
+  bindHelp(overlay, "canvas");
   overlay.title = canvasHelp;
   // ComfyUI's early capture listener reserves editable targets for local history.
   // These drawing controls own keyboard input, but never accept text insertion.
@@ -1729,6 +1734,7 @@ function setupCanvasNode(node) {
   height.className = "moss-k2cf-num";
   height.type = "number";
   height.title = "Custom latent canvas height.";
+  bindHelp(preset, "preset"); bindHelp(width, "width"); bindHelp(height, "height");
   controls.preset = preset; controls.width = width; controls.height = height;
   function fillPresetSelect(selected) {
     preset.innerHTML = "";
@@ -1811,6 +1817,7 @@ function setupCanvasNode(node) {
   const saveCustom = button("Save Custom", "Save current custom latent size");
   saveCustom.classList.add("primary");
   const deleteCustom = button("Delete Custom", "Delete selected user preset");
+  bindHelp(saveCustom, "save_size"); bindHelp(deleteCustom, "delete_size");
   saveCustom.addEventListener("click", () => {
     commitCustomSize();
     const w = Math.max(1, Number(width.value) || 1), h = Math.max(1, Number(height.value) || 1);
@@ -2103,6 +2110,8 @@ function setupCanvasNode(node) {
   const saveSetBtn = button("Save Set", "Save current camera settings as a named set");
   const deleteSetBtn = button("Delete Set", "Delete selected camera set");
   cameraSetBar.append(cameraSetSelect, saveSetBtn, deleteSetBtn);
+  bindHelp(canvasPresetSelect, "canvas_preset");
+  bindHelp(saveCanvasPreset, "save_canvas"); bindHelp(loadCanvasPreset, "load_canvas"); bindHelp(deleteCanvasPreset, "delete_canvas");
   const canvasPresetBar = document.createElement("div");
   canvasPresetBar.className = "moss-k2cf-canvas-presetbar";
   canvasPresetBar.append(canvasPresetSelect, saveCanvasPreset, loadCanvasPreset, deleteCanvasPreset);
@@ -2113,6 +2122,7 @@ function setupCanvasNode(node) {
     const combo = selectWithCustom(CAMERA_OPTIONS[name], cameraData[name] || "");
     combo.select.addEventListener("change", () => { controls.cameraSetData.selected = ""; refreshCameraSetSelect(); sync(); });
     combo.input.addEventListener("input", () => { controls.cameraSetData.selected = ""; refreshCameraSetSelect(); sync(); });
+    bindHelp(combo.select, name); bindHelp(combo.input, name);
     controls[name] = combo;
     const cell = document.createElement("div");
     cell.className = "moss-k2cf-camera-cell";
@@ -2167,6 +2177,7 @@ function setupCanvasNode(node) {
   canvasPresetNote.className = "moss-k2cf-note";
   canvasPresetNote.textContent = tr(resolveLang(controls.ui_language?.value || "Auto"), "canvasPresetNote");
   canvasPresetGroup.append(canvasPresetLabel, canvasPresetBar, canvasPresetNote);
+  bindHelp(cameraGroup, "camera"); bindHelp(canvasPresetGroup, "canvas_preset");
   cameraGroup.append(cameraLabel, cameraRows, cameraNote);
   cameraPanel.append(cameraGroup, canvasPresetGroup);
   panels.append(sizePanel, cameraPanel);
@@ -2842,6 +2853,7 @@ function setupPromptNode(node) {
   } catch (_) {
     promptLangSelect.value = "Auto";
   }
+  bindHelp(promptLangSelect, "ui_language");
   promptLangGroup.append(promptLangLabel, promptLangSelect);
 
   const scene = document.createElement("div");
@@ -2852,6 +2864,7 @@ function setupPromptNode(node) {
   sceneText.className = "moss-k2cf-text";
   sceneText.placeholder = tr(resolveLang(promptLangSelect.value), "scenePlaceholder");
   sceneText.value = widgets.scene?.value || "";
+  bindHelp(sceneText, "scene");
   controls.scene = sceneText;
   k2cfAttachPyssssAutocomplete(sceneText);
 
@@ -2859,6 +2872,7 @@ function setupPromptNode(node) {
   backgroundText.className = "moss-k2cf-text";
   backgroundText.placeholder = tr(resolveLang(promptLangSelect.value), "backgroundPlaceholder");
   backgroundText.value = widgets.background?.value || "";
+  bindHelp(backgroundText, "background");
   controls.background = backgroundText;
   k2cfAttachPyssssAutocomplete(backgroundText);
   sceneText.addEventListener("input", sync);
@@ -2881,6 +2895,7 @@ function setupPromptNode(node) {
   sceneLoad.className = "moss-k2cf-small-btn";
   const sceneDelete = document.createElement("button");
   sceneDelete.className = "moss-k2cf-small-btn";
+  for (const [el, key] of [[scenePresetSelect,"scene_preset"], [sceneSave,"save_scene"], [sceneLoad,"load_scene"], [sceneDelete,"delete_scene"]]) bindHelp(el, key);
   scenePresetBar.append(scenePresetLabel, scenePresetSelect, sceneSave, sceneLoad, sceneDelete);
   promptLangBar.append(promptLangGroup, scenePresetBar);
   wrap.appendChild(promptLangBar);
@@ -3146,6 +3161,7 @@ function setupPromptNode(node) {
     const promptLabelHidden = document.createElement("span");
     promptLabelHidden.textContent = tr(resolveLang(promptLangSelect.value), "prompt");
     promptLabelHidden.style.display = "none";
+    for (const [el, key] of [[head,"fold"], [ta,"slot_prompt"], [typeSelect,"type"], [typeLabel,"type"], [framingSelect,"framing"], [framingLabel,"framing"], [angleSelect,"angle"], [angleLabel,"angle"]]) bindHelp(el, key);
     promptCards.push({
       label,
       head,

@@ -2,6 +2,44 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { createCanvasHistory, nextOverlappingBox, snapBoxToGuides } from "../web/canvas_editing.mjs";
+import { HELP, helpText, setHelpLocaleReader, widgetHelpKey } from "../web/help.mjs";
+
+test("All help entries have Japanese and English text; unsupported locales fall back to English", () => {
+  for (const [key, pair] of Object.entries(HELP)) {
+    assert.equal(pair.length, 2, key);
+    assert.match(helpText(key, "ja-JP"), /[ぁ-んァ-ヶ一-龠]/, key);
+    assert.equal(helpText(key, "fr"), pair[0], key);
+    assert.equal(helpText(key, "en"), pair[0], key);
+  }
+  assert.match(helpText("auto_position_hint", "en"), /Does not move boxes/);
+  assert.match(helpText("preview_empty", "ja"), /framing_data/);
+});
+
+test("Native MOSS tooltips follow Comfy.Locale without changing values, hooks or unrelated nodes", async () => {
+  let extension, locale = "ja", calls = 0;
+  const app = {ui:{settings:{getSettingValue:key=>{assert.equal(key,"Comfy.Locale");return locale;}}},
+    registerExtension:value=>{extension=value;}};
+  const source = await readFile(new URL("../web/moss_help.js", import.meta.url), "utf8");
+  new Function("app", "helpText", "setHelpLocaleReader", "widgetHelpKey", source.replace(/^import .*;\r?\n/gm,""))
+    (app,helpText,setHelpLocaleReader,widgetHelpKey);
+  class Node { onNodeCreated() {calls++;return 42;} }
+  const def = {name:"MOSSFromKrea2",input:{required:{auto_position_hint:["BOOLEAN",{default:false}],prompt_ui_data:["KREA2_ELEMENT_PROMPT_DATA"]}},output_name:["prompt","width","height","moss_json"]};
+  extension.beforeRegisterNodeDef(Node,def);
+  const node = new Node();
+  node.widgets = [{name:"auto_position_hint",value:false}, {name:"text_style",value:"keep 日本語"}];
+  const values=node.widgets.map(w=>w.value);
+  assert.equal(node.onNodeCreated(),42);assert.equal(calls,1);
+  assert.match(node.widgets[0].tooltip,/自動配置/);
+  assert.match(def.input.required.prompt_ui_data[1].tooltip,/接続/);
+  locale="en";
+  assert.match(node.widgets[0].tooltip,/Does not move boxes/);
+  assert.match(def.input.required.auto_position_hint[1].tooltip,/Does not move boxes/);
+  assert.deepEqual(node.widgets.map(w=>w.value),values);
+  class Other {}
+  extension.beforeRegisterNodeDef(Other,{name:"Krea2ElementFramingV1Canvas"});
+  assert.equal(Other.prototype.onNodeCreated,undefined);
+  setHelpLocaleReader(()=>"en");
+});
 
 const canvasSnapshot = x => ({ width: 896, height: 1184, boxes: [{ id: "a", slot: "red", x1: x, y1: 40, x2: x + 100, y2: 240 }] });
 
