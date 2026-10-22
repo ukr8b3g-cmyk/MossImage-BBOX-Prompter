@@ -40,6 +40,27 @@ export function nextOverlappingBox(boxes, point, selectedId) {
   return hits[(index + 1) % hits.length];
 }
 
+// A fixed opposite corner and one shared scale keep the starting ratio at bounds.
+export function resizeBoxWithAspect(box, point, handle, bounds) {
+  const left = Math.min(box.x1, box.x2), right = Math.max(box.x1, box.x2);
+  const top = Math.min(box.y1, box.y2), bottom = Math.max(box.y1, box.y2);
+  const width = right - left, height = bottom - top;
+  if (!(width > 0 && height > 0)) return { ...box };
+  const west = handle.includes("w"), north = handle.includes("n");
+  const anchorX = west ? right : left, anchorY = north ? bottom : top;
+  const roomX = west ? anchorX - bounds.minX : bounds.maxX - anchorX;
+  const roomY = north ? anchorY - bounds.minY : bounds.maxY - anchorY;
+  const maxScale = Math.min(roomX / width, roomY / height);
+  if (!(maxScale > 0)) return { ...box };
+  const scale = Math.min(maxScale, Math.max(Math.min(maxScale, 1 / width, 1 / height),
+    (point.x - anchorX) * (west ? -1 : 1) / width,
+    (point.y - anchorY) * (north ? -1 : 1) / height));
+  const x = anchorX + (west ? -1 : 1) * width * scale;
+  const y = anchorY + (north ? -1 : 1) * height * scale;
+  return { ...box, x1: Math.min(x, anchorX), y1: Math.min(y, anchorY),
+    x2: Math.max(x, anchorX), y2: Math.max(y, anchorY) };
+}
+
 // Work in canvas pixels; the caller converts the screen-space grab distance.
 export function snapBoxToGuides(box, { width, height, bounds, toleranceX, toleranceY, handle = "move" }) {
   const result = { ...box };

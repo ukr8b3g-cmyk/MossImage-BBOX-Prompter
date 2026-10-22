@@ -1,3 +1,70 @@
+## 2026-10-22: gesture publication preparation and user confirmation
+
+The user reported that the Draw Box fix and editing behavior worked in their
+ComfyUI session after local deployment. This is user-reported confirmation;
+the agent's own browser evidence remains the isolated fixture described below.
+This commit includes Alt-drag duplication, Shift-corner aspect preservation,
+the Draw Box ON/OFF fix, their regression tests and English/Japanese guidance.
+The two bundled workflows, backend code, version (1.0.4) and publication Action
+are unchanged. Registry publication and a new Release are excluded from this
+push; the existing push Action runs unit, syntax, warning and archive checks.
+The earlier entries record checks performed before this publication step.
+
+## 2026-10-22: Draw Box toggle regression fix (local, unreleased)
+
+The Draw Box click handler unconditionally set `drawMode=true`; it could never
+switch OFF. This was an implementation defect, not an incorrect user operation.
+The isolated browser test reproduced the failure when loading a workflow with
+`drawMode:true` (expected false after clicking, actual true). The handler now
+toggles the existing flag and primary highlight, preserving the saved format.
+English/Japanese help and README explain ON/OFF and returning to selection.
+
+After the fix, all 31 JavaScript unit tests and modified-file syntax checks
+passed. The full isolated Canvas browser fixture passed, including saved ON/OFF
+restoration, visual highlight, existing-box move without drawing another box,
+Shift resizing and Alt duplication after switching OFF. Mode-only toggles
+preserve Undo/Redo. Existing gesture, snap, stable-layout and corrupt-data tests
+also passed. Python/backend code was unchanged; the prior 45-test result in the following Alt/Shift entry
+is not a fresh Python rerun for this one-line frontend fix.
+
+Evidence: local `canvas-footer-checks.json` flags `draw_mode_toggle`,
+`draw_mode_saved_on_off`, `draw_toggle_preserves_history` and
+`draw_toggle_restores_existing_editing`. The fixture service stopped after the
+successful run (PID 50440, port 56010, `http_listening=false`). No live ComfyUI UI
+operation, GPU generation, restart, commit, push or publication was performed.
+
+## 2026-10-22: local Alt-duplicate / Shift-aspect editing (unreleased)
+
+Implemented Alt-drag duplication after a 4-screen-pixel movement threshold while
+retaining Alt-click overlap cycling. A selected containing box takes priority
+over a covered front box. Copies retain slot/content with collision-checked IDs;
+the original geometry and order stay unchanged. Shift-corner resize preserves
+the pointerdown ratio and opposite anchor, bounds both axes with one scale and
+overrides guide snapping. Shift at the top-right corner enables resize instead
+of delete. Numeric/arrow edits and new-box drawing retain their prior behavior.
+No controls, saved options, node IDs or sockets were added.
+
+- Python: **45 passed, zero skips**, including the saved-workflow output
+  comparison against the pre-change 1.0.4 snapshot.
+- JavaScript: **31 passed, zero skips**, including four new aspect geometry tests.
+- Modified JavaScript and the browser fixture passed syntax checks.
+- Isolated Chromium Canvas fixture passed real pointer-event tests for Alt-click,
+  sub-threshold movement, selected covered-box duplication, independent IDs,
+  original preservation, bounds, guide snap, hidden boxes, one-edit Undo/Redo,
+  cancellation and save/reload. All four Shift resize corners passed ratio,
+  fixed-anchor and boundary checks; releasing Shift restored free resize.
+  Numeric inputs, Shift-arrow nudging and Shift drawing stayed unchanged.
+- Existing fixture checks passed for fixed layout dimensions, history, corrupt
+  original retention and Japanese/English hover coverage (34 controls).
+- Both bundled generation workflows and pyproject version remain byte-identical
+  to the pre-change snapshot. UI help and README explain the new gestures.
+
+Browser evidence: `canvas-footer-checks.json`, `canvas-duplicate-ratio.jpg` in the
+local artifacts folder. The isolated test service (PID 28808, port 63317) stopped
+after testing (`http_listening=false`). This is fixture/CPU evidence, not a live
+ComfyUI screen or GPU run. No commit, push, Release or Registry publication was
+performed for these local changes.
+
 ## 2026-10-22: maintainer workflow replacement (CPU/static)
 
 Replaced only the two generation templates with the supplied Standard and DMD files, preserving their bytes under normalized filenames. Both include MOSS BBOX Preview connected to generation IMAGE and Canvas framing_data, alongside Save Animated WEBP (quality 80). Standard: LoRA disabled, 25 steps / CFG 2.5; DMD: LoRA enabled at 0.7, 8 steps / CFG 1.

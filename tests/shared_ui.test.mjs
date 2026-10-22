@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
-import { createCanvasHistory, nextOverlappingBox, snapBoxToGuides } from "../web/canvas_editing.mjs";
+import { createCanvasHistory, nextOverlappingBox, resizeBoxWithAspect, snapBoxToGuides } from "../web/canvas_editing.mjs";
 import { HELP, helpText, setHelpLocaleReader, widgetHelpKey } from "../web/help.mjs";
 
 test("All help entries have Japanese and English text; unsupported locales fall back to English", () => {
@@ -106,6 +106,64 @@ test("Guide snapping copies coordinates without changing input or metadata", () 
   assert.notEqual(snapped, box);
   assert.deepEqual(box, original);
   assert.deepEqual({ ...snapped, x1: box.x1, y1: box.y1, x2: box.x2, y2: box.y2 }, original);
+});
+
+test("Aspect resize fixes the opposite corner for all four handles", () => {
+  const box = {id:"portrait",slot:"red",x1:200,y1:300,x2:300,y2:500};
+  const bounds = {minX:10,minY:10,maxX:990,maxY:990};
+  for (const [handle, point, expected] of [
+    ["nw",{x:150,y:200},[150,200,300,500]],
+    ["ne",{x:350,y:200},[200,200,350,500]],
+    ["sw",{x:150,y:600},[150,300,300,600]],
+    ["se",{x:350,y:600},[200,300,350,600]],
+  ]) {
+    const out = resizeBoxWithAspect(box, point, handle, bounds);
+    assert.deepEqual([out.x1,out.y1,out.x2,out.y2], expected, handle);
+    assert.equal((out.x2-out.x1)/(out.y2-out.y1),.5,handle);
+    assert.equal(out.id,box.id); assert.equal(out.slot,box.slot);
+  }
+});
+
+test("Aspect bounds use a common scale instead of distorting the ratio", () => {
+  const box={x1:200,y1:300,x2:300,y2:500};
+  const bounds={minX:28,minY:28,maxX:868,maxY:1156};
+  for (const [handle, point, anchor] of [
+    ["nw",{x:-1000,y:-1000},[300,500]],
+    ["ne",{x:2000,y:-1000},[200,500]],
+    ["sw",{x:-1000,y:2000},[300,300]],
+    ["se",{x:2000,y:2000},[200,300]],
+  ]) {
+    const out=resizeBoxWithAspect(box,point,handle,bounds);
+    assert(Math.abs((out.x2-out.x1)/(out.y2-out.y1)-.5)<1e-12,handle);
+    assert(out.x1>=bounds.minX && out.x2<=bounds.maxX,handle);
+    assert(out.y1>=bounds.minY && out.y2<=bounds.maxY,handle);
+    assert.equal(handle.includes("w")?out.x2:out.x1,anchor[0]);
+    assert.equal(handle.includes("n")?out.y2:out.y1,anchor[1]);
+    assert([out.x1===bounds.minX,out.x2===bounds.maxX,out.y1===bounds.minY,out.y2===bounds.maxY].some(Boolean),handle);
+  }
+});
+
+test("Aspect resize normalizes reversed coordinates without mutating saved metadata", () => {
+  const bounds={minX:0,minY:0,maxX:1000,maxY:1000};
+  const box={id:"reversed",slot:"blue",x1:300,y1:500,x2:200,y2:300,other:{keep:"yes"}};
+  const before=structuredClone(box);
+  const out=resizeBoxWithAspect(box,{x:400,y:700},"se",bounds);
+  assert.deepEqual([out.x1,out.y1,out.x2,out.y2],[200,300,400,700]);
+  assert.deepEqual(box,before);
+  assert.notEqual(out,box);
+  assert.deepEqual(out.other,box.other);
+});
+
+test("Aspect resize keeps a positive ratio when the pointer crosses its anchor and safely ignores zero extent", () => {
+  const bounds={minX:0,minY:0,maxX:1000,maxY:1000};
+  const box={x1:200,y1:300,x2:300,y2:500};
+  const out=resizeBoxWithAspect(box,{x:0,y:0},"se",bounds);
+  assert.equal(out.x1,200);assert.equal(out.y1,300);
+  assert(out.x2>out.x1 && out.y2>out.y1);
+  assert.equal((out.x2-out.x1)/(out.y2-out.y1),.5);
+  for (const bad of [{...box,x2:200},{...box,y2:300}]) {
+    assert.deepEqual(resizeBoxWithAspect(bad,{x:600,y:700},"se",bounds),bad);
+  }
 });
 
 test("Canvas undo/redo keeps independent snapshots and clears redo only on an edit", () => {

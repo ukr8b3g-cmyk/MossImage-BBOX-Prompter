@@ -551,6 +551,191 @@ try {
   await snapToggle.check();
   await snapping.locator('select[data-moss-help=ui_language]').selectOption('Japanese');
   assert.equal(await snapToggle.locator('..').textContent(),'吸着');
+  const assertGestureClose = (a,b) => assert(Math.abs(a-b)<1e-3,`${a} != ${b}`);
+  // Modifier gestures: Alt-click selects; Alt-drag duplicates; Shift-resize preserves ratio.
+  await page.evaluate(() => {
+    window.gestureNode = window.makeEditNode();
+    document.querySelector('#nodes').prepend(window.gestureNode.host);
+    window.gestureData = window.gestureNode.save();
+    const layout = JSON.parse(window.gestureData.widgets_values[3]);
+    layout.boxes = [
+      {id:'back',slot:'red',x1:100,y1:200,x2:300,y2:500},
+      {id:'front',slot:'blue',x1:180,y1:280,x2:420,y2:650},
+    ];
+    window.gestureData.widgets_values[3] = JSON.stringify(layout);
+    window.gestureData.properties = {};
+    window.gestureNode.configure(window.gestureData);
+  });
+  const gestures = page.locator('.host').first();
+  const gestureCanvas = gestures.locator('.moss-k2cf-overlay');
+  const gu = gestures.getByRole('button',{name:'Undo Canvas edit',exact:true});
+  const gr = gestures.getByRole('button',{name:'Redo Canvas edit',exact:true});
+  const gestureBoxes = () => page.evaluate(() => JSON.parse(window.gestureNode.widgets.find(w=>w.name==='layout_data').value).boxes);
+  const reloadGestures = () => page.evaluate(() => window.gestureNode.configure(window.gestureData));
+  const clickAt = async (x,y) => { const p=await coords(x,y,gestureCanvas);await page.mouse.click(p.x,p.y); };
+  const modifierDrag = async (key,x1,y1,x2,y2) => {
+    await page.keyboard.down(key);
+    try { await drag(x1,y1,x2,y2,gestureCanvas); }
+    finally { await page.keyboard.up(key); }
+  };
+  const gestureOriginal = geometry(await gestureBoxes());
+  await clickAt(130,240); // Select the covered red box through its exposed area.
+  await modifierDrag('Alt',230,370,310,430);
+  let duplicates = await gestureBoxes();
+  assert.equal(duplicates.length,3);
+  assert.deepEqual(geometry(duplicates.slice(0,2)),gestureOriginal);
+  assert.equal(duplicates[2].slot,'red'); // Selected box wins over the front blue box.
+  assert.equal(new Set(duplicates.map(b=>b.id)).size,3);
+  assertGestureClose(duplicates[2].x1,180);assertGestureClose(duplicates[2].y1,260);
+  assertGestureClose(duplicates[2].x2-duplicates[2].x1,200);
+  assertGestureClose(duplicates[2].y2-duplicates[2].y1,300);
+  const duplicateGeometry = geometry(duplicates);
+  await gu.click();assert.deepEqual(geometry(await gestureBoxes()),gestureOriginal);
+  assert.equal(await gu.isDisabled(),true); // One completed drag is exactly one edit.
+  await page.keyboard.down('Alt');await clickAt(230,370);await page.keyboard.up('Alt');
+  assert.deepEqual(geometry(await gestureBoxes()),gestureOriginal);
+  assert.equal(await gu.isDisabled(),true);assert.equal(await gr.isDisabled(),false);
+  await gr.click();assert.deepEqual(geometry(await gestureBoxes()),duplicateGeometry);
+  const duplicateSaved=await page.evaluate(()=>window.gestureNode.save());
+  await page.evaluate(saved=>window.gestureNode.configure(saved),duplicateSaved);
+  assert.deepEqual(geometry(await gestureBoxes()),duplicateGeometry);
+  assert.equal(await gu.isDisabled(),true);assert.equal(await gr.isDisabled(),true);
+
+  // Sub-threshold Alt movement is a click, including with a scaled Canvas.
+  await reloadGestures();await clickAt(130,240);
+  const small=await coords(230,370,gestureCanvas);
+  await page.keyboard.down('Alt');await page.mouse.move(small.x,small.y);await page.mouse.down();
+  await page.mouse.move(small.x+2,small.y);await page.mouse.up();await page.keyboard.up('Alt');
+  assert.deepEqual(geometry(await gestureBoxes()),gestureOriginal);
+  assert.equal(await gu.isDisabled(),true);
+  assertGestureClose(Number(await gestures.getByRole('spinbutton',{name:'BBOX x',exact:true}).inputValue()),180);
+
+  // Cancelling a live duplicate removes the copy and does not create history.
+  await reloadGestures();await clickAt(130,240);
+  let gestureBegin=await coords(130,240,gestureCanvas),gestureEnd=await coords(210,300,gestureCanvas);
+  await page.keyboard.down('Alt');await page.mouse.move(gestureBegin.x,gestureBegin.y);await page.mouse.down();
+  await page.mouse.move(gestureEnd.x,gestureEnd.y);await gestureCanvas.dispatchEvent('pointercancel');
+  await page.mouse.up();await page.keyboard.up('Alt');
+  assert.deepEqual(geometry(await gestureBoxes()),gestureOriginal);
+  assert.equal(await gu.isDisabled(),true);assert.equal(await gr.isDisabled(),true);
+
+  // Duplicate movement uses existing bounds and snapping and creates fresh IDs every time.
+  await modifierDrag('Alt',130,240,890,1180);
+  duplicates=await gestureBoxes();assert.equal(duplicates.length,3);
+  assert.deepEqual(geometry(duplicates.slice(0,2)),gestureOriginal);
+  assertGestureClose(duplicates[2].x2,868);assertGestureClose(duplicates[2].y2,1156);
+  await modifierDrag('Alt',750,1000,650,900);
+  duplicates=await gestureBoxes();assert.equal(duplicates.length,4);
+  assert.equal(new Set(duplicates.map(b=>b.id)).size,4);
+  await gu.click();assert.equal((await gestureBoxes()).length,3);
+  await gu.click();assert.deepEqual(geometry(await gestureBoxes()),gestureOriginal);
+
+  await reloadGestures();await clickAt(130,240);
+  await gestures.getByRole('checkbox',{name:'Snap to guides',exact:true}).check();
+  await modifierDrag('Alt',130,240,376,480);
+  let snappedDuplicate=(await gestureBoxes())[2];
+  assertGestureClose((snappedDuplicate.x1+snappedDuplicate.x2)/2,448);
+  assertGestureClose((snappedDuplicate.y1+snappedDuplicate.y2)/2,592);
+  assert.deepEqual(geometry((await gestureBoxes()).slice(0,2)),gestureOriginal);
+  await reloadGestures();
+  await gestures.locator('button[data-moss-help="show"]').click();
+  await modifierDrag('Alt',130,240,230,340);
+  assert.deepEqual(geometry(await gestureBoxes()),gestureOriginal);
+  await gestures.locator('button[data-moss-help="show"]').click();
+
+  const singleGesture = async () => page.evaluate(() => {
+    const data=structuredClone(window.gestureData);
+    const layout=JSON.parse(data.widgets_values[3]);
+    layout.boxes=[{id:'ratio',slot:'red',x1:200,y1:300,x2:400,y2:600}];
+    data.widgets_values[3]=JSON.stringify(layout);window.gestureNode.configure(data);
+  });
+  for (const [name,start,target,anchor] of [
+    ['nw',[200,300],[100,200],[400,600]],
+    ['ne',[400,300],[500,200],[200,600]],
+    ['sw',[200,600],[100,700],[400,300]],
+    ['se',[400,600],[500,700],[200,300]],
+  ]) {
+    await singleGesture();
+    await modifierDrag('Shift',...start,...target);
+    const box=(await gestureBoxes())[0];assert.equal((await gestureBoxes()).length,1,name);
+    assertGestureClose((box.x2-box.x1)/(box.y2-box.y1),2/3);
+    assertGestureClose(name.includes('w')?box.x2:box.x1,anchor[0]);
+    assertGestureClose(name.includes('n')?box.y2:box.y1,anchor[1]);
+    const changed=geometry([box]);
+    await gu.click();assert.deepEqual(geometry(await gestureBoxes()),[{id:'ratio',slot:'red',x1:200,y1:300,x2:400,y2:600}]);
+    assert.equal(await gu.isDisabled(),true);
+    await gr.click();assert.deepEqual(geometry(await gestureBoxes()),changed);
+  }
+  await singleGesture();
+  await gestures.getByRole('checkbox',{name:'Snap to guides',exact:true}).check();
+  await modifierDrag('Shift',400,600,890,1180);
+  let ratio=(await gestureBoxes())[0];
+  assertGestureClose((ratio.x2-ratio.x1)/(ratio.y2-ratio.y1),2/3);
+  assert(ratio.x1>=28&&ratio.y1>=28&&ratio.x2<=868&&ratio.y2<=1156);
+  assertGestureClose(ratio.x1,200);assertGestureClose(ratio.y1,300);
+
+  // Shift can be released mid-drag; dimensions then follow the free pointer position.
+  await singleGesture();
+  gestureBegin=await coords(400,600,gestureCanvas);gestureEnd=await coords(500,700,gestureCanvas);
+  await page.keyboard.down('Shift');await page.mouse.move(gestureBegin.x,gestureBegin.y);await page.mouse.down();
+  await page.mouse.move(gestureEnd.x,gestureEnd.y);
+  await page.keyboard.up('Shift');gestureEnd=await coords(510,730,gestureCanvas);
+  await page.mouse.move(gestureEnd.x,gestureEnd.y);await page.mouse.up();
+  ratio=(await gestureBoxes())[0];assertGestureClose(ratio.x2,510);assertGestureClose(ratio.y2,730);
+  await gestures.getByRole('spinbutton',{name:'BBOX width',exact:true}).fill('321');
+  await gestures.getByRole('spinbutton',{name:'BBOX width',exact:true}).press('Enter');
+  ratio=(await gestureBoxes())[0];assertGestureClose(ratio.x2-ratio.x1,321);assertGestureClose(ratio.y2-ratio.y1,430);
+  const beforeNudge=ratio.x1;await gestureCanvas.press('Shift+ArrowRight');
+  assertGestureClose((await gestureBoxes())[0].x1,beforeNudge+10);
+
+  // Shift has no aspect-lock effect when drawing a new box.
+  await singleGesture();
+  await gestures.getByRole('button',{name:'▭ Draw Box',exact:true}).click();
+  await modifierDrag('Shift',50,50,150,250);
+  const newDraw=(await gestureBoxes())[1];assertGestureClose(newDraw.x2-newDraw.x1,100);assertGestureClose(newDraw.y2-newDraw.y1,200);
+  await gestures.screenshot({path:resolve(artifacts,'canvas-duplicate-ratio.jpg'),type:'jpeg',quality:85});
+  Object.assign(result,{alt_drag_duplicate:true,alt_click_preserved:true,duplicate_threshold:true,duplicate_unique_ids:true,duplicate_cancel:true,duplicate_bounds:true,duplicate_snap:true,hidden_boxes_no_edit:true,duplicate_history:true,duplicate_reload:true,shift_ratio_all_corners:true,shift_ratio_bounds:true,shift_release_free_resize:true,modifier_numeric_keyboard_exact:true,shift_draw_unchanged:true});
+  // A saved workflow can arrive with Draw Box armed; a second click must exit it.
+  await singleGesture();
+  await page.evaluate(() => {
+    const data=window.gestureNode.save(), layout=JSON.parse(data.widgets_values[3]);
+    layout.drawMode=true;data.widgets_values[3]=JSON.stringify(layout);
+    data.properties={};window.gestureNode.configure(data);
+  });
+  const drawToggle=gestures.getByRole('button',{name:'▭ Draw Box',exact:true});
+  const drawMode=()=>page.evaluate(()=>JSON.parse(window.gestureNode.widgets.find(w=>w.name==='layout_data').value).drawMode);
+  assert.equal(await drawMode(),true);
+  assert.equal(await drawToggle.evaluate(el=>el.classList.contains('primary')),true);
+  const savedArmed=await page.evaluate(()=>window.gestureNode.save());
+  await drawToggle.click();
+  assert.equal(await drawMode(),false,'Draw Box must toggle OFF for an existing armed workflow');
+  assert.equal(await drawToggle.evaluate(el=>el.classList.contains('primary')),false);
+  assert.equal(await gu.isDisabled(),true);assert.equal(await gr.isDisabled(),true);
+  const savedUnarmed=await page.evaluate(()=>window.gestureNode.save());
+  await page.evaluate(data=>window.gestureNode.configure(data),savedUnarmed);
+  assert.equal(await drawMode(),false);
+  assert.equal(await drawToggle.evaluate(el=>el.classList.contains('primary')),false);
+  await drag(250,400,290,430,gestureCanvas);
+  let toggledBoxes=await gestureBoxes();assert.equal(toggledBoxes.length,1);
+  assertGestureClose(toggledBoxes[0].x1,240);assertGestureClose(toggledBoxes[0].y1,330);
+  await gu.click();assert.equal(await gr.isDisabled(),false);
+  await drawToggle.click();assert.equal(await drawMode(),true);
+  assert.equal(await drawToggle.evaluate(el=>el.classList.contains('primary')),true);
+  await drawToggle.click();assert.equal(await drawMode(),false);
+  assert.equal(await gu.isDisabled(),true);assert.equal(await gr.isDisabled(),false);
+  await gr.click();assert.deepEqual(geometry(await gestureBoxes()),geometry(toggledBoxes));
+  await gu.click();
+  await modifierDrag('Shift',400,600,500,700);
+  toggledBoxes=await gestureBoxes();assert.equal(toggledBoxes.length,1);
+  assertGestureClose((toggledBoxes[0].x2-toggledBoxes[0].x1)/(toggledBoxes[0].y2-toggledBoxes[0].y1),2/3);
+  await gu.click();await modifierDrag('Alt',250,400,300,450);
+  assert.equal((await gestureBoxes()).length,2);
+  await gu.click();assert.equal((await gestureBoxes()).length,1);
+  await page.evaluate(data=>window.gestureNode.configure(data),savedArmed);
+  assert.equal(await drawMode(),true);
+  assert.equal(await drawToggle.evaluate(el=>el.classList.contains('primary')),true);
+  await drawToggle.click();assert.equal(await drawMode(),false);
+  Object.assign(result,{draw_mode_toggle:true,draw_mode_saved_on_off:true,draw_toggle_preserves_history:true,draw_toggle_restores_existing_editing:true});
   assert.deepEqual(errors,[]);
   await snapping.screenshot({path:resolve(artifacts,'canvas-snap.jpg'),type:'jpeg',quality:85});
   Object.assign(result,{snap_default_off:true,snap_center_move:true,snap_thirds_resize:true,snap_history:true,snap_numeric_keyboard_exact:true,snap_reload:true,snap_zoom:true,snap_cancel:true});

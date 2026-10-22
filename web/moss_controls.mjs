@@ -3,7 +3,7 @@
 
 import { app } from "../../scripts/app.js";
 import { bindHelp } from "./help.mjs";
-import { createCanvasHistory, nextOverlappingBox, snapBoxToGuides } from "./canvas_editing.mjs";
+import { createCanvasHistory, nextOverlappingBox, snapBoxToGuides, resizeBoxWithAspect } from "./canvas_editing.mjs";
 
 const CANVAS_NODE = "MOSSSharedCanvas";
 
@@ -1405,6 +1405,8 @@ function setupCanvasNode(node) {
   let historySuspended = 0;
   let applyingHistory = false;
   let pointerStart = null;
+  let altDrag = null;
+  let boxSequence = 0;
   try { controls.cameraSetData = JSON.parse(widgets.camera_set_data?.value || readPresetStorage(CAMERA_SET_KEY) || '{"sets":[],"selected":""}'); } catch (_) { controls.cameraSetData = {sets:[], selected:""}; }
   if (!Array.isArray(controls.cameraSetData.sets)) controls.cameraSetData.sets = [];
   try { controls.canvasPresetData = JSON.parse(widgets.canvas_preset_data?.value || readPresetStorage(CANVAS_PRESET_KEY) || '{"sets":[],"selected":""}'); } catch (_) { controls.canvasPresetData = {sets:[], selected:""}; }
@@ -1526,7 +1528,7 @@ function setupCanvasNode(node) {
   redoBtn.setAttribute("aria-label", "Redo Canvas edit");
   undoBtn.addEventListener("click", () => restoreHistory("undo"));
   redoBtn.addEventListener("click", () => restoreHistory("redo"));
-  drawBtn.addEventListener("click", () => { state.drawMode = true; drawBtn.classList.add("primary"); sync(); });
+  drawBtn.addEventListener("click", () => { state.drawMode = !state.drawMode; drawBtn.classList.toggle("primary", state.drawMode); sync(); });
   const resetCanvasBtn = button("Reset Canvas", "Reset D-boxes, latent size, guide, and camera settings. Prompts are not changed.");
   function applyCanvasLabels() {
     const lang = resolveLang(controls.ui_language?.value || "Auto");
@@ -1702,7 +1704,7 @@ function setupCanvasNode(node) {
   const overlay = document.createElement("canvas");
   overlay.className = "moss-k2cf-overlay";
   overlay.tabIndex = 0;
-  const canvasHelp = "Alt+click to cycle overlapping boxes; then drag the selected box. Ctrl/Cmd+Z: undo.";
+  const canvasHelp = "Alt+drag: duplicate. Alt+click: cycle overlapping boxes. Shift+corner drag: keep aspect ratio. Ctrl/Cmd+Z: undo.";
   bindHelp(overlay, "canvas");
   overlay.title = canvasHelp;
   // ComfyUI's early capture listener reserves editable targets for local history.
@@ -2027,6 +2029,7 @@ function setupCanvasNode(node) {
     try {
       state.drawing = state.moving = state.resizing = null;
       pointerStart = null;
+      altDrag = null;
       applyCanvasPreset(saved);
       const [w, h] = currentSize();
       if (saved.canvasSize[0] === w && saved.canvasSize[1] === h) state.boxes = structuredClone(saved.boxes);
@@ -2336,14 +2339,23 @@ function setupCanvasNode(node) {
     state.boxes.forEach((b,i)=>{ const [x1,y1,x2,y2]=normBox(b); b.x1=x1;b.y1=y1;b.x2=x2;b.y2=y2;addNormalizedBoxData(b);b.bbox=[Math.round(x1),Math.round(y1),Math.round(x2),Math.round(y2)];b.position_hint=positionHint(b);b.z=i; });
     sync(); drawOverlay();
   }
-  function hitTest(p) {
+  function newBoxId() {
+    let id;
+    do { id = `box_${Date.now()}_${++boxSequence}`; }
+    while (state.boxes.some(box => box.id === id));
+    return id;
+  }
+  function hitTest(p, preferResize = false) {
     const ordered = state.boxes.slice().reverse();
     const selected = ordered.findIndex(b => b.id === state.selectedId);
     if (selected > 0) ordered.unshift(ordered.splice(selected, 1)[0]);
     for (const b of ordered) {
       const [x1,y1,x2,y2]=normBox(b);
-      if (Math.abs(p.x-x2)<=24 && Math.abs(p.y-y1)<=24) return { box:b, handle:"delete" };
       const near=14, handles={nw:[x1,y1],ne:[x2,y1],sw:[x1,y2],se:[x2,y2]};
+      if (preferResize) {
+        for (const [handle,[hx,hy]] of Object.entries(handles)) if (Math.abs(p.x-hx)<=near && Math.abs(p.y-hy)<=near) return {box:b,handle};
+      }
+      if (Math.abs(p.x-x2)<=24 && Math.abs(p.y-y1)<=24) return { box:b, handle:"delete" };
       for (const [handle,[hx,hy]] of Object.entries(handles)) if (Math.abs(p.x-hx)<=near && Math.abs(p.y-hy)<=near) return {box:b,handle};
       if (p.x>=x1&&p.x<=x2&&p.y>=y1&&p.y<=y2) return {box:b,handle:"move"};
     }
@@ -2353,34 +2365,61 @@ function setupCanvasNode(node) {
     if(ev.button!==0 || pointerStart || state.layoutError)return;
     ev.preventDefault(); ev.stopPropagation(); overlay.focus({preventScroll:true});
     const p=point(ev);
-    if(ev.altKey){
-      const selected = nextOverlappingBox(state.boxes, p, state.selectedId);
-      if(selected) state.selectedId=selected.id;
-      drawOverlay(); return;
-    }
+    if(ev.altKey && state.hideBoxes)return;
     overlay.setPointerCapture(ev.pointerId);
     pointerStart=snapshotCanvasEdit();
     historyState=pointerStart;
-    const hit=hitTest(p);
+    if(ev.altKey && !state.drawMode){
+      const selected = state.boxes.find(b => b.id === state.selectedId &&
+        p.x >= Math.min(b.x1,b.x2) && p.x <= Math.max(b.x1,b.x2) &&
+        p.y >= Math.min(b.y1,b.y2) && p.y <= Math.max(b.y1,b.y2));
+      const source = selected || nextOverlappingBox(state.boxes, p, null);
+      altDrag = { source: source ? structuredClone(source) : null, point: p,
+        clientX: ev.clientX, clientY: ev.clientY, created: false };
+      return;
+    }
+    const hit=hitTest(p, ev.shiftKey);
     if(!state.drawMode && hit){
       if(hit.handle==="delete"){ state.boxes=state.boxes.filter((b)=>b.id!==hit.box.id); state.selectedId=null; writeBoxes(); pointerStart=null; return; }
       state.selectedId=hit.box.id;
       if(hit.handle==="move") state.moving={id:hit.box.id,x:p.x,y:p.y,box:{...hit.box}};
-      else state.resizing={id:hit.box.id,handle:hit.handle};
+      else state.resizing={id:hit.box.id,handle:hit.handle,box:{...hit.box}};
       drawOverlay(); return;
     }
-    state.drawing={id:`box_${Date.now()}`,slot:state.activeSlot,x1:p.x,y1:p.y,x2:p.x,y2:p.y};
+    state.drawing={id:newBoxId(),slot:state.activeSlot,x1:p.x,y1:p.y,x2:p.x,y2:p.y};
   });
   overlay.addEventListener("pointermove", (ev)=>{
     const p=point(ev);
+    if(altDrag && !altDrag.created){
+      if(!altDrag.source || Math.hypot(ev.clientX-altDrag.clientX,ev.clientY-altDrag.clientY)<4)return;
+      const copy={...structuredClone(altDrag.source),id:newBoxId()};
+      state.boxes.push(copy);state.selectedId=copy.id;altDrag.created=true;
+      state.moving={id:copy.id,x:altDrag.point.x,y:altDrag.point.y,box:{...copy}};
+    }
     if(state.drawing){ state.drawing.x2=p.x; state.drawing.y2=p.y; clampBox(state.drawing); drawOverlay(); return; }
     if(state.moving){ const b=state.boxes.find((x)=>x.id===state.moving.id); if(!b)return; const dx=p.x-state.moving.x, dy=p.y-state.moving.y; moveWithin(b,{x1:state.moving.box.x1+dx,x2:state.moving.box.x2+dx,y1:state.moving.box.y1+dy,y2:state.moving.box.y2+dy}); snapPointerBox(b,"move"); drawOverlay(); return; }
-    if(state.resizing){ const b=state.boxes.find((x)=>x.id===state.resizing.id); if(!b)return; if(state.resizing.handle.includes("n"))b.y1=p.y;if(state.resizing.handle.includes("s"))b.y2=p.y;if(state.resizing.handle.includes("w"))b.x1=p.x;if(state.resizing.handle.includes("e"))b.x2=p.x;clampBox(b);snapPointerBox(b,state.resizing.handle);drawOverlay(); }
+    if(state.resizing){
+      const {id,handle,box}=state.resizing, b=state.boxes.find(x=>x.id===id);if(!b)return;
+      if(ev.shiftKey) Object.assign(b,resizeBoxWithAspect(box,p,handle,frameBounds()));
+      else {
+        Object.assign(b,{x1:box.x1,y1:box.y1,x2:box.x2,y2:box.y2});
+        if(handle.includes("n"))b.y1=p.y;if(handle.includes("s"))b.y2=p.y;
+        if(handle.includes("w"))b.x1=p.x;if(handle.includes("e"))b.x2=p.x;
+        clampBox(b);snapPointerBox(b,handle);
+      }
+      drawOverlay();
+    }
   });
   overlay.addEventListener("pointerup", ()=>{
+    if(altDrag && !altDrag.created){
+      const selected=nextOverlappingBox(state.boxes,altDrag.point,state.selectedId);
+      if(selected)state.selectedId=selected.id;
+      drawOverlay();
+    }
     if(state.drawing){ const [x1,y1,x2,y2]=normBox(state.drawing); if(Math.abs(x2-x1)>8&&Math.abs(y2-y1)>8){ state.drawing.x1=x1;state.drawing.y1=y1;state.drawing.x2=x2;state.drawing.y2=y2;state.selectedId=state.drawing.id;state.boxes.push(state.drawing); state.drawMode=false; drawBtn.classList.remove("primary"); } state.drawing=null; writeBoxes(); }
     if(state.moving||state.resizing){ state.moving=null;state.resizing=null;writeBoxes(); }
     pointerStart=null;
+    altDrag=null;
     refreshPrecision();
   });
   function cancelPointerEdit() {
@@ -2417,6 +2456,7 @@ function setupCanvasNode(node) {
     isHydrating = true;
     snapToggle.checked = false;
     pointerStart = null;
+    altDrag = null;
     state.drawing = state.moving = state.resizing = null;
     state.selectedId = null;
     const savedState = k2cfBestSavedState(node, "canvas");

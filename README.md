@@ -27,6 +27,40 @@ Only the MOSS Canvas DOM is rearranged; Krea2 nodes, saved widgets, presets and
 box coordinates keep their existing behavior. Refresh the frontend to load this
 layout change; no backend restart is needed.
 
+### Unreleased: Alt-drag duplication, Shift-resize and Draw Box toggle
+
+- **Draw Box** toggles new-box drawing ON/OFF. When highlighted, dragging
+  creates a box even over existing boxes. Click it again to select/move/resize
+  existing boxes or use Alt-drag duplication. Completing a new box also returns
+  to selection mode. Workflows saved with drawing ON can be switched OFF directly.
+- **Alt + drag inside a BBOX** creates a copy after 4 screen pixels of movement.
+  It copies the selected box when the pointer is inside it, otherwise the topmost
+  box under the pointer. The original stays in place; the copy gets a new ID and
+  remains selected. Both boxes keep the same color and share that color's prompt.
+  To describe a different subject, draw a box using another color card.
+- **Alt + click** without dragging still cycles through overlapping boxes.
+  Drawing mode draws a new box instead of duplicating; hidden boxes cannot be
+  duplicated. A duplicate uses ordinary movement bounds and the optional Snap.
+- **Shift + drag an existing corner** keeps the width/height ratio from the
+  start of that resize, with the opposite corner fixed. Canvas bounds limit both
+  dimensions together. Release Shift during the drag for free resizing; press
+  it again to use the original ratio. Shift takes priority over Snap. At the
+  top-right delete corner, hold Shift before pressing to resize rather than delete.
+- Numeric inputs and arrow movement keep their exact existing behavior
+  (Shift + arrow moves 10 pixels). New-box drawing remains freehand.
+  Each duplicate drag or resize is one Undo/Redo edit. Cancellation restores
+  the starting layout. Copies save and reload in the existing workflow format;
+  modifier keys add no saved settings or UI rows.
+
+**次回リリース向け変更:** Alt＋ドラッグで枠を複製します。動かさないAlt＋クリックは
+従来どおり重なった枠の選択です。複製は同じ色の説明を共有します。
+Draw Boxは新規作成モードのON／OFFです。点灯中は既存の枠を操作できません。
+もう一度押して消灯すると、選択・移動・リサイズ・Alt複製に戻れます。
+Shift＋角ドラッグでリサイズ開始時の縦横比を維持し、Shiftを離すと自由リサイズに戻ります。
+右上の削除位置もShiftを押してからドラッグすればサイズ変更になります。
+比率固定中は吸着より比率を優先します。数値入力・矢印キー・作成時の動作は維持し、
+複製とリサイズはUndo／Redoに対応します。
+
 ### 1.0.4: help, stable layout and connected workflows
 
 - Japanese/English hover help follows the ComfyUI language setting, with connection and Export setting explanations.
