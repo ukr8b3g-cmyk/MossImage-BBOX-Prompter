@@ -1,5 +1,7 @@
 # MOSS BBOX Prompter
 
+**English** | [Japanese](README.ja.md)
+
 **Current version: 1.0.7** — [GitHub Releases](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases)
 · [Comfy Registry](https://registry.comfy.org/nodes/mossimage-bbox-prompter)
 
@@ -40,12 +42,6 @@ size (rounded to a multiple of 16), with proportional box scaling and Undo/Redo.
 **Lock** beside X/Y/W/H protects selected boxes from accidental edits. This image
 is a layout reference; connecting it here does not add image conditioning.
 
-**参照画像の使用例:** Load ImageのIMAGEをCanvasのreference_imageへ接続し、
-ReferenceをONにすると枠の下に画像が出ます。不透明度で見やすさを調整できます。
-表示は初期OFF・50％で、表示切替だけではCanvasのサイズや座標は変わりません。
-隣の「画像サイズに合わせる」を押すとサイズと全枠が追従し、Undoで戻せます。
-数値欄の隣のLockで枠を固定できます。生成モデルへの画像参照入力とは別の表示機能です。
-
 **Download the updated examples:** [Standard + DMD + reference image ZIP](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/download/v1.0.7/MOSS_BBOX_Workflows_1.0.7.zip).
 The ZIP contains exactly two workflow JSONs and `ComfyUI_00238_.webp`.
 In each workflow's **Load Image**, upload/select that WebP (or copy it into
@@ -83,15 +79,6 @@ assets remain available for older versions; old workflows work with the new node
   again after reload. Older Standard/DMD workflows also work without this optional
   connection. The refreshed 1.0.7 examples include Load Image wiring.
 
-**接続と操作:** Load ImageのIMAGEをCanvasの`reference_image`へ直接接続します。
-生成せず読み込めます。参照画像は初期OFF・不透明度50％で、表示切替だけでは
-Canvasの幅・高さ・BBOX位置は変わりません。表示ボタンの隣の「画像サイズに合わせる」
-を押した時だけ16の倍数へ合わせ、全枠も追従します（Undo対応）。画像はWorkflowに
-埋め込まれないため、ComfyUI側に元ファイルを残してください。
-ロックは数値欄の隣で切り替え、保存・Undo／Redoに対応します。ロック枠を含む
-グループの移動・複製は解除後に行います。新しい画像入力の登録にはComfyUIの再起動と
-ブラウザー更新が必要です。旧ワークフローは接続なしでそのまま使えます。
-
 ### 1.0.6: multiple selection and group movement/duplication
 
 - With **Draw Box OFF**, **Ctrl + click** (macOS: **Cmd + click**) adds/removes
@@ -115,14 +102,6 @@ Canvasの幅・高さ・BBOX位置は変わりません。表示ボタンの隣�
 - Selection is local to each Canvas and is not saved to workflows. Edited and
   duplicated boxes use the existing saved format; reload clears selection/history.
   The UI keeps its existing controls and dimensions.
-
-**複数選択:** Draw BoxをOFFにし、Ctrl＋クリック（MacはCmd＋クリック）で枠を追加・解除します。
-白線の選択枠の内側をドラッグすると一括移動、Alt＋ドラッグで一括複製できます。
-色・説明・枠同士の間隔を保ち、Canvas端や吸着は全体に適用します。
-矢印キーは全選択枠を1px、Shift併用で10px移動。数値欄と角のリサイズは1枠だけを編集します。
-Escapeは選択解除（ドラッグ中は取消）、Deleteは選択枠を一括削除、右上の×はその1枠だけを削除します。
-一括操作はUndo／Redoに対応し、選択だけの変更ではRedoを消しません。
-配置は従来のWorkflow形式で保存し、選択状態と履歴は再読み込み時にクリアします。
 
 ### 1.0.5: Alt-drag duplication, Shift-resize and Draw Box toggle
 
@@ -148,15 +127,6 @@ Escapeは選択解除（ドラッグ中は取消）、Deleteは選択枠を一�
   Each duplicate drag or resize is one Undo/Redo edit. Cancellation restores
   the starting layout. Copies save and reload in the existing workflow format;
   modifier keys add no saved settings or UI rows.
-
-**1.0.5の変更:** Alt＋ドラッグで枠を複製します。動かさないAlt＋クリックは
-従来どおり重なった枠の選択です。複製は同じ色の説明を共有します。
-Draw Boxは新規作成モードのON／OFFです。点灯中は既存の枠を操作できません。
-もう一度押して消灯すると、選択・移動・リサイズ・Alt複製に戻れます。
-Shift＋角ドラッグでリサイズ開始時の縦横比を維持し、Shiftを離すと自由リサイズに戻ります。
-右上の削除位置もShiftを押してからドラッグすればサイズ変更になります。
-比率固定中は吸着より比率を優先します。数値入力・矢印キー・作成時の動作は維持し、
-複製とリサイズはUndo／Redoに対応します。
 
 ### 1.0.4: help, stable layout and connected workflows
 
@@ -242,42 +212,6 @@ be unavailable; use the existing-image method above to recreate the preview.
 If the node cannot be found after installation/update, finish running work,
 restart ComfyUI, and refresh the browser after saving your workflow.
 
-#### プレビューの接続・表示場所（日本語）
-
-**通常版・DMD版の両方で使用できます。従来UIでも使用でき、Nodes 2.0は不要です。
-現在の同梱2本にはPreviewを接続済みです。実行するとPreviewノード内に画像と枠が表示されます。**
-
-以下は旧版・独自WorkflowにPreviewを追加する場合の手順です。
-
-1. 現在のWorkflowを保存します。キャンバスの空白をダブルクリックし、
-   **MOSS BBOX Preview**を検索して追加します（`image/MOSS`）。
-2. テンプレートの**New Subgraph右側の`IMAGE`出力**を、
-   **Preview左側の`images`入力**につなぎます。`MODEL`や`LATENT`ではありません。
-   生成処理を展開している場合はVAE Decodeの`IMAGE`を使います。
-3. **MOSS BBOX Canvasの`framing_data`出力**を、
-   **Previewの`framing_data`入力**にも分岐接続します。Exportへの接続は残します。
-4. `IMAGE`からWebP保存ノードへの接続も残します。同じ出力から複数の入力へ分岐できます。
-5. 実行すると、**MOSS BBOX Previewノード内**に画像と枠が出ます。
-   Canvas内や保存ノード内に自動表示される機能ではありません。
-   ノードを追加するだけでは、過去に生成した画像は自動で入りません。
-
-**既存画像を再生成せず確認する場合**は、別の小さなWorkflowにLoad Image、
-その画像に使った配置のMOSS BBOX Canvas、MOSS BBOX Previewを置きます。
-Load Imageの`IMAGE`→Previewの`images`、Canvasの`framing_data`→Previewの
-`framing_data`をつないで実行します。サンプラーやモデルを含まないので画像の再生成は不要です。
-確認だけの場合は、生成用Workflow全体を実行しないでください。
-
-Preview内の**Show Boxes**は枠の表示だけを切り替え、**Opacity**は枠の不透明度を
-0〜100%で調整します。どちらも再実行不要で、その場で変わります。設定は保存・再読込後と
-次の結果にも引き継ぎます。Canvas側のShow Boxesとは別の操作です。
-Previewの出力`images`は任意接続で、元画像をそのまま渡します。保存画像に枠は描き込みません。
-
-画像が出ない場合は、Previewがミュート／バイパスされていないこと、2本の入力の接続、
-Previewまで正常に実行されたことを確認してください。画像だけが出て枠が見えない場合は、
-Show Boxes、Opacityが0%でないこと、接続したCanvasに枠があることを確認します。
-一時画像が消去された場合は、上記のLoad Imageを使う方法で表示し直せます。
-枠は指定した配置の確認用であり、被写体の検出結果ではありません。切り抜きの補正もしません。
-
 #### Hover help and Export settings
 
 Hover over MOSS controls for explanations. Help follows **ComfyUI Settings →
@@ -292,14 +226,6 @@ ComfyUI widget tooltips must be enabled in ComfyUI's tooltip settings.
 | `output_mode` | `auto`: layout JSON with boxes, prose without boxes. `layout_json`: JSON only; unboxed content is omitted. `caption`: prose only. `hybrid`: prose plus JSON. |
 | `text_mode` | `literal`: each Text card is exact visible wording, including whitespace, newlines, quotes and `\|`. `legacy`: `visible words \| appearance`. |
 | `text_style` | Shared font/color/outline description for all Text cards in `literal` mode. Put visible wording in the Text card, not here. Ignored in `legacy` mode. |
-
-日本語のComfyUIではマウスオーバー説明も日本語になります。ノード内のUI Languageは
-ラベル表示用で、説明の言語はComfyUI本体の設定に従います。標準ウィジェットの説明は
-ComfyUIのツールチップ設定を有効にしてください。
-`auto_position_hint`は「左上」などの位置を表す英文をcaption／hybridに補う機能で、
-枠の自動配置ではありません。`layout_json`と、BBOXがある場合の`auto`には影響しません。
-`literal`ではText欄に描く文字そのもの、`text_style`に共通の書体・色・縁取りを入力します。
-Textには対応する色のBBOXも用意してください。枠がないTextは配置JSONから省略されます。
 
 ### 1.0.2: center/thirds snapping
 
@@ -450,12 +376,6 @@ require node version **1.0.3 or newer**; older node versions do not register it.
 The zoom/hover/layout fixes are included in version 1.0.4. Installed model
 names and other custom-node dependencies must still be available; compatibility
 does not promise identical pixels across model or ComfyUI updates.
-
-旧Workflowは現在のノードでも使用できます。現在の同梱2本はPreview接続済みで、
-v1.0.0の旧2本にはPreviewが含まれていません。今後は各GitHub Releaseに、その版に対応する通常版・DMD版のJSONを添付し、
-旧版のタグとファイルも保持します。上の表から旧版を直接ダウンロードできます。
-提供された通常版・DMD版で既存2本を差し替えました。表のCurrent mainから最新版をダウンロードできます。
-Preview入りWorkflowにはv1.0.3以降が必要です。日本語説明・縮小表示・座標欄の修正はv1.0.4に含まれます。
 
 This path runs entirely from the bundled MOSS package.
 The node IDs are `MOSSSharedCanvas`, `MOSSSharedPrompter` and `MOSSFromKrea2`.
