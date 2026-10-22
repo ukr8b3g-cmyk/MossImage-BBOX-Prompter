@@ -90,7 +90,7 @@ print('standalone: both workflows passed')
         with tempfile.TemporaryDirectory(prefix='moss-standalone-') as folder:
             root = Path(folder).resolve()
             self.assertEqual(root.parent, Path(tempfile.gettempdir()).resolve())
-            for name in ('__init__.py', 'nodes.py', 'prompt_builder.py', 'krea_bridge.py', 'canvas_controls.py'):
+            for name in ('__init__.py', 'nodes.py', 'prompt_builder.py', 'krea_bridge.py', 'canvas_controls.py', 'preview.py'):
                 shutil.copyfile(ROOT / name, root / name)
             (root / 'examples').mkdir()
             for name in ('MOSS_BBOX_Standard.json', 'MOSS_BBOX_DMD.json'):

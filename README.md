@@ -27,6 +27,30 @@ Only the MOSS Canvas DOM is rearranged; Krea2 nodes, saved widgets, presets and
 box coordinates keep their existing behavior. Refresh the frontend to load this
 layout change; no backend restart is needed.
 
+### Unreleased: generated-image BBOX preview
+
+Add **MOSS BBOX Preview** (`image/MOSS`) to compare a generated image with the
+requested Canvas boxes. Connect VAE Decode's `IMAGE` to `images`, and branch
+the same **MOSS BBOX Canvas** `framing_data` output to its `framing_data` input.
+Existing Export and WebP Meta save connections can stay in place. The optional
+`images` output passes the original IMAGE through unchanged.
+
+**Show Boxes** toggles the frames immediately; **Opacity** adjusts only their
+visibility (0–100%). Neither action queues generation or edits the image.
+Turning boxes OFF stays OFF for the next result. Both settings are saved in the
+preview node's workflow properties. Batch results have previous/next buttons.
+Each result uses the layout from its own execution, not later Canvas edits.
+
+The full image fits within the preview node. Display copies are temporary WebP
+thumbnails (up to 2048px on the longest side); they contain no drawn boxes.
+The saved/generated image and downstream IMAGE remain at their original quality
+and resolution. Boxes scale with the image and indicate requested positions,
+not detected objects or a measured placement score. Cropping is not corrected.
+Temporary previews may disappear after ComfyUI clears its temporary directory.
+
+Restart ComfyUI and refresh the frontend to register this new node. Existing
+Canvas/Prompter controls, node IDs and the two bundled workflows are unchanged.
+
 ### 1.0.2: center/thirds snapping
 
 The compact **Snap** checkbox next to Grid enables snapping during box movement

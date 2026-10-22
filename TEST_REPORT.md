@@ -798,3 +798,98 @@ changed from 105.50 to 67.39 us and 104.34 to 80.59 us respectively. These are l
 microbenchmarks, not GPU-generation timing improvements. No GPU job or restart
 was performed for this optimization; an already running ComfyUI instance will
 load the new Python code on its next normal restart. No commit or push was made.
+# Unreleased BBOX preview — 2026-10-22 local validation
+
+Added the separate `MOSSBBoxPreview` output node. It accepts IMAGE and the
+existing Canvas framing socket, returns the identical IMAGE object, and sends
+temporary WebP thumbnails plus an execution-specific layout to a browser-only
+SVG overlay. No model or generation code was changed. Version remains 1.0.2;
+these changes have not been committed, pushed or published to Registry.
+
+- Python unittest: **45 passed**, 0 failures/skips (38 existing + 7 preview).
+  Includes both existing workflow Canvas outputs, registration/socket contract,
+  empty/reversed/fractional boxes, invalid layout rejection, actual WebP batch
+  files, unique execution filenames and thumbnail sizing without output resizing.
+- JavaScript unit tests: **24 passed**, 0 failures/skips (22 existing + 2 preview).
+- `tests/preview_tensor_cpu.py`: actual CPU torch tensors, batches of 2 with
+  1/3/4 channels, including values outside 0–1. Output object identity and every
+  input pixel are preserved. Preview conversion matches expected clipping;
+  WebP files decode correctly. CUDA was not initialized; temporary files removed.
+- `tests/preview_ui_browser.mjs`: isolated headless Chrome, synthetic image.
+  Real checkbox/slider clicks confirm immediate ON/OFF and opacity with zero
+  additional requests. OFF survives the next execution and JSON save/reload.
+  Checks cover batch navigation, coordinate scaling, reversed/fractional boxes,
+  complete portrait fit, node resizing, execution snapshot isolation, late-image
+  race protection, missing temporary image feedback, empty boxes, removal cleanup
+  and preservation of pre-existing node hooks. Zero page errors.
+- Existing `tests/canvas_ui_browser.mjs` passed, including Undo/Redo, overlapping
+  box selection, numeric/arrow editing, Snap, save/reload and corrupt-layout
+  preservation. Both fixture servers and owned browsers stopped after completion.
+- JavaScript syntax checks passed. Local Ruff is unavailable in the test venv;
+  its existing CI gate remains configured. CI now also runs `preview.test.mjs`.
+
+Evidence is under `D:\Codex\temp\moss-canvas-editing\artifacts`:
+`bbox-preview-checks.json`, `bbox-preview-on.jpg`, `bbox-preview-off.jpg`, and
+the existing Canvas fixture report. Browser fixture images are synthetic CPU
+test material, not new MOSS generations.
+
+No live ComfyUI UI test, GPU generation, restart, GitHub CI run or publication
+was performed for this change. Existing examples and Canvas/Prompter source are
+byte-identical to the published 1.0.2 baseline.
+
+## BBOX preview: actual ComfyUI_test UI — 2026-10-22
+
+After the user restarted ComfyUI_test, the live endpoint at
+`http://127.0.0.9:8188` registered `MOSSBBoxPreview`. An isolated Chrome session
+loaded a dedicated three-node workflow: a copy of the Standard example's Canvas,
+Load Image, and MOSS BBOX Preview. The existing input WebP was
+`comfy_krea2-Lcu_fp8_20260930003331_00001_.webp` (840×1256). This is a display and
+persistence test using an existing image, not a MOSS placement-quality test.
+
+- The actual backend completed two CPU-only preview requests successfully.
+  Submitted node types were restricted to `LoadImage`, `MOSSSharedCanvas` and
+  `MOSSBBoxPreview`; no model, encoder, VAE or sampler nodes were present.
+- The live preview displayed all three Canvas boxes, with the 896×1184 layout
+  scaled over the full existing image. ON/OFF worked immediately; opacity values
+  0%, 35% and 100% were checked. These controls made no additional prompt requests
+  and kept the same image URL.
+- Actual UI Export saved `showBoxes: false` and `opacity: 0.35`. Importing that
+  JSON restored both controls.
+- Actual **Save As** returned HTTP 200. Reading the server-side JSON confirmed
+  the same properties. A fresh Chrome browser context loaded it through the
+  Workflows sidebar (HTTP 200) and restored OFF / 35% before execution.
+- A second CPU preview execution retained OFF / 35%; turning ON afterward worked.
+  The returned layout matched the first execution. There were zero page errors.
+- Original input-image SHA-256 and the bundled Standard workflow SHA-256 were
+  unchanged. Queues were empty before and after. The one uniquely named temporary
+  server workflow was removed (DELETE 204, subsequent GET 404); the owned Chrome
+  sessions were closed. No user-managed service was stopped or restarted.
+
+Local evidence: `artifacts/live-preview-checks.json`,
+`live-preview-{on,opacity,off,reloaded}.jpg`, `live-preview-exported.json` and
+`live-preview-server-saved.json`, under the existing moss-canvas-editing work
+directory. The test driver is `live_preview_check.mjs` in that directory.
+
+No implementation changes were needed. No GPU generation, commit, push,
+GitHub CI run or Registry publication was performed in this validation phase.
+
+## Preview addition: unchanged template compatibility — 2026-10-22
+
+Both `examples/MOSS_BBOX_Standard.json` and `examples/MOSS_BBOX_DMD.json` were
+opened unchanged in fresh Chrome contexts against the restarted ComfyUI_test.
+Both retained a valid Canvas, identical box coordinates and Character / Object /
+Text settings. The live frontend converted each to a 13-node execution graph
+with no page errors or missing registered classes. Saved scalar combo choices,
+including model selections, were available in the live node definitions.
+Both kept `SaveAnimatedWEBP` as the output and require no new preview node.
+
+The additional preview is optional: users can keep either template unchanged,
+or add MOSS BBOX Preview and branch the decoded IMAGE and Canvas framing_data to
+it. Existing prompt construction and WebP save connections need no replacement.
+
+The check blocked all prompt submissions; there were zero submissions and empty
+queues before/after. Both original files stayed byte-identical. This confirms
+live loading, configuration and execution-graph conversion, not a new GPU run.
+Evidence: `artifacts/preview-template-checks.json` and
+`preview-template-{Standard,DMD}.jpg` in the existing local work directory.
+

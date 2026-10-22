@@ -5,6 +5,7 @@ from . import canvas_controls as controls
 
 from .prompt_builder import OUTPUT_MODES, SLOTS, build_prompt, default_state, parse_state
 from .krea_bridge import ELEMENT_TYPES, build_from_krea, element_type
+from .preview import MOSSBBoxPreview
 
 
 class MOSSBBoxCanvasPrompt:
@@ -144,10 +145,12 @@ class MOSSSharedPrompter:
 
 
 NODE_CLASS_MAPPINGS = {"MOSSBBoxCanvasPrompt": MOSSBBoxCanvasPrompt,
+                       "MOSSBBoxPreview": MOSSBBoxPreview,
                        "MOSSBBoxCanvas": MOSSBBoxCanvas, "MOSSBBoxPrompter": MOSSBBoxPrompter,
                        "MOSSFromKrea2": MOSSFromKrea2,
                        "MOSSSharedCanvas": MOSSSharedCanvas, "MOSSSharedPrompter": MOSSSharedPrompter}
 NODE_DISPLAY_NAME_MAPPINGS = {"MOSSBBoxCanvasPrompt": "MOSS BBOX Canvas + Prompt (Hybrid)",
+                            "MOSSBBoxPreview": "MOSS BBOX Preview",
                             "MOSSBBoxCanvas": "MOSS BBOX Canvas", "MOSSBBoxPrompter": "MOSS BBOX Prompter (Hybrid)",
                             "MOSSFromKrea2": "MOSS BBOX Export",
                             "MOSSSharedCanvas": "MOSS BBOX Canvas",
