@@ -1,6 +1,6 @@
 # MOSS BBOX Prompter
 
-**Current version: 1.0.4** — [GitHub Releases](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases)
+**Current version: 1.0.5** — [GitHub Releases](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases)
 · [Comfy Registry](https://registry.comfy.org/nodes/mossimage-bbox-prompter)
 
 <img width="1154" height="839" alt="image" src="https://github.com/user-attachments/assets/739cff51-f11a-4c25-88d5-7b0c5eb1a76c" />
@@ -27,7 +27,7 @@ Only the MOSS Canvas DOM is rearranged; Krea2 nodes, saved widgets, presets and
 box coordinates keep their existing behavior. Refresh the frontend to load this
 layout change; no backend restart is needed.
 
-### Unreleased: Alt-drag duplication, Shift-resize and Draw Box toggle
+### 1.0.5: Alt-drag duplication, Shift-resize and Draw Box toggle
 
 - **Draw Box** toggles new-box drawing ON/OFF. When highlighted, dragging
   creates a box even over existing boxes. Click it again to select/move/resize
@@ -52,7 +52,7 @@ layout change; no backend restart is needed.
   the starting layout. Copies save and reload in the existing workflow format;
   modifier keys add no saved settings or UI rows.
 
-**次回リリース向け変更:** Alt＋ドラッグで枠を複製します。動かさないAlt＋クリックは
+**1.0.5の変更:** Alt＋ドラッグで枠を複製します。動かさないAlt＋クリックは
 従来どおり重なった枠の選択です。複製は同じ色の説明を共有します。
 Draw Boxは新規作成モードのON／OFFです。点灯中は既存の枠を操作できません。
 もう一度押して消灯すると、選択・移動・リサイズ・Alt複製に戻れます。
@@ -332,6 +332,7 @@ the archived v1.0.0 files below do not include Preview and remain usable.
 
 | Release | Standard | DMD |
 | --- | --- | --- |
+| [v1.0.5](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/tag/v1.0.5) | [Download JSON](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/download/v1.0.5/MOSS_BBOX_Standard.json) | [Download JSON](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/download/v1.0.5/MOSS_BBOX_DMD.json) |
 | [v1.0.4](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/tag/v1.0.4) | [Download JSON](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/download/v1.0.4/MOSS_BBOX_Standard.json) | [Download JSON](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/download/v1.0.4/MOSS_BBOX_DMD.json) |
 | Current main (Preview; nodes 1.0.3+) | [Download JSON](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/raw/refs/heads/main/examples/MOSS_BBOX_Standard.json) | [Download JSON](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/raw/refs/heads/main/examples/MOSS_BBOX_DMD.json) |
 | [v1.0.0](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/tag/v1.0.0) | [Download JSON](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/raw/refs/tags/v1.0.0/examples/MOSS_BBOX_Standard.json) | [Download JSON](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/raw/refs/tags/v1.0.0/examples/MOSS_BBOX_DMD.json) |

@@ -1,3 +1,14 @@
+## 1.0.5 release preparation
+
+Version 1.0.5 packages the Alt-drag duplication, Shift-corner aspect lock and
+Draw Box ON/OFF fix already tested in commit 317d06f5f8d36dc3aef59835dbbb452e6be7186a.
+That commit passed GitHub Actions run 39798590429: 45 Python and 31 JavaScript
+tests, syntax, Ruff S102/E702 and byte-for-byte verification of 39 archive files.
+This release preparation changes only version and documentation; both workflow
+JSON files are unchanged from v1.0.4 and are intended as v1.0.5 Release assets.
+A fresh CI run gates Registry publication. No new GPU or live ComfyUI test is
+claimed for the version bump. Earlier local and user-confirmed results follow.
+
 ## 2026-10-22: gesture publication preparation and user confirmation
 
 The user reported that the Draw Box fix and editing behavior worked in their
