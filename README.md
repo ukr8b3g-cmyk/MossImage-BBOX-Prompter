@@ -30,10 +30,10 @@ layout change; no backend restart is needed.
 ### 1.0.3: generated-image BBOX preview
 
 **Works with both Standard and DMD, and with the classic ComfyUI interface.
-Nodes 2.0 is not required. The two bundled templates do not include this optional
-node: running an unchanged template will not display a BBOX preview.**
+Nodes 2.0 is not required. Both current templates include a connected Preview
+node: run the workflow to display the generated image and BBOX overlay inside it.**
 
-Add **MOSS BBOX Preview** (`image/MOSS`) to compare a generated image with the
+For older or custom workflows, add **MOSS BBOX Preview** (`image/MOSS`) to compare a generated image with the
 requested Canvas boxes. Connect VAE Decode's `IMAGE` to `images`, and branch
 the same **MOSS BBOX Canvas** `framing_data` output to its `framing_data` input.
 Existing Export and WebP Meta save connections can stay in place. The optional
@@ -107,7 +107,9 @@ restart ComfyUI, and refresh the browser after saving your workflow.
 #### プレビューの接続・表示場所（日本語）
 
 **通常版・DMD版の両方で使用できます。従来UIでも使用でき、Nodes 2.0は不要です。
-同梱テンプレートにはPreviewを追加していないため、そのまま生成するだけでは表示されません。**
+現在の同梱2本にはPreviewを接続済みです。実行するとPreviewノード内に画像と枠が表示されます。**
+
+以下は旧版・独自WorkflowにPreviewを追加する場合の手順です。
 
 1. 現在のWorkflowを保存します。キャンバスの空白をダブルクリックし、
    **MOSS BBOX Preview**を検索して追加します（`image/MOSS`）。
@@ -269,7 +271,7 @@ Connect:
 Open the [Standard workflow](examples/MOSS_BBOX_Standard.json) or
 [DMD workflow](examples/MOSS_BBOX_DMD.json).
 These are the only two bundled generation workflows. Both use the MOSS pair,
-Export, a generation subgraph, rgthree Power Lora Loader and the standard
+Export, a connected MOSS BBOX Preview, a generation subgraph, rgthree Power Lora Loader and the standard
 Save Animated WEBP node (quality 80), at 896×1184. Install **rgthree-comfy** to
 load the templates. The Standard file disables the LoRA; the DMD file enables
 `moss_image\\lora_latest.safetensors` at strength 0.7. Standard uses
@@ -284,11 +286,12 @@ workflow. Older workflow versions remain available in Git history.
 
 Use the workflow associated with your installed node version. The existing
 Standard and DMD workflows remain compatible with the current nodes; node IDs,
-sockets and saved values are preserved. The v1.0.0 files below are byte-identical
-to the currently bundled generation workflows. They do not include Preview.
+sockets and saved values are preserved. The current templates include Preview;
+the archived v1.0.0 files below do not include Preview and remain usable.
 
 | Release | Standard | DMD |
 | --- | --- | --- |
+| Current main (Preview; nodes 1.0.3+) | [Download JSON](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/raw/refs/heads/main/examples/MOSS_BBOX_Standard.json) | [Download JSON](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/raw/refs/heads/main/examples/MOSS_BBOX_DMD.json) |
 | [v1.0.0](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/tag/v1.0.0) | [Download JSON](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/raw/refs/tags/v1.0.0/examples/MOSS_BBOX_Standard.json) | [Download JSON](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/raw/refs/tags/v1.0.0/examples/MOSS_BBOX_DMD.json) |
 
 For future GitHub Releases, attach the corresponding Standard and DMD JSON files
@@ -299,18 +302,18 @@ not additional files in the current template folder. Registry versions and
 GitHub Releases are separate; a Registry publication alone does not create a
 GitHub Release or attach workflow files.
 
-The next replacement workflows are awaiting the maintainer's files. Until then,
-the current two templates remain unchanged. Workflows using **MOSS BBOX Preview**
+The maintainer-supplied Standard and DMD replacements are now bundled.
+Workflows using **MOSS BBOX Preview**
 require node version **1.0.3 or newer**; older node versions do not register it.
 The zoom/hover/layout fixes described in the unreleased validation record require
 the updated source until the next package version is published. Installed model
 names and other custom-node dependencies must still be available; compatibility
 does not promise identical pixels across model or ComfyUI updates.
 
-旧Workflowは現在のノードでも使用できます。v1.0.0の通常版・DMD版は現在の同梱2本と
-同一内容です。今後は各GitHub Releaseに、その版に対応する通常版・DMD版のJSONを添付し、
+旧Workflowは現在のノードでも使用できます。現在の同梱2本はPreview接続済みで、
+v1.0.0の旧2本にはPreviewが含まれていません。今後は各GitHub Releaseに、その版に対応する通常版・DMD版のJSONを添付し、
 旧版のタグとファイルも保持します。上の表から旧版を直接ダウンロードできます。
-新しい差し替え用Workflowは提供待ちで、今回は既存2本を変更していません。
+提供された通常版・DMD版で既存2本を差し替えました。表のCurrent mainから最新版をダウンロードできます。
 Preview入りWorkflowにはv1.0.3以降が必要です。今回の未リリース修正は更新済みソースに
 含まれ、Registry版へは次回公開時に反映されます。
 

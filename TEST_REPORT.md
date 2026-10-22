@@ -1,3 +1,9 @@
+## 2026-10-22: maintainer workflow replacement (CPU/static)
+
+Replaced only the two generation templates with the supplied Standard and DMD files, preserving their bytes under normalized filenames. Both include MOSS BBOX Preview connected to generation IMAGE and Canvas framing_data, alongside Save Animated WEBP (quality 80). Standard: LoRA disabled, 25 steps / CFG 2.5; DMD: LoRA enabled at 0.7, 8 steps / CFG 1.
+
+JSON parsing and root link/input/output consistency passed for both. The Civitai ZIP contains exactly these same two files. All 27 JavaScript tests also passed. All 45 Python regression tests passed, including saved-state Type consistency, Preview coordinates and pre-change output comparison. This replacement was not GPU-generated or tested in a live ComfyUI screen in this check. README now links current and archived workflows and explains the preconnected Preview. Registry publication is excluded.
+
 # Validation record — updated 2026-10-22
 
 ## Publication preparation and user display confirmation — 2026-10-22

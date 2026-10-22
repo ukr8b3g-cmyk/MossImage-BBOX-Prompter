@@ -1,8 +1,8 @@
 {
   "id": "f7d587f7-2f57-4e69-aa0b-9baa1ef3221c",
   "revision": 0,
-  "last_node_id": 21,
-  "last_link_id": 36,
+  "last_node_id": 22,
+  "last_link_id": 38,
   "nodes": [
     {
       "id": 1,
@@ -37,7 +37,8 @@
           "name": "framing_data",
           "type": "KREA2_ELEMENT_FRAMING_DATA",
           "links": [
-            15
+            15,
+            38
           ]
         }
       ],
@@ -49,21 +50,21 @@
             896,
             1184,
             "Custom",
-            "{\"boxes\":[{\"id\":\"person\",\"slot\":\"red\",\"label\":\"character\",\"text\":\"\",\"x1\":64,\"y1\":240,\"x2\":520,\"y2\":1120,\"nx1\":0.07142857142857142,\"ny1\":0.20270270270270271,\"nx2\":0.5803571428571429,\"ny2\":0.9459459459459459},{\"id\":\"table\",\"slot\":\"blue\",\"label\":\"object\",\"text\":\"\",\"x1\":520,\"y1\":700,\"x2\":864,\"y2\":1120,\"nx1\":0.5803571428571429,\"ny1\":0.5912162162162162,\"nx2\":0.9642857142857143,\"ny2\":0.9459459459459459},{\"id\":\"title\",\"slot\":\"yellow\",\"label\":\"text\",\"text\":\"MOSS Café\",\"x1\":64,\"y1\":48,\"x2\":832,\"y2\":208,\"nx1\":0.07142857142857142,\"ny1\":0.04054054054054054,\"nx2\":0.9285714285714286,\"ny2\":0.17567567567567569}],\"activeSlot\":\"red\",\"hideBoxes\":false,\"drawMode\":false}",
+            "{\"boxes\":[{\"id\":\"person\",\"slot\":\"red\",\"label\":\"character\",\"text\":\"\",\"x1\":64,\"y1\":241.7903208181853,\"x2\":520,\"y2\":1121.7903208181854,\"nx1\":0.07142857142857142,\"ny1\":0.2042147979883322,\"nx2\":0.5803571428571429,\"ny2\":0.9474580412315755,\"bbox\":[64,242,520,1122],\"position_hint\":\"middle-left area, centered around 33% from the left and 58% from the top\",\"z\":0},{\"id\":\"table\",\"slot\":\"blue\",\"label\":\"object\",\"text\":\"\",\"x1\":524,\"y1\":698.2096791818147,\"x2\":868,\"y2\":1118.2096791818149,\"nx1\":0.5848214285714286,\"ny1\":0.5897041209305868,\"nx2\":0.96875,\"ny2\":0.9444338506603166,\"bbox\":[524,698,868,1118],\"position_hint\":\"lower-right area, centered around 78% from the left and 77% from the top\",\"z\":1},{\"id\":\"title\",\"slot\":\"yellow\",\"label\":\"text\",\"text\":\"MOSS Café\",\"x1\":65.7905106763003,\"y1\":36.39942621764068,\"x2\":833.7905106763003,\"y2\":196.39942621764064,\"nx1\":0.0734269092369423,\"ny1\":0.03074275862976409,\"nx2\":0.9305697663797995,\"ny2\":0.1658778937648992,\"bbox\":[66,36,834,196],\"position_hint\":\"upper-center area, centered around 50% from the left and 10% from the top\",\"z\":2}],\"activeSlot\":\"red\",\"hideBoxes\":false,\"drawMode\":true}",
             "{\"iso\":\"\",\"shutter\":\"\",\"aperture\":\"\",\"focal_length\":\"\"}",
             "Thirds",
             "English",
             "{\"sets\":[],\"selected\":\"\"}",
             "{\"sets\":[],\"selected\":\"\"}"
           ],
-          "saved_at": 1792564694637
+          "saved_at": 1792666819321
         }
       },
       "widgets_values": [
         896,
         1184,
         "Custom",
-        "{\"boxes\":[{\"id\":\"person\",\"slot\":\"red\",\"label\":\"character\",\"text\":\"\",\"x1\":64,\"y1\":240,\"x2\":520,\"y2\":1120,\"nx1\":0.07142857142857142,\"ny1\":0.20270270270270271,\"nx2\":0.5803571428571429,\"ny2\":0.9459459459459459},{\"id\":\"table\",\"slot\":\"blue\",\"label\":\"object\",\"text\":\"\",\"x1\":520,\"y1\":700,\"x2\":864,\"y2\":1120,\"nx1\":0.5803571428571429,\"ny1\":0.5912162162162162,\"nx2\":0.9642857142857143,\"ny2\":0.9459459459459459},{\"id\":\"title\",\"slot\":\"yellow\",\"label\":\"text\",\"text\":\"MOSS Café\",\"x1\":64,\"y1\":48,\"x2\":832,\"y2\":208,\"nx1\":0.07142857142857142,\"ny1\":0.04054054054054054,\"nx2\":0.9285714285714286,\"ny2\":0.17567567567567569}],\"activeSlot\":\"red\",\"hideBoxes\":false,\"drawMode\":false}",
+        "{\"boxes\":[{\"id\":\"person\",\"slot\":\"red\",\"label\":\"character\",\"text\":\"\",\"x1\":64,\"y1\":241.7903208181853,\"x2\":520,\"y2\":1121.7903208181854,\"nx1\":0.07142857142857142,\"ny1\":0.2042147979883322,\"nx2\":0.5803571428571429,\"ny2\":0.9474580412315755,\"bbox\":[64,242,520,1122],\"position_hint\":\"middle-left area, centered around 33% from the left and 58% from the top\",\"z\":0},{\"id\":\"table\",\"slot\":\"blue\",\"label\":\"object\",\"text\":\"\",\"x1\":524,\"y1\":698.2096791818147,\"x2\":868,\"y2\":1118.2096791818149,\"nx1\":0.5848214285714286,\"ny1\":0.5897041209305868,\"nx2\":0.96875,\"ny2\":0.9444338506603166,\"bbox\":[524,698,868,1118],\"position_hint\":\"lower-right area, centered around 78% from the left and 77% from the top\",\"z\":1},{\"id\":\"title\",\"slot\":\"yellow\",\"label\":\"text\",\"text\":\"MOSS Café\",\"x1\":65.7905106763003,\"y1\":36.39942621764068,\"x2\":833.7905106763003,\"y2\":196.39942621764064,\"nx1\":0.0734269092369423,\"ny1\":0.03074275862976409,\"nx2\":0.9305697663797995,\"ny2\":0.1658778937648992,\"bbox\":[66,36,834,196],\"position_hint\":\"upper-center area, centered around 50% from the left and 10% from the top\",\"z\":2}],\"activeSlot\":\"red\",\"hideBoxes\":false,\"drawMode\":true}",
         "{\"iso\":\"\",\"shutter\":\"\",\"aperture\":\"\",\"focal_length\":\"\"}",
         "Thirds",
         "English",
@@ -74,7 +75,7 @@
         "width": 896,
         "height": 1184,
         "preset": "Custom",
-        "layout_data": "{\"boxes\":[{\"id\":\"person\",\"slot\":\"red\",\"label\":\"character\",\"text\":\"\",\"x1\":64,\"y1\":240,\"x2\":520,\"y2\":1120,\"nx1\":0.07142857142857142,\"ny1\":0.20270270270270271,\"nx2\":0.5803571428571429,\"ny2\":0.9459459459459459},{\"id\":\"table\",\"slot\":\"blue\",\"label\":\"object\",\"text\":\"\",\"x1\":520,\"y1\":700,\"x2\":864,\"y2\":1120,\"nx1\":0.5803571428571429,\"ny1\":0.5912162162162162,\"nx2\":0.9642857142857143,\"ny2\":0.9459459459459459},{\"id\":\"title\",\"slot\":\"yellow\",\"label\":\"text\",\"text\":\"MOSS Café\",\"x1\":64,\"y1\":48,\"x2\":832,\"y2\":208,\"nx1\":0.07142857142857142,\"ny1\":0.04054054054054054,\"nx2\":0.9285714285714286,\"ny2\":0.17567567567567569}],\"activeSlot\":\"red\",\"hideBoxes\":false,\"drawMode\":false}",
+        "layout_data": "{\"boxes\":[{\"id\":\"person\",\"slot\":\"red\",\"label\":\"character\",\"text\":\"\",\"x1\":64,\"y1\":241.7903208181853,\"x2\":520,\"y2\":1121.7903208181854,\"nx1\":0.07142857142857142,\"ny1\":0.2042147979883322,\"nx2\":0.5803571428571429,\"ny2\":0.9474580412315755,\"bbox\":[64,242,520,1122],\"position_hint\":\"middle-left area, centered around 33% from the left and 58% from the top\",\"z\":0},{\"id\":\"table\",\"slot\":\"blue\",\"label\":\"object\",\"text\":\"\",\"x1\":524,\"y1\":698.2096791818147,\"x2\":868,\"y2\":1118.2096791818149,\"nx1\":0.5848214285714286,\"ny1\":0.5897041209305868,\"nx2\":0.96875,\"ny2\":0.9444338506603166,\"bbox\":[524,698,868,1118],\"position_hint\":\"lower-right area, centered around 78% from the left and 77% from the top\",\"z\":1},{\"id\":\"title\",\"slot\":\"yellow\",\"label\":\"text\",\"text\":\"MOSS Café\",\"x1\":65.7905106763003,\"y1\":36.39942621764068,\"x2\":833.7905106763003,\"y2\":196.39942621764064,\"nx1\":0.0734269092369423,\"ny1\":0.03074275862976409,\"nx2\":0.9305697663797995,\"ny2\":0.1658778937648992,\"bbox\":[66,36,834,196],\"position_hint\":\"upper-center area, centered around 50% from the left and 10% from the top\",\"z\":2}],\"activeSlot\":\"red\",\"hideBoxes\":false,\"drawMode\":true}",
         "camera_data": "{\"iso\":\"\",\"shutter\":\"\",\"aperture\":\"\",\"focal_length\":\"\"}",
         "grid_mode": "Thirds",
         "ui_language": "English",
@@ -136,7 +137,7 @@
             "Auto",
             "Auto"
           ],
-          "saved_at": 1792564694637
+          "saved_at": 1792666819322
         },
         "k2cfPromptUiState": {
           "version": "prompt_ui_element_v1",
@@ -434,7 +435,8 @@
           "name": "IMAGE",
           "type": "IMAGE",
           "links": [
-            32
+            32,
+            37
           ]
         },
         {
@@ -522,6 +524,49 @@
         "quality": 80,
         "method": "default"
       }
+    },
+    {
+      "id": 22,
+      "type": "MOSSBBoxPreview",
+      "pos": [
+        2900,
+        110
+      ],
+      "size": [
+        420,
+        520
+      ],
+      "flags": {},
+      "order": 6,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 37
+        },
+        {
+          "name": "framing_data",
+          "type": "KREA2_ELEMENT_FRAMING_DATA",
+          "link": 38
+        }
+      ],
+      "outputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "links": null
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "MOSSBBoxPreview"
+      },
+      "widgets_values": [
+        ""
+      ],
+      "widgets_values_named": {
+        "bbox_preview": ""
+      }
     }
   ],
   "links": [
@@ -588,6 +633,22 @@
       18,
       0,
       "IMAGE"
+    ],
+    [
+      37,
+      17,
+      0,
+      22,
+      0,
+      "IMAGE"
+    ],
+    [
+      38,
+      1,
+      0,
+      22,
+      1,
+      "KREA2_ELEMENT_FRAMING_DATA"
     ]
   ],
   "groups": [],
@@ -598,8 +659,8 @@
         "version": 1,
         "state": {
           "lastGroupId": 0,
-          "lastNodeId": 21,
-          "lastLinkId": 36,
+          "lastNodeId": 22,
+          "lastLinkId": 38,
           "lastRerouteId": 0
         },
         "revision": 0,
@@ -807,31 +868,31 @@
             "mode": 0,
             "inputs": [
               {
-                "localized_name": "model",
+                "localized_name": "モデル",
                 "name": "model",
                 "type": "MODEL",
                 "link": 36
               },
               {
-                "localized_name": "positive",
+                "localized_name": "ポジティブ",
                 "name": "positive",
                 "type": "CONDITIONING",
                 "link": 8
               },
               {
-                "localized_name": "negative",
+                "localized_name": "ネガティブ",
                 "name": "negative",
                 "type": "CONDITIONING",
                 "link": 9
               },
               {
-                "localized_name": "latent_image",
+                "localized_name": "潜在画像",
                 "name": "latent_image",
                 "type": "LATENT",
                 "link": 10
               },
               {
-                "localized_name": "seed",
+                "localized_name": "シード",
                 "name": "seed",
                 "type": "INT",
                 "widget": {
@@ -840,7 +901,7 @@
                 "link": 25
               },
               {
-                "localized_name": "steps",
+                "localized_name": "ステップ",
                 "name": "steps",
                 "type": "INT",
                 "widget": {
@@ -860,7 +921,7 @@
             ],
             "outputs": [
               {
-                "localized_name": "LATENT",
+                "localized_name": "潜在",
                 "name": "LATENT",
                 "type": "LATENT",
                 "links": [
@@ -908,13 +969,13 @@
             "mode": 0,
             "inputs": [
               {
-                "localized_name": "clip",
+                "localized_name": "クリップ",
                 "name": "clip",
                 "type": "CLIP",
                 "link": 6
               },
               {
-                "localized_name": "text",
+                "localized_name": "テキスト",
                 "name": "text",
                 "type": "STRING",
                 "widget": {
@@ -925,7 +986,7 @@
             ],
             "outputs": [
               {
-                "localized_name": "CONDITIONING",
+                "localized_name": "条件付け",
                 "name": "CONDITIONING",
                 "type": "CONDITIONING",
                 "links": [
@@ -961,13 +1022,13 @@
             "mode": 0,
             "inputs": [
               {
-                "localized_name": "clip",
+                "localized_name": "クリップ",
                 "name": "clip",
                 "type": "CLIP",
                 "link": 5
               },
               {
-                "localized_name": "text",
+                "localized_name": "テキスト",
                 "name": "text",
                 "type": "STRING",
                 "widget": {
@@ -978,7 +1039,7 @@
             ],
             "outputs": [
               {
-                "localized_name": "CONDITIONING",
+                "localized_name": "条件付け",
                 "name": "CONDITIONING",
                 "type": "CONDITIONING",
                 "links": [
@@ -1014,7 +1075,7 @@
             "mode": 0,
             "inputs": [
               {
-                "localized_name": "width",
+                "localized_name": "幅",
                 "name": "width",
                 "type": "INT",
                 "widget": {
@@ -1023,7 +1084,7 @@
                 "link": 33
               },
               {
-                "localized_name": "height",
+                "localized_name": "高さ",
                 "name": "height",
                 "type": "INT",
                 "widget": {
@@ -1034,7 +1095,7 @@
             ],
             "outputs": [
               {
-                "localized_name": "LATENT",
+                "localized_name": "潜在",
                 "name": "LATENT",
                 "type": "LATENT",
                 "links": [
@@ -1074,7 +1135,7 @@
             "mode": 0,
             "inputs": [
               {
-                "localized_name": "clip_name",
+                "localized_name": "clip名",
                 "name": "clip_name",
                 "type": "COMBO",
                 "widget": {
@@ -1126,7 +1187,7 @@
             "mode": 0,
             "inputs": [
               {
-                "localized_name": "samples",
+                "localized_name": "サンプル",
                 "name": "samples",
                 "type": "LATENT",
                 "link": 11
@@ -1140,7 +1201,7 @@
             ],
             "outputs": [
               {
-                "localized_name": "IMAGE",
+                "localized_name": "画像",
                 "name": "IMAGE",
                 "type": "IMAGE",
                 "links": [
@@ -1181,7 +1242,7 @@
             ],
             "outputs": [
               {
-                "localized_name": "MODEL",
+                "localized_name": "モデル",
                 "name": "MODEL",
                 "type": "MODEL",
                 "links": [
@@ -1550,19 +1611,23 @@
   "config": {},
   "extra": {
     "ds": {
-      "scale": 0.670178042208977,
+      "scale": 0.5035146823508467,
       "offset": [
-        100.10508222111447,
-        182.715376565638
+        155.2815072144126,
+        551.4099682717995
       ]
     },
     "k2cf_state_id": "moss_a295c69b008e46a2b725e9781f205249",
-    "frontendVersion": "1.55.18"
+    "frontendVersion": "1.55.18",
+    "moss_bbox_state_id": "moss_a295c69b008e46a2b725e9781f205249"
   },
   "extensions": {
     "seed_widgets": {
-      "8": 0
+      "17": 0
     }
   },
-  "version": 0.4
+  "version": 0.4,
+  "seed_widgets": {
+    "17": 0
+  }
 }

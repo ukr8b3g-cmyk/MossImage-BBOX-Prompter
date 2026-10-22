@@ -48,7 +48,7 @@ class MOSSBBoxPreview:
     FUNCTION = "preview"
     OUTPUT_NODE = True
     CATEGORY = "image/MOSS"
-    DESCRIPTION = ("Add this optional node to Standard or DMD; bundled templates do not contain it. "
+    DESCRIPTION = ("Current Standard and DMD templates include this optional preview node. "
                    "Connect generation IMAGE (or Load Image IMAGE) to images, and MOSS BBOX Canvas framing_data to framing_data. "
                    "Run to display the image and requested boxes inside this node. "
                    "Show Boxes and opacity affect only this preview, without re-running generation. "
