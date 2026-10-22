@@ -1,6 +1,6 @@
 # MOSS BBOX Prompter
 
-**Current version: 1.0.3** — [GitHub Releases](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases)
+**Current version: 1.0.4** — [GitHub Releases](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases)
 · [Comfy Registry](https://registry.comfy.org/nodes/mossimage-bbox-prompter)
 
 <img width="1154" height="839" alt="image" src="https://github.com/user-attachments/assets/739cff51-f11a-4c25-88d5-7b0c5eb1a76c" />
@@ -26,6 +26,13 @@ horizontal overflow. Camera/preset explanations remain available on hover.
 Only the MOSS Canvas DOM is rearranged; Krea2 nodes, saved widgets, presets and
 box coordinates keep their existing behavior. Refresh the frontend to load this
 layout change; no backend restart is needed.
+
+### 1.0.4: help, stable layout and connected workflows
+
+- Japanese/English hover help follows the ComfyUI language setting, with connection and Export setting explanations.
+- Preview remains visible when zooming out; selecting or drawing a box no longer changes the Canvas layout height.
+- Updated Standard and DMD workflows include a connected BBOX Preview and WebP saving. Download the two JSON assets from the v1.0.4 release below.
+- Existing node IDs, sockets and workflow formats remain compatible. Older workflows remain usable; Preview requires 1.0.3 or newer.
 
 ### 1.0.3: generated-image BBOX preview
 
@@ -53,9 +60,9 @@ not detected objects or a measured placement score. Cropping is not corrected.
 Temporary previews may disappear after ComfyUI clears its temporary directory.
 
 Restart ComfyUI and refresh the frontend to register this new node. Existing
-Canvas/Prompter controls, node IDs and the two bundled workflows are unchanged.
+Canvas/Prompter controls and node IDs remain compatible.
 
-#### Add and connect the preview (Standard or DMD)
+#### Add and connect the preview in older or custom workflows
 
 1. Save your current workflow. Double-click empty graph space, search for
    **MOSS BBOX Preview**, and add it (`image/MOSS`).
@@ -291,6 +298,7 @@ the archived v1.0.0 files below do not include Preview and remain usable.
 
 | Release | Standard | DMD |
 | --- | --- | --- |
+| [v1.0.4](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/tag/v1.0.4) | [Download JSON](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/download/v1.0.4/MOSS_BBOX_Standard.json) | [Download JSON](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/download/v1.0.4/MOSS_BBOX_DMD.json) |
 | Current main (Preview; nodes 1.0.3+) | [Download JSON](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/raw/refs/heads/main/examples/MOSS_BBOX_Standard.json) | [Download JSON](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/raw/refs/heads/main/examples/MOSS_BBOX_DMD.json) |
 | [v1.0.0](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/tag/v1.0.0) | [Download JSON](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/raw/refs/tags/v1.0.0/examples/MOSS_BBOX_Standard.json) | [Download JSON](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/raw/refs/tags/v1.0.0/examples/MOSS_BBOX_DMD.json) |
 
@@ -305,8 +313,7 @@ GitHub Release or attach workflow files.
 The maintainer-supplied Standard and DMD replacements are now bundled.
 Workflows using **MOSS BBOX Preview**
 require node version **1.0.3 or newer**; older node versions do not register it.
-The zoom/hover/layout fixes described in the unreleased validation record require
-the updated source until the next package version is published. Installed model
+The zoom/hover/layout fixes are included in version 1.0.4. Installed model
 names and other custom-node dependencies must still be available; compatibility
 does not promise identical pixels across model or ComfyUI updates.
 
@@ -314,8 +321,7 @@ does not promise identical pixels across model or ComfyUI updates.
 v1.0.0の旧2本にはPreviewが含まれていません。今後は各GitHub Releaseに、その版に対応する通常版・DMD版のJSONを添付し、
 旧版のタグとファイルも保持します。上の表から旧版を直接ダウンロードできます。
 提供された通常版・DMD版で既存2本を差し替えました。表のCurrent mainから最新版をダウンロードできます。
-Preview入りWorkflowにはv1.0.3以降が必要です。今回の未リリース修正は更新済みソースに
-含まれ、Registry版へは次回公開時に反映されます。
+Preview入りWorkflowにはv1.0.3以降が必要です。日本語説明・縮小表示・座標欄の修正はv1.0.4に含まれます。
 
 This path runs entirely from the bundled MOSS package.
 The node IDs are `MOSSSharedCanvas`, `MOSSSharedPrompter` and `MOSSFromKrea2`.
