@@ -80,8 +80,8 @@ assets remain available for older versions; old workflows work with the new node
   file with **Load Image**. No automatic queue/run is performed. Source images
   are not embedded in workflow JSON; keep the files available on the ComfyUI
   server. Reconnect/reload a missing file; other IMAGE sources need execution
-  again after reload. Current Standard/DMD templates work without this optional
-  connection and are unchanged.
+  again after reload. Older Standard/DMD workflows also work without this optional
+  connection. The refreshed 1.0.7 examples include Load Image wiring.
 
 **接続と操作:** Load ImageのIMAGEをCanvasの`reference_image`へ直接接続します。
 生成せず読み込めます。参照画像は初期OFF・不透明度50％で、表示切替だけでは
@@ -410,7 +410,7 @@ Open the [Standard workflow](examples/MOSS_BBOX_Standard.json) or
 [DMD workflow](examples/MOSS_BBOX_DMD.json).
 These are the only two bundled generation workflows. Both use the MOSS pair,
 Export, a connected MOSS BBOX Preview, a generation subgraph, rgthree Power Lora Loader and the standard
-Save Animated WEBP node (quality 80), at 896×1184. Install **rgthree-comfy** to
+Save Animated WEBP node (quality 80), at 880×1184. Install **rgthree-comfy** to
 load the templates. The Standard file disables the LoRA; the DMD file enables
 `moss_image\\lora_latest.safetensors` at strength 0.7. Standard uses
 25 steps / CFG 2.5; DMD uses 8 steps / CFG 1. Both use er_sde / simple.
@@ -433,7 +433,7 @@ the archived v1.0.0 files below do not include Preview and remain usable.
 | [v1.0.6](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/tag/v1.0.6) | [Download JSON](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/download/v1.0.6/MOSS_BBOX_Standard.json) | [Download JSON](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/download/v1.0.6/MOSS_BBOX_DMD.json) |
 | [v1.0.5](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/tag/v1.0.5) | [Download JSON](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/download/v1.0.5/MOSS_BBOX_Standard.json) | [Download JSON](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/download/v1.0.5/MOSS_BBOX_DMD.json) |
 | [v1.0.4](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/tag/v1.0.4) | [Download JSON](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/download/v1.0.4/MOSS_BBOX_Standard.json) | [Download JSON](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/download/v1.0.4/MOSS_BBOX_DMD.json) |
-| Current main (Preview; nodes 1.0.3+) | [Download JSON](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/raw/refs/heads/main/examples/MOSS_BBOX_Standard.json) | [Download JSON](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/raw/refs/heads/main/examples/MOSS_BBOX_DMD.json) |
+| Current main (reference input; nodes 1.0.7+) | [Download JSON](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/raw/refs/heads/main/examples/MOSS_BBOX_Standard.json) | [Download JSON](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/raw/refs/heads/main/examples/MOSS_BBOX_DMD.json) |
 | [v1.0.0](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/tag/v1.0.0) | [Download JSON](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/raw/refs/tags/v1.0.0/examples/MOSS_BBOX_Standard.json) | [Download JSON](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/raw/refs/tags/v1.0.0/examples/MOSS_BBOX_DMD.json) |
 
 For future GitHub Releases, attach the corresponding Standard and DMD JSON files
