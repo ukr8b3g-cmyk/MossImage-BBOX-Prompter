@@ -24,6 +24,39 @@ class Batch(list):
 
 
 class PreviewTests(unittest.TestCase):
+    def test_canvas_reference_keeps_dimensions_output_and_widget_order(self):
+        cls = package.NODE_CLASS_MAPPINGS["MOSSSharedCanvas"]
+        inputs = cls.INPUT_TYPES()
+        self.assertEqual(list(inputs["required"]), ["width", "height", "preset", "layout_data",
+            "camera_data", "grid_mode", "ui_language", "camera_set_data", "canvas_preset_data"])
+        self.assertEqual(list(inputs["optional"]), ["width_override", "height_override", "reference_image"])
+        values = {name: spec[1]["default"] for name, spec in inputs["required"].items()}
+        values["layout_data"] = json.dumps({"boxes": [{"id": "a", "slot": "red", "locked": True,
+            "x1": 64, "y1": 240, "x2": 520, "y2": 1120}]})
+        baseline = cls().execute(**values)
+        batch = Batch([object(), object()])
+        with tempfile.TemporaryDirectory() as directory:
+            paths = SimpleNamespace(get_temp_directory=lambda: directory,
+                get_save_image_path=lambda prefix, *args: (directory, prefix, 1, "", prefix))
+            with patch.dict(sys.modules, {"folder_paths": paths}), patch.object(
+                    preview, "image_to_pil", return_value=Image.new("RGB", (64, 32), "red")) as converter:
+                result = cls().execute(reference_image=batch, **values)
+            converter.assert_called_once_with(batch[0])
+            self.assertEqual(result["result"], baseline)
+            data = json.loads(result["result"][0])
+            self.assertEqual([data["width"], data["height"]], [896, 1184])
+            self.assertTrue(data["layout"]["boxes"][0]["locked"])
+            payload = result["ui"]["moss_canvas_reference"][0]
+            self.assertEqual(payload["size"], [64, 32])
+            with Image.open(Path(directory) / payload["image"]["filename"]) as image:
+                self.assertEqual(image.format, "WEBP")
+                self.assertEqual(image.size, (64, 32))
+
+    def test_reference_rejects_empty_or_invalid_image_shapes(self):
+        for shape in ((0, 32, 64, 3), (1, 0, 64, 3), (1, 32, 64, 2), (32, 64, 3)):
+            with self.subTest(shape=shape), self.assertRaises(ValueError):
+                preview.reference_preview(SimpleNamespace(shape=shape))
+
     def framing(self, boxes=None):
         return json.dumps({"version": "krea2_element_framing_v1", "width": 896, "height": 1184,
                            "layout": {"boxes": boxes if boxes is not None else [
@@ -54,7 +87,7 @@ class PreviewTests(unittest.TestCase):
             framing = cls().execute(**values)[0]
             result = preview.preview_layout(framing)
             expected = json.loads(framing)
-            self.assertEqual((result["width"], result["height"]), (896, 1184))
+            self.assertEqual((result["width"], result["height"]), (880, 1184))
             for source, box in zip(expected["layout"]["boxes"], result["boxes"]):
                 self.assertEqual({k: box[k] for k in ("slot", "x1", "y1", "x2", "y2")},
                                  {k: source[k] for k in ("slot", "x1", "y1", "x2", "y2")})

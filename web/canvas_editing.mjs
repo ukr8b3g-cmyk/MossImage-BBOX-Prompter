@@ -1,7 +1,7 @@
 // Session-only Canvas history; workflow serialization stays in moss_controls.
 function editKey(snapshot) {
   const { selectedId, selectedIds, activeSlot, drawMode, canvasPresetSelected, canvasSize, ...values } = snapshot;
-  values.boxes = snapshot.boxes.map(({ id, slot, x1, y1, x2, y2 }) => ({ id, slot, x1, y1, x2, y2 }));
+  values.boxes = snapshot.boxes.map(({ id, slot, x1, y1, x2, y2, locked }) => ({ id, slot, x1, y1, x2, y2, locked: locked === true }));
   return JSON.stringify(values);
 }
 

@@ -2,6 +2,8 @@
 // Copyright (c) 2026 ukr8b3g-cmyk. MIT; see LICENSE and NOTICE.md.
 
 import { app } from "../../scripts/app.js";
+import { api } from "../../scripts/api.js";
+import { mountCanvasReference } from "./canvas_reference.mjs";
 import { bindHelp } from "./help.mjs";
 import { createCanvasHistory, nextOverlappingBox, snapBoxToGuides, resizeBoxWithAspect, moveBoxSelection } from "./canvas_editing.mjs";
 
@@ -1407,6 +1409,7 @@ function setupCanvasNode(node) {
   let pointerStart = null;
   let altDrag = null;
   let boxSequence = 0;
+  let reference = null;
   function selectBoxes(ids, primary = ids.at(-1)) {
     state.selectedIds = [...new Set(ids)].filter(id => state.boxes.some(b => b.id === id));
     state.selectedId = state.selectedIds.includes(primary) ? primary : state.selectedIds.at(-1) ?? null;
@@ -1548,6 +1551,8 @@ function setupCanvasNode(node) {
     if (gridLabelTop) gridLabelTop.textContent = "Grid";
     snapLabel.textContent = lang === "ja" ? "吸着" : "Snap";
     if (languageLabel) languageLabel.textContent = tr(lang, "uiLanguage");
+    reference?.labels();
+    refreshPrecision();
   }
   for (const [key, label, color] of SLOTS) {
     const sw = document.createElement("button");
@@ -1664,7 +1669,7 @@ function setupCanvasNode(node) {
     input.addEventListener("change", () => {
       const box = state.boxes.find(b => b.id === state.selectedId);
       const value = input.value.trim() === "" ? NaN : Number(input.value);
-      if (!box || state.layoutError || pointerStart || !Number.isFinite(value)
+      if (!box || box.locked === true || state.layoutError || pointerStart || !Number.isFinite(value)
         || ((key === "width" || key === "height") && value <= 0)) {
         refreshPrecision(true); return;
       }
@@ -1686,6 +1691,18 @@ function setupCanvasNode(node) {
     });
     field.append(input); precisionBar.append(field);
   }
+  const lockBtn = button("Lock", "Lock selected boxes");
+  lockBtn.style.cssText = "width:86px;height:23px;line-height:17px;box-sizing:border-box;overflow:hidden;padding:2px 5px";
+  lockBtn.setAttribute("aria-label", "Lock selected boxes");
+  bindHelp(lockBtn, "lock_boxes");
+  lockBtn.addEventListener("click", () => {
+    if (state.layoutError || pointerStart || state.hideBoxes) return;
+    const boxes = selectedBoxes();
+    const locked = !boxes.every(b => b.locked === true);
+    for (const b of boxes) b.locked = locked;
+    writeBoxes();
+  });
+  precisionBar.append(lockBtn);
   wrap.appendChild(precisionBar);
   function refreshPrecision(force = false) {
     const box = state.boxes.find(b => b.id === state.selectedId);
@@ -1693,8 +1710,13 @@ function setupCanvasNode(node) {
     // Keep the row's space so selection never changes the Canvas geometry.
     precisionBar.style.visibility = visible ? "visible" : "hidden";
     if (!visible) return;
+    const allLocked = selectedBoxes().every(b => b.locked === true);
+    lockBtn.textContent = resolveLang(controls.ui_language?.value || "Auto") === "ja"
+      ? (allLocked ? "🔓 解除" : "🔒 ロック") : (allLocked ? "🔓 Unlock" : "🔒 Lock");
+    lockBtn.setAttribute("aria-pressed", String(allLocked));
     const [x,y,x2,y2] = normBox(box);
     for (const [key,value] of Object.entries({x,y,width:x2-x,height:y2-y})) {
+      precisionInputs[key].disabled = box.locked === true;
       if (!force && document.activeElement === precisionInputs[key]) continue;
       precisionInputs[key].value = String(Number(value.toFixed(9)));
     }
@@ -1717,8 +1739,9 @@ function setupCanvasNode(node) {
   overlay.title = canvasHelp;
   // ComfyUI's early capture listener reserves editable targets for local history.
   // These drawing controls own keyboard input, but never accept text insertion.
-  for (const target of [overlay, undoBtn, redoBtn]) {
+  for (const target of [overlay, undoBtn, redoBtn, lockBtn]) {
     target.contentEditable = "true";
+    target.dataset.mossCanvasShortcut = "true";
     target.spellcheck = false;
     target.addEventListener("beforeinput", ev => ev.preventDefault());
     target.addEventListener("paste", ev => ev.preventDefault());
@@ -2196,6 +2219,20 @@ function setupCanvasNode(node) {
   wrap.append(panels);
 
   const bgCtx = bg.getContext("2d"), overlayCtx = overlay.getContext("2d");
+  reference = mountCanvasReference(node, {
+    url: image => api.apiURL(`/view?${new URLSearchParams(image)}`),
+    redraw: () => makeBg(),
+    fitSize: (w,h) => { if (!state.layoutError && !pointerStart) setSize(w,h,"Custom"); },
+    canFit: () => !state.layoutError && !pointerStart && !linkedInputInfo("width_override") && !linkedInputInfo("height_override"),
+    language: () => resolveLang(controls.ui_language?.value || "Auto"),
+  });
+  wrap.insertBefore(reference.element, precisionBar);
+  const oldExecuted = node.onExecuted;
+  node.onExecuted = function(message) {
+    const result = oldExecuted?.apply(this,arguments);
+    reference.executed(message);
+    return result;
+  };
   function currentSize() {
     return [
       Math.max(1, Number(externalPreviewSize.width ?? width.value) || DEFAULT_WIDTH),
@@ -2208,6 +2245,7 @@ function setupCanvasNode(node) {
     const grd = bgCtx.createLinearGradient(0, 0, w, h);
     grd.addColorStop(0, "rgba(255,255,255,.08)"); grd.addColorStop(1, "rgba(0,0,0,.22)");
     bgCtx.fillStyle = grd; bgCtx.fillRect(0, 0, w, h);
+    reference?.draw(bgCtx,w,h);
   }
   function resizeCanvases() {
     const [w, h] = currentSize();
@@ -2275,7 +2313,7 @@ function setupCanvasNode(node) {
     overlayCtx.fillStyle = color; overlayCtx.fillRect(x1, Math.max(0,y1-28), 76, 28);
     overlayCtx.fillStyle = "#fff"; overlayCtx.font = "bold 18px sans-serif"; overlayCtx.fillText(String(b.slot||"").toUpperCase(), x1+8, Math.max(18,y1-8));
     overlayCtx.fillStyle = color; overlayCtx.beginPath(); overlayCtx.arc(x2, y1, 18, 0, Math.PI*2); overlayCtx.fill();
-    overlayCtx.fillStyle = "#fff"; overlayCtx.font = "bold 24px sans-serif"; overlayCtx.fillText("×", x2-7, y1+8);
+    overlayCtx.fillStyle = "#fff"; overlayCtx.font = "bold 24px sans-serif"; overlayCtx.fillText(b.locked === true ? "🔒" : "×", x2-7, y1+8);
     overlayCtx.restore();
   }
   function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
@@ -2345,6 +2383,7 @@ function setupCanvasNode(node) {
       toleranceY: 6 * height / Math.max(rect.height, 1) }));
   }
   function moveSelection(boxes, dx, dy, snapping = false) {
+    if (boxes.some(b => b.locked === true)) return;
     const rect = overlay.getBoundingClientRect(), [width, height] = currentSize();
     const snap = snapping && snapToggle.checked ? { width, height,
       toleranceX: 6 * width / Math.max(rect.width, 1),
@@ -2400,12 +2439,17 @@ function setupCanvasNode(node) {
         p.x >= Math.min(b.x1,b.x2) && p.x <= Math.max(b.x1,b.x2) &&
         p.y >= Math.min(b.y1,b.y2) && p.y <= Math.max(b.y1,b.y2));
       const source = selected || nextOverlappingBox(state.boxes, p, null);
-      altDrag = { sources: source ? structuredClone(selected ? selectedBoxes() : [source]) : [], point: p,
+      const sources = source ? (selected ? selectedBoxes() : [source]) : [];
+      altDrag = { sources: sources.some(b => b.locked === true) ? [] : structuredClone(sources), point: p,
         clientX: ev.clientX, clientY: ev.clientY, created: false };
       return;
     }
     const hit=state.hideBoxes ? null : hitTest(p, ev.shiftKey);
     if(!state.drawMode && hit){
+      if (hit.box.locked === true) {
+        selectBoxes(state.selectedIds.includes(hit.box.id) ? state.selectedIds : [hit.box.id], hit.box.id);
+        pointerStart = null; sync(); drawOverlay(); return;
+      }
       if(hit.handle==="delete"){ state.boxes=state.boxes.filter((b)=>b.id!==hit.box.id); selectBoxes(state.selectedIds); writeBoxes(); pointerStart=null; return; }
       if(hit.handle==="move") {
         selectBoxes(state.selectedIds.includes(hit.box.id) ? state.selectedIds : [hit.box.id], hit.box.id);
@@ -2466,7 +2510,7 @@ function setupCanvasNode(node) {
     if (!wrap.isConnected || !wrap.contains(ev.target)) return;
     const tag=ev.target?.tagName?.toLowerCase();
     if(tag==="input"||tag==="textarea"||tag==="select")return;
-    if(ev.target?.isContentEditable && ![overlay, undoBtn, redoBtn].includes(ev.target))return;
+    if(ev.target?.isContentEditable && ev.target.dataset.mossCanvasShortcut !== "true")return;
     const key=ev.key.toLowerCase();
     if (ev.key === "Escape" && ev.target === overlay) {
       if (pointerStart) cancelPointerEdit();
@@ -2488,7 +2532,7 @@ function setupCanvasNode(node) {
       ev.preventDefault(); ev.stopImmediatePropagation(); return;
     }
     if (pointerStart || state.layoutError || state.hideBoxes || (ev.key!=="Delete" && ev.key!=="Backspace")) return;
-    if(state.selectedIds.length){ state.boxes=state.boxes.filter((b)=>!state.selectedIds.includes(b.id)); selectBoxes([]); writeBoxes(); ev.preventDefault(); ev.stopImmediatePropagation(); }
+    if(state.selectedIds.length){ state.boxes=state.boxes.filter((b)=>b.locked === true || !state.selectedIds.includes(b.id)); selectBoxes(state.selectedIds); writeBoxes(); ev.preventDefault(); ev.stopImmediatePropagation(); }
   }
   window.addEventListener("keydown", onCanvasKeyDown, true);
 
@@ -2547,6 +2591,7 @@ function setupCanvasNode(node) {
       resizeCanvases();
       applyCanvasLabels();
       drawOverlay();
+      reference.configure();
     } finally {
       isHydrating = false;
       history.clear();
@@ -2591,6 +2636,7 @@ function setupCanvasNode(node) {
 
   const oldResize=node.onResize; node.onResize=function(){ const r = oldResize?.apply(this,arguments); scheduleCanvasRefresh(false); return r; };
   const oldRemoved=node.onRemoved; node.onRemoved=function(){
+    reference.dispose();
     window.removeEventListener("keydown", onCanvasKeyDown, true);
     history.clear();
     clearInterval(externalPreviewTimer);

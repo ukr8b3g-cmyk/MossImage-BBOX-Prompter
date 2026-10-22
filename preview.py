@@ -35,6 +35,25 @@ def image_to_pil(image):
     return Image.fromarray(array)
 
 
+def reference_preview(images):
+    """First-image underlay for Canvas; dimensions are informational, never applied."""
+    if len(images.shape) != 4 or images.shape[0] < 1 or images.shape[-1] not in (1, 3, 4):
+        raise ValueError("MOSS reference expects a nonempty IMAGE batch (BHWC, 1/3/4 channels).")
+    if images.shape[1] < 1 or images.shape[2] < 1:
+        raise ValueError("MOSS reference images must have positive dimensions.")
+    import folder_paths
+
+    directory, prefix, counter, subfolder, _ = folder_paths.get_save_image_path(
+        "MOSS_reference_" + uuid.uuid4().hex, folder_paths.get_temp_directory(),
+        images.shape[2], images.shape[1])
+    filename = f"{prefix}_{counter:05}_.webp"
+    thumbnail = image_to_pil(images[0])
+    thumbnail.thumbnail((2048, 2048))
+    thumbnail.save(os.path.join(directory, filename), format="WEBP", quality=90, method=4)
+    return {"image": {"filename": filename, "subfolder": subfolder, "type": "temp"},
+            "size": [images.shape[2], images.shape[1]]}
+
+
 class MOSSBBoxPreview:
     @classmethod
     def INPUT_TYPES(cls):

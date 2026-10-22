@@ -1,6 +1,6 @@
 [project]
 name = "mossimage-bbox-prompter"
-version = "1.0.6"
+version = "1.0.7"
 description = "Standalone BBOX layout and prompt export for MOSS-Image, with UI adapted from Krea2 BBOX Prompter Suite."
 readme = "README.md"
 license = { file = "LICENSE" }
@@ -14,4 +14,4 @@ Documentation = "https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter#readme"
 [tool.comfy]
 PublisherId = "ukr8b3g-cmyk"
 DisplayName = "MOSS BBOX Prompter"
-includes = ["web", "examples", "node_list.json", "NOTICE.md"]
+includes = ["web", "examples", "node_list.json", "NOTICE.md", "docs"]

@@ -3,6 +3,27 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { createCanvasHistory, nextOverlappingBox, resizeBoxWithAspect, snapBoxToGuides, moveBoxSelection } from "../web/canvas_editing.mjs";
 import { HELP, helpText, setHelpLocaleReader, widgetHelpKey } from "../web/help.mjs";
+import { containImage, connectedReference } from "../web/canvas_reference.mjs";
+
+test("Locked state is an undoable edit, but missing/false locks are equivalent", () => {
+  const history=createCanvasHistory(), start=canvasSnapshot(40);
+  const unlocked=structuredClone(start);unlocked.boxes[0].locked=false;
+  assert.equal(history.record(start,unlocked),false);
+  const locked=structuredClone(start);locked.boxes[0].locked=true;
+  assert.equal(history.record(start,locked),true);
+  assert.deepEqual(history.undo(locked),start);
+  assert.deepEqual(history.redo(start),locked);
+});
+
+test("Reference fits without cropping or stretching and reads only Load Image IMAGE", () => {
+  assert.deepEqual(containImage(600,900,1200,800),[0,250,600,400]);
+  assert.deepEqual(containImage(600,900,300,900),[150,0,300,900]);
+  const source={type:'LoadImage',widgets:[{name:'image',value:'folder/a b.webp [input]'}]};
+  const node={inputs:[{name:'reference_image',link:1}],graph:{links:new Map([[1,{origin_id:2,origin_slot:0}]]),getNodeById:()=>source}};
+  assert.deepEqual(connectedReference(node).image,{filename:'a b.webp',subfolder:'folder',type:'input'});
+  source.type='OtherImage';assert.equal(connectedReference(node).image,undefined);
+  node.inputs[0].link=null;assert.equal(connectedReference(node),null);
+});
 
 test("All help entries have Japanese and English text; unsupported locales fall back to English", () => {
   for (const [key, pair] of Object.entries(HELP)) {

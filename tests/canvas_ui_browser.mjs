@@ -65,9 +65,17 @@ const server = createServer(async (request, response) => {
     else if (request.url === "/external-krea.js" && process.env.KREA2_UI_SOURCE) content = await readFile(process.env.KREA2_UI_SOURCE);
     else if (request.url === "/web/moss_controls.mjs") content = await readFile(resolve(root, "web/moss_controls.mjs"));
     else if (request.url === "/web/canvas_editing.mjs") content = await readFile(resolve(root, "web/canvas_editing.mjs"));
+    else if (request.url === "/web/canvas_reference.mjs") content = await readFile(resolve(root, "web/canvas_reference.mjs"));
     else if (request.url === "/web/moss_shared_ui.js") content = await readFile(resolve(root, "web/moss_shared_ui.js"));
     else if (["/web/help.mjs", "/web/moss_help.js"].includes(request.url)) content = await readFile(resolve(root, request.url.slice(1)));
     else if (request.url === "/scripts/app.js") content = "export const app=window.comfyAPI.app.app;";
+    else if (request.url === "/scripts/api.js") content = "export const api={apiURL:path=>path};";
+    else if (request.url.startsWith('/view?')) {
+      const query = new URL(request.url,'http://fixture').searchParams;
+      if (query.get('filename') === 'missing.webp') {response.writeHead(404);response.end();return;}
+      response.setHeader('Content-Type','image/svg+xml');
+      response.end('<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="800"><rect width="1200" height="800" fill="#ff0000"/></svg>'); return;
+    }
     else { response.writeHead(404); response.end(); return; }
     response.setHeader("Content-Type", request.url === "/" ? "text/html; charset=utf-8" : "text/javascript; charset=utf-8");
     response.end(content);
@@ -883,6 +891,112 @@ try {
     multi_move_snap:true,multi_move_keyboard:true,multi_duplicate:true,multi_duplicate_metadata:true,multi_duplicate_history:true,
     multi_selection_restore:true,multi_selection_session_only:true,multi_reload:true,multi_cancel:true,multi_single_edit:true,
     multi_delete:true,multi_draw_hidden_rules:true,multi_layout_stable:true});
+  // Locked boxes remain selectable and serializable, but reject direct geometry edits.
+  await resetMulti(); await selectPair();
+  const lock=gestures.getByRole('button',{name:'Lock selected boxes',exact:true});
+  await lock.click(); assert.deepEqual((await gestureBoxes()).map(b=>!!b.locked),[true,true,false]);
+  const graphKeysBeforeLock=await page.evaluate(()=>window.graphHistoryKeys);
+  await lock.press('Control+z');assert.deepEqual((await gestureBoxes()).map(b=>!!b.locked),[false,false,false]);
+  await lock.press('Control+Shift+z');assert.deepEqual((await gestureBoxes()).map(b=>!!b.locked),[true,true,false]);
+  assert.equal(await page.evaluate(()=>window.graphHistoryKeys),graphKeysBeforeLock);
+  const lockedGeometry=geometry(await gestureBoxes());
+  await drag(160,300,210,340,gestureCanvas);
+  await modifierDrag('Shift',250,400,300,450);
+  await modifierDrag('Alt',160,300,230,360);
+  await gestureCanvas.press('Shift+ArrowRight'); await gestureCanvas.press('Delete');
+  await clickAt(250,200); // Locked delete badge selects rather than deletes.
+  assert.deepEqual(geometry(await gestureBoxes()),lockedGeometry);
+  assert.equal(await gestures.getByRole('spinbutton',{name:'BBOX x',exact:true}).isDisabled(),true);
+  await gu.click();assert.deepEqual((await gestureBoxes()).map(b=>!!b.locked),[false,false,false]);
+  await gr.click();assert.deepEqual((await gestureBoxes()).map(b=>!!b.locked),[true,true,false]);
+  const lockedSave=await page.evaluate(()=>window.gestureNode.save());
+  await page.evaluate(data=>window.gestureNode.configure(data),lockedSave);
+  await clickAt(160,300);await lock.click();
+  await drag(160,300,170,310,gestureCanvas);
+  assertMoved((await gestureBoxes())[0],multiOriginal[0],10,10);
+  // Mixed selection cannot translate/duplicate; Delete preserves the locked member.
+  await selectAt(410,600);const mixed=geometry(await gestureBoxes());
+  await gestureCanvas.press('ArrowRight');await modifierDrag('Alt',170,310,240,370);
+  assert.deepEqual(geometry(await gestureBoxes()),mixed);
+  await gestureCanvas.press('Delete');assert.deepEqual((await gestureBoxes()).map(b=>b.id),['b','c']);
+  await gu.click();assert.deepEqual(geometry(await gestureBoxes()),mixed);
+  Object.assign(result,{locks_geometry:true,locks_group_guard:true,locks_delete_guard:true,locks_history:true,locks_reload:true,locks_unlock:true});
+
+  // A direct Load Image connection reads the file without queueing a prompt.
+  await resetMulti();
+  await page.evaluate(()=>{
+    window.queueCalls=0;window.comfyAPI.app.app.queuePrompt=()=>{window.queueCalls++};
+    const node=window.gestureNode, graph=node.graph;
+    window.referenceLoader={id:99999,type:'LoadImage',widgets:[{name:'image',value:'reference.webp'}]};
+    graph._nodes.push(window.referenceLoader);graph.links.set(99998,{origin_id:99999,origin_slot:0});
+    node.inputs.push({name:'reference_image',link:99998});
+  });
+  const refToggle=gestures.getByRole('button',{name:'Show reference image',exact:true});
+  const refFit=gestures.getByRole('button',{name:'Match reference image size',exact:true});
+  const refOpacity=gestures.getByRole('slider',{name:'Reference opacity',exact:true});
+  await page.waitForFunction(()=>!window.gestureNode.host.querySelector('[aria-label="Match reference image size"]').disabled);
+  assert.equal(await refToggle.getAttribute('aria-pressed'),'false'); assert.equal(await refOpacity.inputValue(),'50');
+  const canvasSize=()=>page.evaluate(()=>window.gestureNode.widgets.slice(0,2).map(w=>w.value));
+  assert.deepEqual(await canvasSize(),[896,1184]);assert.deepEqual(geometry(await gestureBoxes()),geometry(multiOriginal));
+  const bgPixel=()=>page.evaluate(()=>{
+    const c=window.gestureNode.host.querySelector('.moss-k2cf-bg');
+    return [...c.getContext('2d').getImageData(c.width/2,c.height/2,1,1).data];
+  });
+  const offPixel=await bgPixel(); await refToggle.click();const halfPixel=await bgPixel();
+  assert(halfPixel[0]>offPixel[0]+50);assert(halfPixel[0]<255);
+  await refOpacity.fill('100');await refOpacity.dispatchEvent('input');assert.deepEqual(await bgPixel(),[255,0,0,255]);
+  const topPixel=await page.evaluate(()=>[...window.gestureNode.host.querySelector('.moss-k2cf-bg').getContext('2d').getImageData(448,5,1,1).data]);
+  assert(topPixel[0]<100,'letterboxing preserves aspect ratio');
+  await refToggle.click();assert.deepEqual(await bgPixel(),offPixel);
+  await refToggle.click();assert.equal(await gu.isDisabled(),true,'display-only changes are not Canvas history');
+  await refFit.click();assert.deepEqual(await canvasSize(),[1200,800]);
+  for (const [i,b] of (await gestureBoxes()).entries()) {
+    assertGestureClose(b.x1,multiOriginal[i].x1/896*1200);
+    assertGestureClose(b.y1,multiOriginal[i].y1/1184*800);
+  }
+  await gu.click();assert.deepEqual(await canvasSize(),[896,1184]);assert.deepEqual(geometry(await gestureBoxes()),geometry(multiOriginal));
+  await gr.click();assert.deepEqual(await canvasSize(),[1200,800]);
+  const refSaved=await page.evaluate(()=>window.gestureNode.save());
+  await page.evaluate(data=>window.gestureNode.configure(data),refSaved);
+  await page.waitForFunction(()=>!window.gestureNode.host.querySelector('[aria-label="Match reference image size"]').disabled);
+  assert.equal(await refToggle.getAttribute('aria-pressed'),'true');assert.equal(await refOpacity.inputValue(),'100');
+  assert.deepEqual(await canvasSize(),[1200,800]);
+  await page.evaluate(()=>{window.gestureNode.inputs.push({name:'width_override',link:99997});});
+  await page.waitForFunction(()=>window.gestureNode.host.querySelector('[aria-label="Match reference image size"]').disabled);
+  await page.evaluate(()=>{window.gestureNode.inputs=window.gestureNode.inputs.filter(i=>i.name!=='width_override');window.referenceLoader.widgets[0].value='missing.webp';});
+  await page.waitForFunction(()=>window.gestureNode.host.textContent.includes('Image unavailable'));
+  assert.equal(await refFit.isDisabled(),true);
+  assert.deepEqual(await canvasSize(),[1200,800]);
+  await page.evaluate(()=>{window.gestureNode.inputs.find(i=>i.name==='reference_image').link=null;});
+  await page.waitForFunction(()=>window.gestureNode.host.textContent.includes('Connect Load Image'));
+  assert.equal(await refFit.isDisabled(),true);assert.equal(await page.evaluate(()=>window.queueCalls),0);
+  await page.evaluate(()=>{window.gestureNode.inputs.find(i=>i.name==='reference_image').link=99998;window.referenceLoader.widgets[0].value='reference.webp';});
+  await page.waitForFunction(()=>!window.gestureNode.host.querySelector('[aria-label="Match reference image size"]').disabled);
+  await gestures.screenshot({path:resolve(artifacts,'canvas-lock-reference.jpg'),type:'jpeg',quality:85});
+  // Non-Load Image execution data cannot override dimensions automatically.
+  await page.evaluate(()=>{
+    window.referenceLoader.type='IndependentImageSource';
+    window.gestureNode.onExecuted({moss_canvas_reference:[{image:{filename:'reference.webp',type:'temp'},size:[641,479]}]});
+  });
+  await page.waitForFunction(()=>window.gestureNode.host.textContent.includes('641 × 479'));
+  assert.deepEqual(await canvasSize(),[1200,800]);
+  await refFit.click();assert.deepEqual(await canvasSize(),[640,480]);
+  await refFit.press('Control+z');assert.deepEqual(await canvasSize(),[1200,800]);
+  await refFit.press('Control+Shift+z');assert.deepEqual(await canvasSize(),[640,480]);
+  assert.equal(await page.evaluate(()=>window.graphHistoryKeys),graphKeysBeforeLock);
+  await page.evaluate(()=>{
+    const node=window.gestureNode,data=node.save();data.widgets_values[3]='{"boxes": [';data.properties.k2cfCanvasState=undefined;node.configure(data);
+    window.referenceLoader.type='LoadImage';
+  });
+  await page.waitForFunction(()=>window.gestureNode.host.textContent.includes('1200 × 800'));
+  assert.equal(await refFit.isDisabled(),true);
+  await refToggle.click();await refToggle.click();
+  assert.equal(await page.evaluate(()=>window.gestureNode.save().widgets_values[3]),'{"boxes": [');
+  assert.deepEqual(await canvasSize(),[640,480]);
+  Object.assign(result,{reference_execution:true,reference_native_size_rounding:true,reference_button_keyboard_history:true,reference_corrupt_guard:true});
+  Object.assign(result,{reference_default_off:true,reference_no_auto_resize:true,reference_opacity_pixels:true,
+    reference_contain:true,reference_explicit_fit:true,reference_fit_history:true,reference_reload:true,
+    reference_missing_disconnect:true,reference_external_size_guard:true,reference_no_queue:true});
   assert.deepEqual(errors,[]);
   await snapping.screenshot({path:resolve(artifacts,'canvas-snap.jpg'),type:'jpeg',quality:85});
   Object.assign(result,{snap_default_off:true,snap_center_move:true,snap_thirds_resize:true,snap_history:true,snap_numeric_keyboard_exact:true,snap_reload:true,snap_zoom:true,snap_cancel:true});

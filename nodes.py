@@ -5,7 +5,7 @@ from . import canvas_controls as controls
 
 from .prompt_builder import OUTPUT_MODES, SLOTS, build_prompt, default_state, parse_state
 from .krea_bridge import ELEMENT_TYPES, build_from_krea, element_type
-from .preview import MOSSBBoxPreview
+from .preview import MOSSBBoxPreview, reference_preview
 
 
 class MOSSBBoxCanvasPrompt:
@@ -103,6 +103,7 @@ class MOSSSharedCanvas:
         inputs["required"]["width"][1]["default"] = 896
         inputs["required"]["height"][1]["default"] = 1184
         inputs["required"]["preset"][1]["default"] = "Custom"
+        inputs["optional"]["reference_image"] = ("IMAGE", {"tooltip": "Optional Canvas underlay. Connect Load Image IMAGE for a generation-free reference. Does not change Canvas dimensions or condition generation."})
         return inputs
 
     RETURN_TYPES = ("KREA2_ELEMENT_FRAMING_DATA",)
@@ -111,8 +112,11 @@ class MOSSSharedCanvas:
     CATEGORY = "conditioning/MOSS"
     DESCRIPTION = "Five-color MOSS canvas with shared drawing, presets and workflow persistence. Default 896 x 1184."
 
-    def execute(self, **kwargs):
-        return controls.CanvasControls().execute(**kwargs)
+    def execute(self, reference_image=None, **kwargs):
+        result = controls.CanvasControls().execute(**kwargs)
+        if reference_image is None:
+            return result
+        return {"result": result, "ui": {"moss_canvas_reference": [reference_preview(reference_image)]}}
 
 
 class MOSSSharedPrompter:

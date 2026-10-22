@@ -1,6 +1,6 @@
 # MOSS BBOX Prompter
 
-**Current version: 1.0.6** — [GitHub Releases](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases)
+**Current version: 1.0.7** — [GitHub Releases](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases)
 · [Comfy Registry](https://registry.comfy.org/nodes/mossimage-bbox-prompter)
 
 <img width="1154" height="839" alt="image" src="https://github.com/user-attachments/assets/739cff51-f11a-4c25-88d5-7b0c5eb1a76c" />
@@ -26,6 +26,71 @@ horizontal overflow. Camera/preset explanations remain available on hover.
 Only the MOSS Canvas DOM is rearranged; Krea2 nodes, saved widgets, presets and
 box coordinates keep their existing behavior. Refresh the frontend to load this
 layout change; no backend restart is needed.
+
+### 1.0.7: box locking and Canvas reference image
+
+![Load Image connected to the Canvas reference_image input](docs/canvas-reference.png)
+
+**Canvas reference image:** Connect **Load Image → IMAGE** to the Canvas's
+**reference_image** input. Turn **Reference ON** to display the image underneath
+BBOXes; use **Opacity** to keep the boxes readable. Display defaults OFF at 50%.
+Loading/showing an image preserves the Canvas width, height and box coordinates.
+**Match image size**, beside the display button, explicitly changes the Canvas
+size (rounded to a multiple of 16), with proportional box scaling and Undo/Redo.
+**Lock** beside X/Y/W/H protects selected boxes from accidental edits. This image
+is a layout reference; connecting it here does not add image conditioning.
+
+**参照画像の使用例:** Load ImageのIMAGEをCanvasのreference_imageへ接続し、
+ReferenceをONにすると枠の下に画像が出ます。不透明度で見やすさを調整できます。
+表示は初期OFF・50％で、表示切替だけではCanvasのサイズや座標は変わりません。
+隣の「画像サイズに合わせる」を押すとサイズと全枠が追従し、Undoで戻せます。
+数値欄の隣のLockで枠を固定できます。生成モデルへの画像参照入力とは別の表示機能です。
+
+**Download the updated examples:** [Standard + DMD + reference image ZIP](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/download/v1.0.7/MOSS_BBOX_Workflows_1.0.7.zip).
+The ZIP contains exactly two workflow JSONs and `ComfyUI_00238_.webp`.
+In each workflow's **Load Image**, upload/select that WebP (or copy it into
+`ComfyUI/input/`). Both workflows use WebP saving and include the BBOX Preview.
+DMD uses LoRA ON, 8 steps / CFG 1; Standard uses LoRA OFF, 25 steps / CFG 2.5.
+Select installed model/LoRA filenames if your installation uses different names.
+These reference-input examples require node version **1.0.7+**. Previous release
+assets remain available for older versions; old workflows work with the new nodes.
+
+- Turn **Draw Box OFF**, select a box (Ctrl/Cmd-click for several), then use
+  **Lock / Unlock** beside X/Y/W/H. Locked boxes remain selectable and show a
+  lock instead of the delete badge. They reject movement, resizing, numeric
+  edits and deletion. A selection containing a locked box cannot move or
+  Alt-duplicate; Delete removes only its unlocked members. Lock changes support
+  Undo/Redo and are saved with the workflow. Reset, preset replacement and
+  Canvas-wide size changes still apply to locked boxes.
+- Connect **Load Image → IMAGE** directly to **MOSS BBOX Canvas → reference_image**.
+  The file is read without queueing generation. Enable **Reference ON** to show
+  it underneath the boxes. Default: **OFF**, **50% opacity**. Display and opacity
+  are saved per Canvas. Showing/hiding or loading an image never changes Canvas
+  dimensions or box coordinates. The full image fits proportionally with margins;
+  it is not cropped or stretched. This is a drawing aid, not img2img conditioning.
+- **Match image size**, immediately beside the display toggle, is an explicit
+  action. It rounds dimensions to MOSS's nearest multiple of 16 and scales every
+  box proportionally. Undo restores the prior dimensions and boxes. The button
+  is disabled without an image, with a corrupt layout, or while external width/
+  height inputs control the Canvas. Reference images above 16384px per side
+  must be resized before matching.
+- Other upstream IMAGE nodes supply their first image after Canvas execution.
+  Do not connect the Canvas's downstream generation output back into its input
+  (that would create a cycle). For an existing generated image, load the saved
+  file with **Load Image**. No automatic queue/run is performed. Source images
+  are not embedded in workflow JSON; keep the files available on the ComfyUI
+  server. Reconnect/reload a missing file; other IMAGE sources need execution
+  again after reload. Current Standard/DMD templates work without this optional
+  connection and are unchanged.
+
+**接続と操作:** Load ImageのIMAGEをCanvasの`reference_image`へ直接接続します。
+生成せず読み込めます。参照画像は初期OFF・不透明度50％で、表示切替だけでは
+Canvasの幅・高さ・BBOX位置は変わりません。表示ボタンの隣の「画像サイズに合わせる」
+を押した時だけ16の倍数へ合わせ、全枠も追従します（Undo対応）。画像はWorkflowに
+埋め込まれないため、ComfyUI側に元ファイルを残してください。
+ロックは数値欄の隣で切り替え、保存・Undo／Redoに対応します。ロック枠を含む
+グループの移動・複製は解除後に行います。新しい画像入力の登録にはComfyUIの再起動と
+ブラウザー更新が必要です。旧ワークフローは接続なしでそのまま使えます。
 
 ### 1.0.6: multiple selection and group movement/duplication
 
@@ -364,6 +429,7 @@ the archived v1.0.0 files below do not include Preview and remain usable.
 
 | Release | Standard | DMD |
 | --- | --- | --- |
+| [v1.0.7](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/tag/v1.0.7) | [Download JSON](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/download/v1.0.7/MOSS_BBOX_Standard.json) | [Download JSON](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/download/v1.0.7/MOSS_BBOX_DMD.json) |
 | [v1.0.6](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/tag/v1.0.6) | [Download JSON](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/download/v1.0.6/MOSS_BBOX_Standard.json) | [Download JSON](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/download/v1.0.6/MOSS_BBOX_DMD.json) |
 | [v1.0.5](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/tag/v1.0.5) | [Download JSON](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/download/v1.0.5/MOSS_BBOX_Standard.json) | [Download JSON](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/download/v1.0.5/MOSS_BBOX_DMD.json) |
 | [v1.0.4](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/tag/v1.0.4) | [Download JSON](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/download/v1.0.4/MOSS_BBOX_Standard.json) | [Download JSON](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/download/v1.0.4/MOSS_BBOX_DMD.json) |

@@ -1,3 +1,29 @@
+# v1.0.7 release validation (2026-10-23)
+
+The user confirmed operation of box locking and Canvas reference display in
+ComfyUI, then supplied refreshed DMD and Standard workflows and a sample WebP.
+This is user-confirmed live behavior; Codex did not repeat GPU generation.
+
+- DMD input `MOSS_BBOX_DMD (2).json` is renamed `MOSS_BBOX_DMD.json`;
+  LoRA ON, 8 steps, CFG 1. Standard input `MOSS_BBOX_DMD (3).json` is renamed
+  `MOSS_BBOX_Standard.json`; LoRA OFF, 25 steps, CFG 2.5. Source bytes are preserved.
+- Both use Canvas 880x1184, direct Load Image -> reference_image, reference OFF
+  at 50%, connected BBOX Preview and WebP saving. Sample filename remains
+  `ComfyUI_00238_.webp`. Upload/select it through Load Image after importing.
+- `MOSS_BBOX_Workflows_1.0.7.zip` contains exactly those two JSONs and that WebP.
+  ZIP CRC and all three extracted byte comparisons passed. Root/inner workflow
+  JSON and root link endpoints were checked. Original attachments are preserved.
+- README includes the supplied connection screenshot and a caption explaining
+  display, opacity, explicit size matching, locks, input-file setup and the
+  difference between Canvas reference display and image conditioning.
+- Python regression: 47 passed with official ComfyUI and pre-change output
+  references supplied. Fixture expectations now use the user's 880x1184 sample
+  size; the 896x1184 node default is unchanged. JavaScript regression: 36 passed.
+  The implementation's isolated browser and actual CPU tensor results are
+  recorded below. No additional GPU run is claimed.
+- GitHub push CI is the final syntax/Ruff/archive/test gate before Release.
+  Registry publishing is not dispatched as part of this GitHub Release request.
+
 ## 1.0.6 release preparation
 
 Version 1.0.6 packages multiple selection and group movement/duplication from
@@ -1123,4 +1149,52 @@ queues before/after. Both original files stayed byte-identical. This confirms
 live loading, configuration and execution-graph conversion, not a new GPU run.
 Evidence: `artifacts/preview-template-checks.json` and
 `preview-template-{Standard,DMD}.jpg` in the existing local work directory.
+
+# Local validation: box locks and Canvas reference image (2026-10-23)
+
+Baseline: published v1.0.6 / `a421de1ab41288c427eddf23d481b2d5c32d4d76`.
+Local changes only; version remains 1.0.6. No commit, push, Release or Registry
+publication was performed for this implementation.
+
+- Python regression: **47 passed, 0 failed, 0 skipped**, with `COMFYUI_ROOT`
+  and the pre-change snapshot supplied. Existing Standard/DMD output comparison
+  is byte-for-byte equal; required widget order, output socket, and old optional
+  width/height socket order are unchanged. `reference_image` is appended as an
+  optional IMAGE input. Existing workflow JSON files are unchanged.
+- JavaScript unit regression: **36 passed, 0 failed, 0 skipped**. History now
+  records box locking; absent/false locks remain equivalent. Reference geometry
+  contains rather than crops/stretches, and direct file lookup uses Load Image's
+  IMAGE output only. Python (11 files) and web JavaScript (11 files) syntax passed.
+  Ruff was not rerun locally because this Python environment has no Ruff module;
+  no new dependency was installed.
+- Isolated Chromium fixture: all previous Canvas checks and new lock/reference
+  checks passed. Locked boxes reject drag, resize, numeric edits and deletion;
+  mixed groups reject translation/Alt-duplication; Delete preserves locked members.
+  Unlock, keyboard/toolbar Undo/Redo, workflow reload and stable selection-row
+  dimensions passed. Locked state is saved, selection remains session-only.
+- Reference display starts OFF at 50% opacity. Direct Load Image loading made
+  **zero queue calls**. Pixel checks verified opacity and letterboxing; ON/OFF
+  and loading did not change Canvas dimensions or boxes. Explicit fit scaled
+  boxes; Undo/Redo restored size/geometry. Odd 641x479 input fitted to 640x480.
+  Display preferences reloaded; missing/disconnected files cleared the underlay.
+  External dimensions and corrupt layout disabled fit. Corrupt original text
+  survived reference toggles/save. Non-Load Image execution payload was tested.
+- Actual CPU torch/Pillow check: grayscale/RGB/RGBA two-image batches preserved
+  input tensors and produced a first-image WebP reference; CUDA was not initialized.
+- New help controls passed Japanese/English hover coverage. README includes
+  direct wiring, no-generation usage, first-image behavior, missing-file limits,
+  native size rounding, lock exceptions and the backend restart requirement.
+- The fixture's first pass detected a two-pixel row shift from the lock icon.
+  Fixed the button's height/width; full fixture passed afterward. Every fixture
+  service was stopped; process and listening-port checks found none remaining.
+
+Implementation files are copied to the ComfyUI_test custom-node folder after
+snapshotting its prior files. This is a file deployment, **not** a live UI result:
+ComfyUI_test was not restarted or operated, and no GPU generation was run. A normal
+server restart plus browser refresh is needed to register the new optional input.
+The ComfyUI-Q installation and existing user workflows were not changed.
+
+Evidence: `lock-reference.diff`, `lock-reference-local.json`,
+`canvas-footer-checks.json`, `canvas-lock-reference.jpg` in the existing local
+`moss-canvas-editing/artifacts` folder.
 

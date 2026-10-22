@@ -36,6 +36,11 @@ with tempfile.TemporaryDirectory(prefix="moss-preview-cpu-") as directory:
         before = images.clone()
         with patch.dict(sys.modules, {"folder_paths": paths}):
             output = preview.MOSSBBoxPreview().preview(images, framing)
+            reference = preview.reference_preview(images)
+        assert reference["size"] == [64, 32]
+        with Image.open(Path(directory) / reference["image"]["filename"]) as saved:
+            saved.load()
+            assert saved.format == "WEBP" and saved.size == (64, 32)
         assert output["result"][0] is images
         assert torch.equal(images, before)
         expected = before[0].mul(255).clamp(0, 255).byte().numpy()
@@ -45,6 +50,7 @@ with tempfile.TemporaryDirectory(prefix="moss-preview-cpu-") as directory:
             with Image.open(Path(directory) / descriptor["filename"]) as saved:
                 saved.load()
                 assert saved.format == "WEBP" and saved.size == (64, 32)
-        checks.append({"channels": channels, "batch": 2, "same_tensor": True, "unchanged_pixels": True})
+        checks.append({"channels": channels, "batch": 2, "same_tensor": True, "unchanged_pixels": True,
+                       "canvas_reference_first_image": True})
 assert not torch.cuda.is_initialized()
 print(json.dumps({"cpu_tensor_checks": checks, "cuda_initialized": False, "temporary_files_cleaned": True}))

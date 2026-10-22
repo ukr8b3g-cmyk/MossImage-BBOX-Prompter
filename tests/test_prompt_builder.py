@@ -208,7 +208,7 @@ class BuilderTests(unittest.TestCase):
                 latent = next(node for node in inner.values() if node["type"] == "EmptyFlux2LatentImage")
                 sampler = next(node for node in inner.values() if node["type"] == "KSampler")
                 lora = next(node for node in nodes.values() if node["type"] == "Power Lora Loader (rgthree)")
-                self.assertEqual(canvas["widgets_values"][:2], [896, 1184])
+                self.assertEqual(canvas["widgets_values"][:2], [880, 1184])
                 self.assertEqual(latent["widgets_values"][:2], [896, 1184])
                 self.assertEqual(lora["widgets_values_named"]["lora_1"]["on"], name == "MOSS_BBOX_DMD.json")
                 self.assertTrue(all("widget" not in item for item in host["inputs"][:4]))
@@ -260,7 +260,7 @@ class BuilderTests(unittest.TestCase):
         for restored in [restored_png, restored_webp]:
             self.assertEqual(restored, workflow)
             canvas = next(node for node in restored["nodes"] if node["type"] == "MOSSSharedCanvas")
-            self.assertEqual(canvas["widgets_values"][:2], [896, 1184])
+            self.assertEqual(canvas["widgets_values"][:2], [880, 1184])
 
 
 if __name__ == "__main__":
