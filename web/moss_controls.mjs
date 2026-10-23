@@ -2150,6 +2150,10 @@ function setupCanvasNode(node) {
   deleteCanvasPreset.addEventListener("click", () => {
     const name = canvasPresetSelect.value;
     if (!name) return;
+    const ja = /^ja(?:-|$)/i.test(app.ui?.settings?.getSettingValue("Comfy.Locale") || document.documentElement.lang || "en");
+    if (!confirm(ja
+      ? `Canvasプリセット「${name}」を削除しますか？\n現在のCanvas配置は残ります。`
+      : `Delete Canvas preset "${name}"?\nThe current Canvas layout will remain.`)) return;
     controls.canvasPresetData.sets = getCanvasPresets().filter((s) => s.name !== name);
     controls.canvasPresetData.selected = "";
     saveCanvasPresets();
@@ -2252,7 +2256,7 @@ function setupCanvasNode(node) {
   const canvasPresetNote = document.createElement("div");
   canvasPresetNote.className = "moss-k2cf-note";
   canvasPresetNote.textContent = tr(resolveLang(controls.ui_language?.value || "Auto"), "canvasPresetNote");
-  const importBtn = button("JSON…", "Import layout JSON");
+  const importBtn = button("JSON…", "Import / export layout JSON");
   bindHelp(importBtn, "layout_import");
   canvasPresetLabel.style.position = "relative";
   importBtn.style.cssText = "position:absolute;right:0;top:-2px;padding:0 5px;line-height:14px;font-size:10px";
@@ -2263,6 +2267,12 @@ function setupCanvasNode(node) {
     openLayoutImport({
       ja: /^ja(?:-|$)/i.test(app.ui?.settings?.getSettingValue("Comfy.Locale") || document.documentElement.lang || "en"),
       currentSize, getExisting: () => state.boxes,
+      getExport: () => {
+        if (state.layoutError || pointerStart || !wrap.isConnected) throw new Error("changed");
+        if ((linkedInputInfo("width_override") && externalPreviewSize.width == null) || (linkedInputInfo("height_override") && externalPreviewSize.height == null)) throw new Error("changed");
+        const [w,h] = currentSize();
+        return {boxes:state.boxes,width:w,height:h};
+      },
       canResize: () => !linkedInputInfo("width_override") && !linkedInputInfo("height_override"),
       apply: ({boxes, width: w, height: h, resize, mode}) => {
         if (!wrap.isConnected || state.layoutError || pointerStart || before !== JSON.stringify(snapshotCanvasEdit())) throw new Error("changed");
@@ -2272,7 +2282,15 @@ function setupCanvasNode(node) {
         historySuspended++;
         try {
           if (resize) setSize(w, h, "Custom");
-          const incoming = boxes.map(b => ({...b, id: newBoxId()}));
+          const usedIds = new Set(mode === "append" ? state.boxes.map(b => b.id) : []);
+          // Reserve imported IDs before allocating replacements for collisions.
+          const reservedIds = new Set(boxes.map(b => b.id).filter(Boolean));
+          const incoming = boxes.map(b => {
+            let id = b.id;
+            if (!id || usedIds.has(id)) do { id = newBoxId(); } while (usedIds.has(id) || reservedIds.has(id));
+            usedIds.add(id);
+            return {...b,id};
+          });
           state.boxes = mode === "replace" ? incoming : [...state.boxes, ...incoming];
           selectBoxes(incoming.map(b => b.id));
         } finally { historySuspended--; }

@@ -29,12 +29,15 @@ Only the MOSS Canvas DOM is rearranged; Krea2 nodes, saved widgets, presets and
 box coordinates keep their existing behavior. Refresh the frontend to load this
 layout change; no backend restart is needed.
 
-### On main, not yet released: seven colors, JSON import and ID cards
+### On main, not yet released: seven colors, JSON import/export and ID cards
 
 These features are available from the current GitHub main branch; the Registry
 and v1.0.8 release packages do not include them yet. See the illustrated
 [JSON import instructions](#layout-json-import-main--unreleased) and
 [per-box ID card instructions](#per-box-id-cards-main--unreleased).
+See [JSON export and editable re-import](#json-export-and-editable-re-import-main--unreleased)
+to transfer layouts with per-ID prompts and styles. Import now defaults to
+**Replace boxes**, and deleting a Canvas preset asks for confirmation.
 
 Cyan and Orange extend the five existing color groups to seven. Each new
 Prompter card starts closed and supports Character/Object/Text, framing, angle,
@@ -710,18 +713,35 @@ The import dialog lets you select a file or paste JSON, review placement, and ch
 1. Click **JSON…** to open the import dialog.
 2. Click **Choose JSON file** to select a `.json` file, or paste JSON into the text area.
 3. Enter **Source width / Source height** if the JSON does not contain the original image dimensions.
-4. Review the preview and color assignments. The defaults are **Add to existing boxes** and **Keep current Canvas size**.
+4. Review the preview and color assignments. The defaults are **Replace boxes** and **Keep current Canvas size**.
 5. Click **Apply** to import, or **Cancel** to leave the layout unchanged.
 
 The dialog, file-selection button and empty-file message follow **ComfyUI's display language**, independently of the Canvas's saved UI Language. Close and reopen the dialog after changing the language.
 
-Import is **placement only**. New boxes use the current Prompter's color defaults for text, Type and styles. Edit **ID cards** after importing for independent prompts, including the eighth box and beyond; otherwise same-color boxes share their prompt.
+External MOSS/Canvas JSON import is **placement only**. New boxes use the current Prompter's color defaults for text, Type and styles. Edit **ID cards** after importing for independent prompts, including the eighth box and beyond; otherwise same-color boxes share their prompt. Native editable exports can also restore individual settings, as described below.
 
 Supports MOSS Layout JSON (`items`, `bbox_format: yxyx`, `bbox_coord_space: abs_centralized`) and Canvas `boxes` with pixel `x1/y1/x2/y2`. Enter the original width and height if absent; dimensions are never inferred from box extents. Changing aspect ratio scales X and Y independently. Source-size mode requires positive multiples of 16 and no external size connection. Locked boxes prevent replacement and size changes, but permit additions.
 
-Import is one Undo/Redo step. Edge/outside coordinates are preserved through saving and reloading; they are not silently cropped. Unsupported or malformed JSON is rejected without changing the layout. Prompts, reference images and camera settings are not imported. This is not a general Workflow JSON loader.
+Import is one Undo/Redo step. Edge/outside coordinates are preserved through saving and reloading; they are not silently cropped. Unsupported or malformed JSON is rejected without changing the layout. External placement imports do not import prompts; neither format includes reference images or camera settings. This is not a general Workflow JSON loader.
 
-**Preset portability:** Save Preset / Load / Delete manage Canvas presets; they do not download a preset JSON file. The JSON dialog currently imports layouts only. Save the complete ComfyUI workflow to retain the layout and per-ID prompts. A dedicated layout/preset export is not implemented yet.
+### JSON export and editable re-import (main / unreleased)
+
+Open **JSON… → Export**, choose **Export contents**, then **Download JSON** or **Copy JSON**. Export is read-only: it does not modify the layout, selection, locks or Undo/Redo history. Locked boxes can be exported.
+
+| Format | Contents | Filename |
+| --- | --- | --- |
+| Placement only (default) | Canvas dimensions, box coordinates and colors | `MOSS_BBOX_Layout.json` |
+| Editable: ID prompts + styles | The above plus box IDs, locks, individual names, prompts, Type, framing, angle and Text style | `MOSS_BBOX_Editable.json` |
+
+To restore a file, open **JSON… → Import** and choose it or paste its JSON. Editable files automatically select editable contents; you may switch to placement only to discard their ID/prompt/style/lock metadata. Existing external MOSS/Canvas layouts remain placement-only. **Replace boxes + Keep current Canvas size** are the defaults. Select Add to existing boxes only when you want to combine layouts. For the original composition, choose **Replace boxes + Use source size**, then Apply. Unlock existing boxes before replacing or changing Canvas dimensions. Source dimensions must be multiples of 16, at most 16384; externally connected dimensions cannot be overwritten.
+
+Editable import retains IDs, including the eighth card and beyond. Adding a file whose IDs already exist generates new IDs only for those collisions. Imported locks are restored. One Apply is one Undo/Redo step, including coordinates, dimensions and per-ID settings; saving/reloading the workflow retains them. Empty native exports are valid (replacing with one clears unlocked boxes). Unknown versions or malformed editable data are rejected before applying anything.
+
+**Scope:** Editable files store individual overrides, not the Prompter's color defaults. A box using color settings continues to use the destination Prompter; a Text style using shared settings continues to use the destination Export's shared style. Scene/background, shared color settings, shared Export style, camera, reference image, models and Canvas preset library are not included. Save the complete ComfyUI workflow to transfer those too. Save Preset / Load / Delete still manage the existing preset library; JSON export writes the current Canvas layout, not that library.
+
+Both native formats use `format: "moss_bbox_layout"`, `version: 1`, `contents: "placement"` or `"editable"`, dimensions and a `boxes` array with absolute pixel coordinates. Prompt text, whitespace, newlines, quotes and Unicode are preserved as JSON string values.
+
+**Deleting a Canvas preset:** Delete asks for confirmation and shows the selected preset's name in ComfyUI's display language. Cancel keeps the preset and selection. Confirm removes that saved preset only; the current Canvas layout remains. No preset selected means no deletion.
 
 ### Per-box ID cards (main / unreleased)
 
