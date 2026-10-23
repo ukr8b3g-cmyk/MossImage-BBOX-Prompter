@@ -20,6 +20,9 @@
   contents. Push does not publish to Registry: publishing requires an explicit
   workflow_dispatch with publish=true. The CI result is reported with its run
   link after this commit is pushed; it is not inferred from these local checks.
+- The first push (4b7a2cc) stopped at Ruff before tests: two new Python test
+  lines used semicolons (E702). Split the statements onto separate lines without
+  changing assertions or runtime behavior, then reran Python's 51 tests and CI.
 
 The detailed implementation-stage records below are historical local results.
 

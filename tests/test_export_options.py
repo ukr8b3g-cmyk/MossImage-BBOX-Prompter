@@ -59,8 +59,10 @@ class ExportOptionsTests(unittest.TestCase):
 
     def test_individual_styles_are_per_color_and_blank_means_no_hint(self):
         framing, data = self.inputs('Title')
-        f=json.loads(framing);f["layout"]["boxes"].append({**f["layout"]["boxes"][0],"slot":"blue"})
-        p=json.loads(data);p["slots"]["blue"]={"type":"text","prompt":"Subtitle","literal_text":"Subtitle"}
+        f=json.loads(framing)
+        f["layout"]["boxes"].append({**f["layout"]["boxes"][0],"slot":"blue"})
+        p=json.loads(data)
+        p["slots"]["blue"]={"type":"text","prompt":"Subtitle","literal_text":"Subtitle"}
         p["slots"]["red"]["text_style"]={"mode":"individual","font":"auto","weight":"auto","color":"","extra":""}
         result=bridge.build_from_krea(json.dumps(f),json.dumps(p),text_mode="literal",text_style="Shared white",output_mode="layout_json")
         items=json.loads(result["moss_json"])["items"]
