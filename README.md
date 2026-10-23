@@ -29,6 +29,52 @@ Only the MOSS Canvas DOM is rearranged; Krea2 nodes, saved widgets, presets and
 box coordinates keep their existing behavior. Refresh the frontend to load this
 layout change; no backend restart is needed.
 
+### Unreleased on main: per-color Text styles
+
+Each **Text** card has **Text style: Use shared settings** (default) or
+**Individual settings**. Individual mode exposes Typeface, Weight, Text color
+and Additional description. It replaces Export's shared `text_style` for that
+color in **literal** mode only. Character/Object cards hide these controls;
+legacy text notation keeps its existing behavior. Changing type or switching
+back to shared preserves the individual settings for later use.
+
+Typeface presets are Auto, Serif/Mincho, Sans-serif/Gothic, Rounded,
+Cursive/Script, Handwritten, Brush, Blackletter and Monospace. Weight supports
+Auto, Light, Regular and Bold. Click the swatch beside Text color to choose a
+color freely, or click **▦** to open 256 preset swatches in a **16 × 16** grid
+(16px squares). Both pickers share the same field. The preset popup closes after
+selection, on Escape or an outside click; opening it does not resize the node.
+You can also enter a color name/HEX value directly. The chosen
+color is stored as a HEX value; clearing the text removes the color hint.
+An empty field stays unspecified until you choose a color. Add optional
+appearance details (e.g. a thin black outline). Auto/blank adds no hint; an
+entirely empty individual style deliberately supplies no style caption.
+These are descriptive prompts, not font files or guaranteed font/color output.
+
+Visible wording, whitespace, quotes and line breaks stay in the existing text
+field and are never combined with the appearance description. Same-color boxes
+share one style. Style preferences are stored inside the existing
+`prompt_ui_data` widget and UI snapshot; no input/socket/widget order changes.
+Old workflows default to shared style. Save/reload and duplication preserve the
+new values. Restart ComfyUI and refresh the browser to load both backend and UI.
+
+### Unreleased on main: alignment and equal-gap distribution
+
+Select two or more unlocked boxes, then use **Align / Distribute** beside
+X/Y/W/H and Lock. Left/center/right and top/middle/bottom use the selected
+boxes' combined bounds. Horizontal/vertical distribution requires three boxes;
+the two end boxes stay fixed and the gaps between boxes become equal. Sizes,
+colors, prompts, IDs and saved box order are preserved. Snap does not change
+the requested alignment. One menu action is one Undo/Redo edit; applying an
+already-satisfied arrangement adds no history. Selection is retained.
+
+The menu is disabled for a selection containing a locked box, hidden boxes,
+invalid layouts or an active pointer edit. Unlock first to arrange the whole
+selection. Equal gaps may be negative when boxes overlap; a result outside the
+editable Canvas bounds is not applied. The menu reserves its space even when
+no boxes are selected, so selecting boxes does not resize the Canvas. Existing
+workflow/widget formats and the two sample workflow files are unchanged.
+
 ### 1.0.7: box locking and Canvas reference image
 
 ![Load Image connected to the Canvas reference_image input](docs/canvas-reference.png)

@@ -5,7 +5,8 @@ import { app } from "../../scripts/app.js";
 import { api } from "../../scripts/api.js";
 import { mountCanvasReference } from "./canvas_reference.mjs";
 import { bindHelp } from "./help.mjs";
-import { createCanvasHistory, nextOverlappingBox, snapBoxToGuides, resizeBoxWithAspect, moveBoxSelection } from "./canvas_editing.mjs";
+import { mountTextStyle } from "./text_style.mjs";
+import { createCanvasHistory, nextOverlappingBox, snapBoxToGuides, resizeBoxWithAspect, moveBoxSelection, arrangeBoxes } from "./canvas_editing.mjs";
 
 const CANVAS_NODE = "MOSSSharedCanvas";
 
@@ -512,6 +513,7 @@ function k2cfPromptUiHasMeaningfulState(value) {
     if (String(value.type || "obj") !== "obj") return true;
     if (String(value.framing || "Auto") !== "Auto") return true;
     if (String(value.angle || "Auto") !== "Auto") return true;
+    if (value.textStyle?.mode === "individual") return true;
   }
   if (k2cfNormalizeNodeSize(data.nodeSize)) return true;
   if (data.wrapSize && (Number(data.wrapSize.h || 0) >= 45 || Number(data.wrapSize.w || 0) >= 80)) return true;
@@ -1703,8 +1705,38 @@ function setupCanvasNode(node) {
     writeBoxes();
   });
   precisionBar.append(lockBtn);
+  const arrangeSelect = document.createElement("select");
+  arrangeSelect.className = "moss-k2cf-select";
+  arrangeSelect.style.cssText = "width:142px;height:23px;box-sizing:border-box";
+  arrangeSelect.setAttribute("aria-label", "Align and distribute boxes");
+  bindHelp(arrangeSelect, "arrange_boxes");
+  const arrangeLabels = [
+    ["","Align / Distribute","整列・分布"],["left","Align left","左揃え"],
+    ["center","Align horizontal centers","左右中央揃え"],["right","Align right","右揃え"],
+    ["top","Align top","上揃え"],["middle","Align vertical centers","上下中央揃え"],
+    ["bottom","Align bottom","下揃え"],["horizontal","Distribute horizontally","横に等間隔"],
+    ["vertical","Distribute vertically","縦に等間隔"],
+  ];
+  for (const [key,label] of arrangeLabels) arrangeSelect.append(option(key,label));
+  arrangeSelect.addEventListener("change", () => {
+    const action = arrangeSelect.value; arrangeSelect.value = "";
+    if (state.layoutError || pointerStart || state.hideBoxes) return;
+    const arranged = arrangeBoxes(selectedBoxes(),action,frameBounds());
+    if (!arranged) return;
+    for (const b of arranged) Object.assign(state.boxes.find(target => target.id === b.id),b);
+    writeBoxes();
+  });
+  precisionBar.append(arrangeSelect);
   wrap.appendChild(precisionBar);
   function refreshPrecision(force = false) {
+    const selected = selectedBoxes();
+    const ja = resolveLang(controls.ui_language?.value || "Auto") === "ja";
+    arrangeSelect.disabled = selected.length < 2 || selected.some(b => b.locked === true)
+      || !!state.layoutError || !!pointerStart || state.hideBoxes;
+    for (const [i,[key,en,jp]] of arrangeLabels.entries()) {
+      arrangeSelect.options[i].textContent = ja ? jp : en;
+      arrangeSelect.options[i].disabled = (key === "horizontal" || key === "vertical") && selected.length < 3;
+    }
     const box = state.boxes.find(b => b.id === state.selectedId);
     const visible = box && !state.layoutError && !state.hideBoxes;
     // Keep the row's space so selection never changes the Canvas geometry.
@@ -2738,6 +2770,7 @@ function setupPromptNode(node) {
   promptUiState.slotOpen = Object.assign({}, defaultPromptUiState().slotOpen, storedPromptUiState.slotOpen || {});
   promptUiState.slotPreset = Object.assign({}, storedPromptUiState.slotPreset || {});
   promptUiState.slotValues = Object.assign({}, storedPromptUiState.slotValues || {});
+  const textStyles = {};
   function capturePromptSlotValues() {
     promptUiState.slotValues = promptUiState.slotValues || {};
     for (const [slot, label, color, promptName, typeName, framingName, angleName] of SLOTS) {
@@ -2745,6 +2778,7 @@ function setupPromptNode(node) {
         type: controls[typeName]?.value || widgets[typeName]?.value || "obj",
         framing: controls[framingName]?.value || widgets[framingName]?.value || "Auto",
         angle: controls[angleName]?.value || widgets[angleName]?.value || "Auto",
+        textStyle: textStyles[slot]?.get() || promptUiState.slotValues[slot]?.textStyle || {mode:"common"},
       };
     }
   }
@@ -3068,6 +3102,7 @@ function setupPromptNode(node) {
       if (item.load) item.load.textContent = tr(lang, "loadPreset");
       if (item.deletePreset) item.deletePreset.textContent = tr(lang, "deletePreset");
       if (item.applyOpen) item.applyOpen();
+      item.textStyle?.refresh();
     }
   }
   promptLangSelect.addEventListener("change", () => {
@@ -3186,7 +3221,7 @@ function setupPromptNode(node) {
     ta.addEventListener("blur", sync);
     ta.addEventListener("compositionend", sync);
     bindTextHeight(promptName, ta);
-    typeSelect.addEventListener("change", () => { sync(); savePromptUiState(); });
+    typeSelect.addEventListener("change", () => { textStyles[slot]?.refresh(); sync(); savePromptUiState(); });
     framingSelect.addEventListener("change", () => { sync(); savePromptUiState(); });
     angleSelect.addEventListener("change", () => { sync(); savePromptUiState(); });
     const presetRow = document.createElement("div");
@@ -3233,6 +3268,14 @@ function setupPromptNode(node) {
     angleRow.append(angleLabel, angleSelect);
     side.append(typeRow, framingRow, angleRow);
     body.append(ta, side);
+    const textStyle = mountTextStyle(slot, {
+      type: () => typeSelect.value,
+      language: () => resolveLang(promptLangSelect.value),
+      changed: () => { savePromptUiState(); sync(); },
+    });
+    textStyles[slot] = textStyle;
+    textStyle.set(promptUiState.slotValues[slot]?.textStyle);
+    body.append(textStyle.element);
 
     function applyOpen() {
       const open = promptUiState.slotOpen[slot] !== false;
@@ -3299,6 +3342,7 @@ function setupPromptNode(node) {
       framingLabel,
       angleLabel,
       promptLabel: promptLabelHidden,
+      textStyle,
       applyOpen,
     });
     card.append(head, body);
@@ -3333,6 +3377,8 @@ function setupPromptNode(node) {
         if (controls[typeName]) controls[typeName].value = nextType;
         if (controls[framingName]) controls[framingName].value = nextFraming;
         if (controls[angleName]) controls[angleName].value = nextAngle;
+        const savedStyle = k2cfReadJsonObject(widgets.prompt_ui_data?.value)?.slotValues?.[slot]?.textStyle;
+        textStyles[slot]?.set(savedStyle);
         setWidget(typeName, nextType);
         setWidget(framingName, nextFraming);
         setWidget(angleName, nextAngle);

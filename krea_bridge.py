@@ -8,6 +8,26 @@ from .prompt_builder import SLOTS, build_prompt, default_state
 
 ELEMENT_TYPES = ("character", "object", "text")
 
+FONT_DESCRIPTIONS = {"serif": "serif lettering", "sans": "sans-serif lettering",
+    "rounded": "rounded sans-serif lettering", "script": "cursive script lettering",
+    "handwritten": "handwritten lettering", "brush": "brush lettering",
+    "blackletter": "blackletter lettering", "monospace": "monospaced lettering"}
+WEIGHT_DESCRIPTIONS = {"light": "light weight", "regular": "regular weight", "bold": "bold weight"}
+
+
+def individual_text_caption(style):
+    """Editor presets become ordinary item captions, never model schema fields."""
+    if not isinstance(style, dict) or style.get("mode") != "individual":
+        return None
+    parts = [FONT_DESCRIPTIONS.get(style.get("font"), ""),
+             WEIGHT_DESCRIPTIONS.get(style.get("weight"), "")]
+    for key in ("color", "extra"):
+        value = style.get(key, "")
+        if not isinstance(value, str):
+            raise ValueError(f"Text style {key} must be a string")
+        parts.append(("lettering color: " if key == "color" and value.strip() else "") + value.strip())
+    return ", ".join(part for part in parts if part)
+
 
 def element_type(value):
     if value == "obj":
@@ -52,7 +72,8 @@ def build_from_krea(framing_data, prompt_ui_data, auto_position_hint=False,
                 text = data.get("literal_text", data.get("prompt", ""))
                 if not isinstance(text, str):
                     raise ValueError(f"{slot} literal text must be a string")
-                content, caption = text, text_style
+                individual = individual_text_caption(data.get("text_style"))
+                content, caption = text, text_style if individual is None else individual
             else:
                 content = controls._strip_text_marker(content)
                 text, caption = controls._split_visible_text_desc(content)

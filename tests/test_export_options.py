@@ -28,6 +28,57 @@ shared = sys.modules[package.__name__ + ".canvas_controls"]
 
 
 class ExportOptionsTests(unittest.TestCase):
+    def test_individual_style_compiles_separately_from_exact_text(self):
+        exact = '  "MOSS | Café"\n日本語  '
+        framing, old = self.inputs(exact)
+        style = {"mode": "individual", "font": "serif", "weight": "bold", "color": "gold", "extra": "thin black outline"}
+        ui = json.dumps({"slotValues": {"red": {"textStyle": style}}})
+        data = package.NODE_CLASS_MAPPINGS["MOSSSharedPrompter"]().execute(
+            scene="A minimalist poster", red_type="text", red_prompt=exact, prompt_ui_data=ui)[0]
+        self.assertEqual(json.loads(data)["slots"]["red"]["text_style"], style)
+        result = bridge.build_from_krea(framing, data, text_mode="literal", output_mode="layout_json", text_style="SHARED")
+        item = json.loads(result["moss_json"])["items"][0]
+        self.assertEqual(item["text"], exact)
+        self.assertEqual(item["caption"], "serif lettering, bold weight, lettering color: gold, thin black outline")
+        self.assertNotIn("SHARED", result["prompt"])
+        baseline = bridge.build_from_krea(framing, old, text_mode="literal", output_mode="layout_json")
+        self.assertEqual(item["bbox"], json.loads(baseline["moss_json"])["items"][0]["bbox"])
+
+    def test_shared_defaults_and_legacy_output_remain_byte_identical(self):
+        framing, data = self.inputs('Title | Original style')
+        original = json.loads(data)
+        for style in (None, {"mode": "common", "font": "serif", "extra": "ignore"}):
+            modified = copy.deepcopy(original)
+            modified["slots"]["red"]["text_style"] = style
+            for mode in ("auto", "hybrid", "layout_json", "caption"):
+                for text_mode in ("legacy", "literal"):
+                    self.assertEqual(bridge.build_from_krea(framing, data, text_mode=text_mode, output_mode=mode),
+                        bridge.build_from_krea(framing, json.dumps(modified), text_mode=text_mode, output_mode=mode))
+        original["slots"]["red"]["text_style"] = {"mode": "individual", "font": "brush", "color": "red"}
+        self.assertEqual(bridge.build_from_krea(framing, data),bridge.build_from_krea(framing, json.dumps(original)))
+
+    def test_individual_styles_are_per_color_and_blank_means_no_hint(self):
+        framing, data = self.inputs('Title')
+        f=json.loads(framing);f["layout"]["boxes"].append({**f["layout"]["boxes"][0],"slot":"blue"})
+        p=json.loads(data);p["slots"]["blue"]={"type":"text","prompt":"Subtitle","literal_text":"Subtitle"}
+        p["slots"]["red"]["text_style"]={"mode":"individual","font":"auto","weight":"auto","color":"","extra":""}
+        result=bridge.build_from_krea(json.dumps(f),json.dumps(p),text_mode="literal",text_style="Shared white",output_mode="layout_json")
+        items=json.loads(result["moss_json"])["items"]
+        self.assertEqual([x["caption"] for x in items],["","Shared white"])
+        self.assertEqual([x["text"] for x in items],["Title","Subtitle"])
+        self.assertEqual(p["slots"]["red"]["text_style"]["mode"],"individual")
+
+    def test_style_presets_and_bad_optional_ui_state(self):
+        for key, description in bridge.FONT_DESCRIPTIONS.items():
+            self.assertEqual(bridge.individual_text_caption({"mode":"individual","font":key}),description)
+        for key, description in bridge.WEIGHT_DESCRIPTIONS.items():
+            self.assertEqual(bridge.individual_text_caption({"mode":"individual","weight":key}),description)
+        for value in ('', '{', '[]', 'null', '{"slotValues":null}'):
+            output=package.NODE_CLASS_MAPPINGS["MOSSSharedPrompter"]().execute(red_type="text",red_prompt="Title",prompt_ui_data=value)
+            self.assertNotIn("text_style",json.loads(output[0])["slots"]["red"])
+        with self.assertRaises(ValueError):
+            bridge.individual_text_caption({"mode":"individual","color":5})
+
     def inputs(self, wording='A | B', label="text"):
         framing = json.dumps({"version": "krea2_element_framing_v1", "width": 896, "height": 1184,
                               "layout": {"boxes": [{"slot": "red", "x1": 16.2, "y1": 32.8, "x2": 800.1, "y2": 200.2}]}})

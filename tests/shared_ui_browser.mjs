@@ -60,9 +60,11 @@ const server = createServer(async (request, response) => {
     else if (request.url === "/external-krea.js" && process.env.KREA2_UI_SOURCE) content = await readFile(process.env.KREA2_UI_SOURCE);
     else if (request.url === "/web/moss_controls.mjs") content = await readFile(resolve(root, "web/moss_controls.mjs"));
     else if (request.url === "/web/canvas_editing.mjs") content = await readFile(resolve(root, "web/canvas_editing.mjs"));
+    else if (["/web/canvas_reference.mjs","/web/text_style.mjs"].includes(request.url)) content = await readFile(resolve(root, request.url.slice(1)));
     else if (request.url === "/web/moss_shared_ui.js") content = await readFile(resolve(root, "web/moss_shared_ui.js"));
     else if (["/web/help.mjs", "/web/moss_help.js"].includes(request.url)) content = await readFile(resolve(root, request.url.slice(1)));
     else if (request.url === "/scripts/app.js") content = "export const app=window.comfyAPI.app.app;";
+    else if (request.url === "/scripts/api.js") content = "export const api={apiURL:path=>path};";
     else { response.writeHead(404); response.end(); return; }
     response.setHeader("Content-Type", request.url === "/" ? "text/html; charset=utf-8" : "text/javascript; charset=utf-8");
     response.end(content);
@@ -100,14 +102,14 @@ try {
   await first.locator('.moss-k2cf-type').nth(2).selectOption('text');
   await first.locator('.moss-k2cf-scene textarea').fill('MOSS 日本語 😀 {keep|原文}');
   const literal='  text: "A | B"\n日本語 😀\n\nlast line  ';
-  await first.locator('.moss-k2cf-slot-card').nth(2).locator('textarea').fill(literal);
+  await first.locator('.moss-k2cf-slot-card').nth(2).locator('.moss-k2cf-slot-body > textarea').fill(literal);
   const saved=await page.evaluate(()=>window.nodes.first.save());
   assert.deepEqual(saved.widgets_values.slice(7,10),['character','object','text']);
   assert.equal(saved.widgets_values[4],literal);
   await page.evaluate(data=>{window.nodes.copy=window.clone(data)},saved);
   await page.waitForFunction(()=>document.querySelectorAll('.host')[2]?.querySelectorAll('.moss-k2cf-type')[0]?.value==='character');
   assert.deepEqual(await page.locator('.host').nth(2).locator('.moss-k2cf-type').evaluateAll(es=>es.map(e=>e.value)),['character','object','text','object','object']);
-  assert.equal(await page.locator('.host').nth(2).locator('.moss-k2cf-slot-card').nth(2).locator('textarea').inputValue(),literal);
+  assert.equal(await page.locator('.host').nth(2).locator('.moss-k2cf-slot-card').nth(2).locator('.moss-k2cf-slot-body > textarea').inputValue(),literal);
   await page.locator('.host').nth(2).locator('.moss-k2cf-type').nth(0).selectOption('object');
   assert.equal(await first.locator('.moss-k2cf-type').nth(0).inputValue(),'character');
   const legacy=structuredClone(saved);legacy.widgets_values[7]='obj';legacy.properties.k2cfPromptState.widgets_values[7]='obj';
@@ -119,6 +121,106 @@ try {
     window.dispatchEvent(new Event('blur'));return calls;
   });
   assert.equal(untouched,0);
+  // Text-only individual styles live inside the existing prompt_ui_data widget.
+  const yellow=first.locator('.moss-k2cf-slot-card').nth(2);
+  if(await yellow.evaluate(el=>el.classList.contains('collapsed')))await yellow.locator('.moss-k2cf-slot-head').click();
+  const style=first.locator('.moss-text-style[data-slot="yellow"]');
+  const mode=style.getByRole('combobox',{name:'yellow text style mode',exact:true});
+  assert.equal(await mode.inputValue(),'common');
+  assert.equal(await style.getByRole('combobox',{name:'yellow text style font',exact:true}).isVisible(),false);
+  await mode.selectOption('individual');
+  const color=style.getByRole('textbox',{name:'yellow text style color',exact:true});
+  const palette=style.locator('input[type="color"]');
+  assert.equal(await color.inputValue(),'');
+  assert.equal(JSON.parse((await page.evaluate(()=>window.nodes.first.save())).widgets_values[12]).slotValues.yellow.textStyle.color,'');
+  const beforePalette=await style.boundingBox();
+  const presets=style.getByRole('button',{name:'yellow text style presets',exact:true});
+  const popup=style.getByRole('dialog',{name:'yellow text color presets',exact:true});
+  await presets.click();
+  assert.equal(await popup.isVisible(),true);
+  assert.equal(await popup.locator('button[aria-pressed]').count(),256);
+  assert.equal(await color.inputValue(),'');
+  assert.equal((await style.boundingBox()).height,beforePalette.height);
+  const gridSize=await popup.locator('button[aria-pressed]').first().evaluate(el=>{
+    const rect=el.getBoundingClientRect();return [rect.width,rect.height,getComputedStyle(el.parentElement).gridTemplateColumns.split(' ').length];
+  });
+  assert.deepEqual(gridSize,[16,16,16]);
+  await page.screenshot({path:resolve(artifacts,'text-color-presets.jpg'),type:'jpeg',quality:85});
+  await popup.getByRole('button',{name:'#ff9900',exact:true}).click();
+  assert.equal(await popup.isVisible(),false);
+  assert.equal(await color.inputValue(),'#ff9900');assert.equal(await palette.inputValue(),'#ff9900');
+  assert.equal(JSON.parse((await page.evaluate(()=>window.nodes.first.save())).widgets_values[12]).slotValues.yellow.textStyle.color,'#ff9900');
+  await presets.click();
+  assert.equal(await popup.getByRole('button',{name:'#ff9900',exact:true}).getAttribute('aria-pressed'),'true');
+  await page.keyboard.press('Escape');assert.equal(await popup.isVisible(),false);
+  assert.equal(await color.inputValue(),'#ff9900');
+  await presets.click();await page.locator('h2').click();assert.equal(await popup.isVisible(),false);
+  await presets.click();await popup.getByRole('button',{name:'yellow close color presets',exact:true}).click();
+  assert.equal(await popup.isVisible(),false);assert.equal(await color.inputValue(),'#ff9900');
+  // The top-layer popup escapes the node's clipping and graph zoom, without resizing it.
+  await first.evaluate(el=>{el.style.transform='scale(0.67)';el.style.transformOrigin='top left';el.style.overflow='hidden'});
+  await presets.click();
+  const zoomBounds=await popup.boundingBox();
+  assert.equal(await popup.locator('button[aria-pressed]').first().evaluate(el=>el.getBoundingClientRect().width),16);
+  assert.ok(zoomBounds.x>=0 && zoomBounds.y>=0);
+  assert.ok(zoomBounds.x+zoomBounds.width<=await page.evaluate(()=>innerWidth));
+  await popup.getByRole('button',{name:'#00ff00',exact:true}).click();assert.equal(await color.inputValue(),'#00ff00');
+  await first.evaluate(el=>{el.style.transform='';el.style.overflow=''});
+  await presets.click();await mode.selectOption('common');assert.equal(await popup.isVisible(),false);
+  await mode.selectOption('individual');
+  await palette.fill('#123456');await palette.dispatchEvent('input');await palette.dispatchEvent('change');
+  assert.equal(await color.inputValue(),'#123456');
+  assert.equal(JSON.parse((await page.evaluate(()=>window.nodes.first.save())).widgets_values[12]).slotValues.yellow.textStyle.color,'#123456');
+  await color.fill('gold');assert.equal(await palette.inputValue(),'#ffd700');assert.equal(await color.inputValue(),'gold');
+  await color.fill('#abc');assert.equal(await palette.inputValue(),'#aabbcc');assert.equal(await color.inputValue(),'#abc');
+  await color.fill('淡い金色');assert.equal(await color.inputValue(),'淡い金色');assert.equal(await palette.inputValue(),'#ffffff');
+  await color.fill('');assert.equal(await color.inputValue(),'');
+  assert.equal(JSON.parse((await page.evaluate(()=>window.nodes.first.save())).widgets_values[12]).slotValues.yellow.textStyle.color,'');
+  assert.equal((await style.boundingBox()).height,beforePalette.height);
+  await style.getByRole('combobox',{name:'yellow text style font',exact:true}).selectOption('serif');
+  await style.getByRole('combobox',{name:'yellow text style weight',exact:true}).selectOption('bold');
+  await style.getByRole('textbox',{name:'yellow text style color',exact:true}).fill('#FFD700');
+  await style.getByRole('textbox',{name:'yellow text style extra',exact:true}).fill('thin black outline');
+  assert.equal(await yellow.locator('.moss-k2cf-slot-body > textarea').inputValue(),literal);
+  const styled=await page.evaluate(()=>window.nodes.first.save());
+  assert.equal(styled.widgets_values.length,saved.widgets_values.length);
+  const yellowStyle=JSON.parse(styled.widgets_values[12]).slotValues.yellow.textStyle;
+  assert.deepEqual(yellowStyle,{mode:'individual',font:'serif',weight:'bold',color:'#FFD700',extra:'thin black outline'});
+  assert.equal(JSON.parse(styled.widgets_values[12]).slotValues.red.textStyle.mode,'common');
+  await page.evaluate(data=>{window.nodes.styled=window.clone(data)},styled);
+  const styledHost=page.locator('.host').nth(4);
+  assert.equal(await styledHost.getByRole('combobox',{name:'yellow text style font',exact:true}).inputValue(),'serif');
+  assert.equal(await styledHost.getByRole('textbox',{name:'yellow text style color',exact:true}).inputValue(),'#FFD700');
+  assert.equal(await styledHost.locator('.moss-text-style[data-slot="yellow"] input[type="color"]').inputValue(),'#ffd700');
+  await mode.selectOption('common');
+  assert.equal(await style.getByRole('textbox',{name:'yellow text style color',exact:true}).isVisible(),false);
+  assert.equal(await palette.isVisible(),false);
+  assert.equal(await styledHost.getByRole('combobox',{name:'yellow text style mode',exact:true}).inputValue(),'individual');
+  await mode.selectOption('individual');
+  await first.locator('.moss-k2cf-type').nth(2).selectOption('object');assert.equal(await style.isVisible(),false);
+  await first.locator('.moss-k2cf-type').nth(2).selectOption('text');assert.equal(await mode.inputValue(),'individual');
+  const tooltips=await page.evaluate(()=>{
+    window.helpLocale='ja';
+    const es=[...window.nodes.first.host.querySelectorAll('.moss-text-style[data-slot="yellow"] select,.moss-text-style[data-slot="yellow"] input,.moss-text-style[data-slot="yellow"] textarea,.moss-text-style[data-slot="yellow"] button')];
+    return es.every(el=>{el.dispatchEvent(new Event('pointerenter'));return /[ぁ-んァ-ヶ一-龠]/.test(el.title)});
+  });
+  assert.equal(tooltips,true);
+  await writeFile(resolve(artifacts,'text-style-browser-wire.json'),JSON.stringify({widgets_values:styled.widgets_values}));
+  // Load a genuinely old workflow into the same node: custom styles must not leak.
+  const oldStyleFree=structuredClone(saved);
+  for(const state of [oldStyleFree.properties.k2cfPromptUiState,JSON.parse(oldStyleFree.widgets_values[12])])
+    if(state?.slotValues)for(const value of Object.values(state.slotValues))delete value.textStyle;
+  const oldUi=JSON.parse(oldStyleFree.widgets_values[12]);
+  for(const value of Object.values(oldUi.slotValues||{}))delete value.textStyle;
+  oldStyleFree.widgets_values[12]=JSON.stringify(oldUi);
+  oldStyleFree.properties.k2cfPromptState.widgets_values=oldStyleFree.widgets_values.slice();
+  await page.evaluate(data=>window.nodes.first.configure(data),oldStyleFree);
+  await page.waitForFunction(()=>window.nodes.first.host.querySelector('[aria-label="yellow text style mode"]').value==='common');
+  assert.equal(await first.locator('select[aria-label="yellow text style mode"]').inputValue(),'common');
+  await page.evaluate(data=>window.nodes.first.configure(data),styled);
+  await page.waitForFunction(()=>window.nodes.first.host.querySelector('[aria-label="yellow text style mode"]').value==='individual');
+  assert.equal(await mode.inputValue(),'individual');
+  await first.screenshot({path:resolve(artifacts,'text-style-isolated.jpg'),type:'jpeg',quality:85});
   const results={standalone:!process.env.KREA2_UI_SOURCE,coexistence:!!process.env.KREA2_UI_SOURCE,unrelated_nodes_untouched:true,three_choices:true,latest_types_saved:true,clone_restores_types:true,literal_text_roundtrip:true,clone_isolation:true,legacy_obj_restores_object:true,raw_controls_unchanged:true,page_errors:errors};
   if(process.env.KREA2_UI_SOURCE){
     await page.evaluate(()=>window.makeExternal());
@@ -126,6 +228,11 @@ try {
     assert.equal(await page.evaluate(()=>window.external.host.querySelectorAll('[class^="k2cf-"]').length>0),true);
   }
   assert.deepEqual(errors,[]);
+  Object.assign(results,{individual_style:true,style_defaults_common:true,style_text_exact:true,
+    color_palette:true,color_palette_blank_preserved:true,color_palette_manual_names_hex:true,color_palette_reload:true,color_palette_stable_height:true,
+    preset_grid_256:true,preset_cells_16px:true,preset_click_save:true,preset_dismiss_unchanged:true,preset_zoom_clipping:true,preset_shared_hides_popup:true,
+    style_saved_widget_count:true,style_clone_reload:true,style_common_switch:true,style_type_toggle:true,
+    style_old_workflow_reset:true,style_japanese_hover:true});
   await page.screenshot({path:resolve(artifacts,'three-types-isolated.jpg'),type:'jpeg',quality:75});
   await writeFile(resolve(artifacts,'three-types-browser.json'),JSON.stringify(results,null,2));
   console.log(JSON.stringify(results));

@@ -31,6 +31,39 @@ export function createCanvasHistory(limit = 60) {
   };
 }
 
+// Position-only edits; array order and all non-coordinate metadata stay intact.
+export function arrangeBoxes(boxes, action, bounds) {
+  const modes = {left:["x1","x2",0],center:["x1","x2",0.5],right:["x1","x2",1],
+    top:["y1","y2",0],middle:["y1","y2",0.5],bottom:["y1","y2",1],
+    horizontal:["x1","x2"],vertical:["y1","y2"]};
+  const mode = modes[action], distribute = action === "horizontal" || action === "vertical";
+  if (!mode || boxes.length < (distribute ? 3 : 2) || boxes.some(b => b.locked === true)) return null;
+  const [start,end,anchor] = mode;
+  const items = boxes.map((box,index) => ({box,index,lo:Math.min(box[start],box[end]),hi:Math.max(box[start],box[end])}));
+  const positions = new Map();
+  if (distribute) {
+    const ordered = items.slice().sort((a,b) => a.lo-b.lo || a.index-b.index);
+    const first = ordered[0], last = ordered.at(-1);
+    const gap = (last.hi-first.lo-ordered.reduce((sum,b) => sum+b.hi-b.lo,0))/(boxes.length-1);
+    let cursor = first.hi+gap;
+    positions.set(first.index,0);positions.set(last.index,0);
+    for (const item of ordered.slice(1,-1)) {
+      positions.set(item.index,cursor-item.lo);cursor += item.hi-item.lo+gap;
+    }
+  } else {
+    const lo=Math.min(...items.map(b=>b.lo)), hi=Math.max(...items.map(b=>b.hi));
+    const target=lo+(hi-lo)*anchor;
+    for (const item of items) positions.set(item.index,target-(item.lo+(item.hi-item.lo)*anchor));
+  }
+  const result=items.map(({box,index}) => {
+    const delta=Math.abs(positions.get(index))<1e-9 ? 0 : positions.get(index);
+    return {...box,[start]:box[start]+delta,[end]:box[end]+delta};
+  });
+  if (result.some(b => Math.min(b.x1,b.x2)<bounds.minX-1e-9 || Math.max(b.x1,b.x2)>bounds.maxX+1e-9
+    || Math.min(b.y1,b.y2)<bounds.minY-1e-9 || Math.max(b.y1,b.y2)>bounds.maxY+1e-9)) return null;
+  return result;
+}
+
 export function nextOverlappingBox(boxes, point, selectedId) {
   const hits = boxes.filter(box => point.x >= Math.min(box.x1, box.x2)
     && point.x <= Math.max(box.x1, box.x2) && point.y >= Math.min(box.y1, box.y2)

@@ -66,6 +66,7 @@ const server = createServer(async (request, response) => {
     else if (request.url === "/web/moss_controls.mjs") content = await readFile(resolve(root, "web/moss_controls.mjs"));
     else if (request.url === "/web/canvas_editing.mjs") content = await readFile(resolve(root, "web/canvas_editing.mjs"));
     else if (request.url === "/web/canvas_reference.mjs") content = await readFile(resolve(root, "web/canvas_reference.mjs"));
+    else if (request.url === "/web/text_style.mjs") content = await readFile(resolve(root, "web/text_style.mjs"));
     else if (request.url === "/web/moss_shared_ui.js") content = await readFile(resolve(root, "web/moss_shared_ui.js"));
     else if (["/web/help.mjs", "/web/moss_help.js"].includes(request.url)) content = await readFile(resolve(root, request.url.slice(1)));
     else if (request.url === "/scripts/app.js") content = "export const app=window.comfyAPI.app.app;";
@@ -891,6 +892,60 @@ try {
     multi_move_snap:true,multi_move_keyboard:true,multi_duplicate:true,multi_duplicate_metadata:true,multi_duplicate_history:true,
     multi_selection_restore:true,multi_selection_session_only:true,multi_reload:true,multi_cancel:true,multi_single_edit:true,
     multi_delete:true,multi_draw_hidden_rules:true,multi_layout_stable:true});
+  // Compact arrangement menu: positions only, independent of Snap, one history edit.
+  const arrangement=gestures.locator('select[aria-label="Align and distribute boxes"]');
+  await resetMulti();assert.equal(await arrangement.isDisabled(),true);
+  const arrangeRect=()=>gestureCanvas.evaluate(el=>({width:el.getBoundingClientRect().width,height:el.getBoundingClientRect().height}));
+  const arrangeStartRect=await arrangeRect();
+  await clickAt(160,300);assert.equal(await arrangement.isDisabled(),true);
+  await selectAt(410,600);assert.equal(await arrangement.isDisabled(),false);
+  assert.equal(await arrangement.locator('option[value="horizontal"]').isDisabled(),true);
+  await selectAt(710,900);assert.equal(await arrangement.locator('option[value="horizontal"]').isDisabled(),false);
+  assert.deepEqual(await arrangeRect(),arrangeStartRect);
+  for (const [mode,axis,end,target,factor] of [
+    ['left','x1','x2',100,0],['center','x1','x2',450,.5],['right','x1','x2',800,1],
+    ['top','y1','y2',200,0],['middle','y1','y2',600,.5],['bottom','y1','y2',1000,1],
+    ['horizontal','x1','x2',null,null],['vertical','y1','y2',null,null]]) {
+    await resetMulti();
+    if(mode==='vertical') await page.evaluate(()=>{
+      const data=structuredClone(window.multiData),layout=JSON.parse(data.widgets_values[3]);
+      layout.boxes[1].y1=530;layout.boxes[1].y2=730;data.widgets_values[3]=JSON.stringify(layout);
+      window.gestureNode.configure(data);
+    });
+    const arrangeOriginal=await gestureBoxes();
+    await selectPair();await selectAt(710,900);
+    await gestures.getByRole('checkbox',{name:'Snap to guides',exact:true}).check();
+    await arrangement.selectOption(mode);const boxes=await gestureBoxes();
+    if(target!==null) for(const b of boxes)assertGestureClose(b[axis]+(b[end]-b[axis])*factor,target);
+    else {
+      assertGestureClose(boxes[1][axis]-boxes[0][end],boxes[2][axis]-boxes[1][end]);
+      assert.deepEqual(geometry([boxes[0],boxes[2]]),geometry([arrangeOriginal[0],arrangeOriginal[2]]));
+    }
+    boxes.forEach((b,i)=>{
+      assertGestureClose(b.x2-b.x1,arrangeOriginal[i].x2-arrangeOriginal[i].x1);
+      assertGestureClose(b.y2-b.y1,arrangeOriginal[i].y2-arrangeOriginal[i].y1);
+      assert.equal(b.id,arrangeOriginal[i].id);assert.equal(b.text,arrangeOriginal[i].text);
+    });
+    assert.equal(await arrangement.inputValue(),'');
+    await gu.click();assert.deepEqual(geometry(await gestureBoxes()),geometry(arrangeOriginal));
+    assert.equal(await gu.isDisabled(),true);await gr.click();assert.deepEqual(geometry(await gestureBoxes()),geometry(boxes));
+    await arrangement.selectOption(mode);await gu.click(); // Reapplying a no-op must not add history.
+    assert.deepEqual(geometry(await gestureBoxes()),geometry(arrangeOriginal));
+    assert.deepEqual(await arrangeRect(),arrangeStartRect);
+  }
+  await resetMulti();await selectPair();
+  await gestures.getByRole('button',{name:'Lock selected boxes',exact:true}).click();
+  assert.equal(await arrangement.isDisabled(),true);
+  await gu.click();assert.equal(await arrangement.isDisabled(),false);
+  await arrangement.selectOption('top');
+  const arrangedSave=await page.evaluate(()=>window.gestureNode.save());const arrangedGeometry=geometry(await gestureBoxes());
+  assert.equal(arrangedSave.widgets_values.length,9);
+  await page.evaluate(data=>window.gestureNode.configure(data),arrangedSave);
+  assert.deepEqual(geometry(await gestureBoxes()),arrangedGeometry);assert.equal(await arrangement.isDisabled(),true);
+  await gestures.screenshot({path:resolve(artifacts,'canvas-arrangement.jpg'),type:'jpeg',quality:85});
+  Object.assign(result,{arrange_six_modes:true,distribute_two_axes:true,arrange_snap_independent:true,
+    arrange_locks:true,arrange_history:true,arrange_noop_history:true,arrange_reload:true,arrange_stable_layout:true});
+
   // Locked boxes remain selectable and serializable, but reject direct geometry edits.
   await resetMulti(); await selectPair();
   const lock=gestures.getByRole('button',{name:'Lock selected boxes',exact:true});

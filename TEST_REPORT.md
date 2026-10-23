@@ -1,3 +1,135 @@
+# Main update verification: arrangement, Text styles and color pickers (2026-10-23)
+
+- Scope: six alignment modes, horizontal/vertical equal gaps, per-color Text
+  appearance and free/preset color pickers. Existing node IDs, sockets, widget
+  order, workflow examples and version 1.0.7 remain unchanged. These additions
+  are on main for the next release; Registry publication is a separate step.
+- Final local Python CPU run: **51 passed, 0 skipped**, including saved-workflow
+  output compatibility against the pre-style snapshot and official ComfyUI
+  coordinate-reference checks. JavaScript: **40 passed, 0 skipped**.
+- Final isolated Canvas fixture passed all eight arrangement actions, lock
+  guards, Snap independence, one-edit Undo/Redo, no-op history, stable layout
+  and save/reload, plus the previous Canvas regression checks. Prompter fixture
+  passed per-Text settings, both color inputs, 256-cell preset selection,
+  exact text and save/clone/reload checks. These fixtures use CPU Chromium,
+  not a running ComfyUI service, and reported no page errors.
+- The user separately reported successful operation of arrangement and the
+  color-palette UI. No new live ComfyUI operation or GPU generation was done
+  during publication preparation. No extra dependencies or workflow changes.
+- CI on main checks Python, JavaScript, syntax, Ruff S102/E702 and source ZIP
+  contents. Push does not publish to Registry: publishing requires an explicit
+  workflow_dispatch with publish=true. The CI result is reported with its run
+  link after this commit is pushed; it is not inferred from these local checks.
+
+The detailed implementation-stage records below are historical local results.
+
+# Local / unreleased: preset color grid (2026-10-23)
+
+- Kept the free/native picker and added a separate compact grid button. Its
+  top-layer popup contains 256 presets in 16 columns × 16 rows of 16px squares.
+  No new persisted fields or dependencies. A choice uses the existing color
+  string; opening/dismissing does not change it or resize the node. Escape,
+  outside click, the close button and shared/non-Text mode close the popup.
+- Isolated CPU Chromium: preset click/save and picker synchronization, selected
+  swatch, unchanged color after dismiss, exact cell/grid dimensions, Japanese
+  help, shared-mode close, and clipping/viewport bounds at 67% graph-like scale
+  passed. All earlier Prompter save/clone/reload and legacy checks passed with
+  zero page errors. This is an isolated renderer result, not live ComfyUI.
+- JavaScript regression: 40 passed, 0 skipped; changed JS syntax passed.
+  Python/backend and sample workflows unchanged; Python was not rerun.
+- Snapshot/hash verification precedes local ComfyUI_test file deployment.
+  Browser refresh needed. No GPU generation, restart, commit/push or publication.
+
+Evidence: preset-palette-local.json, three-types-browser.json,
+text-color-presets.jpg in the existing artifacts folder.
+
+# Local / unreleased: Text color palette (2026-10-23)
+
+- Added a compact native color picker beside the existing Text color input.
+  Picking writes HEX into the existing color string; manual color names, HEX,
+  descriptive wording and an empty value remain supported. No extra saved fields,
+  node IDs, inputs, widget ordering or workflow edits. Shared mode stays default.
+- Isolated CPU Chromium fixture passed palette-to-text/save, manual name and
+  short-HEX swatch updates, unrecognized descriptions, clearing, clone/reload,
+  shared-mode hiding, stable row height and Japanese hover. All prior Prompter
+  fixture checks passed with no page errors. The native OS picker dialog itself
+  was not operated; the browser color input's events and saved values were tested.
+- JavaScript regression: **40 passed, 0 skipped**. Changed modules and fixture
+  syntax passed. No Python code changed; the earlier 51-test Python result below
+  was not rerun for this frontend-only change. Test service stopped afterward.
+- Source/runtime targets were hash-matched and snapshotted before editing.
+  Local ComfyUI_test files updated; browser refresh required. No live ComfyUI
+  operation, GPU generation, restart, commit, push or Registry publication.
+
+Evidence: text-color-palette-local.json, three-types-browser.json and
+text-style-isolated.jpg in the existing local artifacts folder.
+
+# Local / unreleased: per-color Text styles (2026-10-23)
+
+- Text cards default to shared Export text_style. Individual mode exposes font
+  family, weight, free-form color and extra appearance. Descriptions compile into
+  each Text item's caption only in literal mode. Visible text remains separate
+  and exact; legacy and non-Text output paths are unchanged. Blank individual
+  settings intentionally omit appearance hints. No exact font rendering claimed.
+- Preferences use slotValues.<color>.textStyle in the existing prompt_ui_data
+  widget/UI snapshot. No required inputs, widget order, node IDs or sockets added.
+  Previously validated alignment/distribution edits are retained, not published.
+- Python: **51 passed, 0 skipped**, including original snapshot/workflow byte
+  compatibility, exact Unicode/quotes/pipes/whitespace/newlines, shared fallback,
+  unchanged legacy output across all output modes, per-color isolation, empty
+  styles, all font/weight presets and malformed optional UI state.
+- JavaScript regression: **40 passed, 0 skipped**. All web module syntax passed.
+- Isolated Prompter browser fixture passed style defaults/visibility, each input,
+  common/individual switching, Type toggling, save/clone/reload isolation, same-node
+  old-workflow reset, exact wording and Japanese hover. Tests await the existing
+  asynchronous Prompter hydration before checking restored controls. Raw Krea-like
+  controls and unrelated nodes stayed unchanged. Canvas fixture also exercises
+  prior locks, alignment/distribution, history and reference features.
+- Browser-saved widgets were passed through actual Python Prompter -> Export:
+  exact wording retained; caption was 'serif lettering, bold weight, lettering
+  color: #FFD700, thin black outline'; shared style was excluded. CPU only.
+- README files describe usage and literal/legacy behavior. Prior source and
+  runtime files are snapshotted before local deployment. No GPU generation, live
+  ComfyUI screen operation, restart, commit, push, version bump or publication.
+  Backend plus frontend changed: user-managed restart and browser refresh needed.
+
+Evidence in existing artifacts: text-style-local.json, text-style.diff,
+text-style-browser-wire.json, text-style-wire-result.json, text-style-isolated.jpg
+and three-types-browser.json. The previous alignment evidence is retained.
+
+# Local / unreleased: alignment and equal-gap distribution (2026-10-23)
+
+- Added a compact Align / Distribute menu beside X/Y/W/H and Lock. Six alignment
+  actions use the selection's bounds; horizontal/vertical equal-gap distribution
+  fixes endpoints and requires three boxes. Positions only; no new saved widgets,
+  sockets, settings or workflow fields. Existing sample JSONs are byte-identical.
+- Locked selections, hidden boxes, corrupt layouts and active pointer edits cannot
+  be arranged. Snap does not modify the arrangement. Out-of-bounds results are not
+  applied; overlaps may remain when space is insufficient. Each applied action is
+  one Undo/Redo edit; repeat/no-op actions preserve history, including fractional
+  coordinates. Selection and box order are retained.
+- Python: **47 passed, 0 skipped**, with official ComfyUI and the pre-change
+  snapshot supplied. Both workflows' export compatibility passed. No backend code
+  was changed. JavaScript: **40 passed, 0 skipped** (four arrangement regressions).
+  All web module syntax checks and the updated browser-test syntax passed.
+- Full isolated CPU Chromium fixture passed previous Canvas/lock/reference tests
+  and all eight arrangement actions. Verified selection-count gating, locks and
+  unlock via Undo, exact placement with Snap ON, one-step Undo/Redo, no-op history,
+  geometry/metadata preservation, save/reload and stable Canvas dimensions.
+  Japanese/English hover coverage passed. A fixture lookup initially missed the
+  menu because the entire precision row is intentionally hidden without selection;
+  the test now locates the DOM control directly for that disabled-state assertion.
+- After that browser run, sub-nanopixel corrections were treated as zero to avoid
+  floating-point-only history entries; unit regressions for fractional repeat
+  alignment/distribution passed. No live ComfyUI screen or GPU generation was run.
+- README and README.ja explain the menu, selection basis, lock behavior and history.
+  Source and ComfyUI_test package files are backed up before local deployment.
+  No restart, commit, push, version bump, Release or Registry publication performed.
+  Save the working workflow and refresh the browser to load the frontend changes.
+
+Local evidence: `align-local.json`, `align-distribute.diff`,
+`canvas-footer-checks.json`, `canvas-arrangement.jpg` in the existing artifacts folder.
+
 # v1.0.7 release validation (2026-10-23)
 
 The user confirmed operation of box locking and Canvas reference display in

@@ -79,7 +79,7 @@ class MOSSFromKrea2:
             "output_mode": (list(OUTPUT_MODES), {"default": "hybrid", "tooltip": "hybrid keeps the existing output; caption is prose; layout_json is compact JSON; auto uses JSON when boxes exist and prose otherwise."}),
             "text_mode": (["legacy", "literal"], {"default": "legacy", "tooltip": "legacy: visible words | appearance. literal: each Text card is exact visible text, including quotes, spaces, line breaks and |."}),
             "text_style": ("STRING", {"default": "readable text with black outline", "multiline": True, "dynamicPrompts": False,
-                                      "tooltip": "Appearance of Text items in literal mode. This description is separate from the visible wording and applies to all Text cards."}),
+                                      "tooltip": "Shared Text appearance in literal mode. Individual settings on a Text card replace this for that color. Visible wording stays separate."}),
         }}
 
     RETURN_TYPES = MOSSBBoxCanvasPrompt.RETURN_TYPES
@@ -131,10 +131,14 @@ class MOSSSharedPrompter:
     RETURN_NAMES = ("prompt_ui_data",)
     FUNCTION = "execute"
     CATEGORY = "conditioning/MOSS"
-    DESCRIPTION = "MOSS scene and five color prompts. Choose character, object or text for each color. Includes text controls, presets and workflow persistence."
+    DESCRIPTION = "MOSS scene and five color prompts. Choose character, object or text per color. Text cards support shared or individual typography in Export literal mode. Includes presets and workflow persistence."
 
     def execute(self, **kwargs):
         slots = {}
+        ui_state = controls._safe_json_loads(kwargs.get("prompt_ui_data", ""), {})
+        saved_slots = ui_state.get("slotValues", {})
+        if not isinstance(saved_slots, dict):
+            saved_slots = {}
         for slot in SLOTS:
             slots[slot] = {
                 "type": element_type(kwargs.get(f"{slot}_type", "object")),
@@ -144,6 +148,10 @@ class MOSSSharedPrompter:
             }
             if slots[slot]["type"] == "text":
                 slots[slot]["literal_text"] = kwargs.get(f"{slot}_prompt", "")
+                saved = saved_slots.get(slot, {})
+                style = saved.get("textStyle") if isinstance(saved, dict) else None
+                if isinstance(style, dict) and style.get("mode") == "individual":
+                    slots[slot]["text_style"] = style
         data = controls._prompt_ui_data(kwargs.get("scene", ""), kwargs.get("background", ""), slots)
         return (json.dumps(data, ensure_ascii=False, separators=(",", ":")),)
 

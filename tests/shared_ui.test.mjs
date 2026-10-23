@@ -1,9 +1,62 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
-import { createCanvasHistory, nextOverlappingBox, resizeBoxWithAspect, snapBoxToGuides, moveBoxSelection } from "../web/canvas_editing.mjs";
+import { createCanvasHistory, nextOverlappingBox, resizeBoxWithAspect, snapBoxToGuides, moveBoxSelection, arrangeBoxes } from "../web/canvas_editing.mjs";
 import { HELP, helpText, setHelpLocaleReader, widgetHelpKey } from "../web/help.mjs";
 import { containImage, connectedReference } from "../web/canvas_reference.mjs";
+
+const arrangeBounds={minX:0,minY:0,maxX:1000,maxY:1000};
+const arrangeSample=[{id:'a',slot:'red',x1:100,y1:80,x2:180,y2:120,text:'keep'},
+  {id:'b',slot:'blue',x1:340,y1:300,x2:500,y2:400},
+  {id:'c',slot:'yellow',x1:700,y1:600,x2:820,y2:800}];
+test("All six alignment modes use selection bounds and preserve sizes, order and metadata",()=>{
+  const saved=structuredClone(arrangeSample);
+  for(const [mode,start,end,target,factor] of [['left','x1','x2',100,0],['center','x1','x2',460,.5],
+    ['right','x1','x2',820,1],['top','y1','y2',80,0],['middle','y1','y2',440,.5],['bottom','y1','y2',800,1]]) {
+    const result=arrangeBoxes(arrangeSample,mode,arrangeBounds);
+    result.forEach((b,i)=>{
+      assert.equal(b[start]+(b[end]-b[start])*factor,target,mode);
+      assert.equal(b.x2-b.x1,saved[i].x2-saved[i].x1);assert.equal(b.y2-b.y1,saved[i].y2-saved[i].y1);
+      assert.equal(b.id,saved[i].id);assert.equal(b.slot,saved[i].slot);assert.equal(b.text,saved[i].text);
+    });
+  }
+  assert.deepEqual(arrangeSample,saved);
+});
+test("Equal-gap distribution sorts spatially, fixes endpoints and keeps saved array order",()=>{
+  const source=[arrangeSample[2],arrangeSample[0],arrangeSample[1]];
+  for(const [mode,start,end] of [['horizontal','x1','x2'],['vertical','y1','y2']]) {
+    const result=arrangeBoxes(source,mode,arrangeBounds);
+    assert.deepEqual(result.map(b=>b.id),['c','a','b']);
+    assert.deepEqual(result[0],source[0]);assert.deepEqual(result[1],source[1]);
+    assert.equal(result[2][start]-result[1][end],result[0][start]-result[2][end]);
+  }
+});
+test("Arrangement rejects locked, undersized selections and boundary overflow; overlap stays valid",()=>{
+  for(const mode of ['left','center','right','top','middle','bottom','horizontal','vertical']) {
+    assert.equal(arrangeBoxes([{...arrangeSample[0],locked:true},...arrangeSample.slice(1)],mode,arrangeBounds),null);
+    assert.equal(arrangeBoxes(arrangeSample.slice(0,1),mode,arrangeBounds),null);
+  }
+  assert.equal(arrangeBoxes(arrangeSample.slice(0,2),'horizontal',arrangeBounds),null);
+  assert.equal(arrangeBoxes(arrangeSample,'unknown',arrangeBounds),null);
+  assert.equal(arrangeBoxes(arrangeSample,'left',{...arrangeBounds,maxY:700}),null);
+  const overlap=[{x1:10,x2:110,y1:20,y2:30},{x1:30,x2:130,y1:20,y2:30},{x1:50,x2:150,y1:20,y2:30}];
+  assert.deepEqual(arrangeBoxes(overlap,'horizontal',arrangeBounds),overlap);
+});
+test("Reversed fractional edges align without distortion; no-op edits preserve Redo",()=>{
+  const source=[{...arrangeSample[0],x1:180.5,x2:100.25},arrangeSample[1]];
+  const result=arrangeBoxes(source,'right',arrangeBounds);
+  assert.equal(Math.max(result[0].x1,result[0].x2),500);
+  assert.equal(result[0].x1-result[0].x2,80.25);
+  const history=createCanvasHistory(),before={...canvasSnapshot(40),boxes:source},after={...before,boxes:result};
+  assert(history.record(before,after));assert.deepEqual(history.undo(after),before);
+  const unchanged={...after,boxes:arrangeBoxes(result,'right',arrangeBounds)};
+  assert.equal(history.record(after,unchanged),false);assert(history.canRedo);
+  const fractional=arrangeSample.map((b,i)=>({...b,x1:b.x1+(i+1)/7,x2:b.x2+(i+1)/7}));
+  for(const action of ['center','horizontal']) {
+    const once=arrangeBoxes(fractional,action,arrangeBounds);
+    assert.deepEqual(arrangeBoxes(once,action,arrangeBounds),once);
+  }
+});
 
 test("Locked state is an undoable edit, but missing/false locks are equivalent", () => {
   const history=createCanvasHistory(), start=canvasSnapshot(40);
