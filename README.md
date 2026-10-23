@@ -2,7 +2,7 @@
 
 **English** | [Japanese](README.ja.md)
 
-**Latest release: 1.0.8** — [GitHub Releases](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases)
+**Latest release: 1.0.9** — [GitHub Releases](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases)
 · [Comfy Registry](https://registry.comfy.org/nodes/mossimage-bbox-prompter)
 
 <img width="1154" height="839" alt="image" src="https://github.com/user-attachments/assets/739cff51-f11a-4c25-88d5-7b0c5eb1a76c" />
@@ -29,13 +29,12 @@ Only the MOSS Canvas DOM is rearranged; Krea2 nodes, saved widgets, presets and
 box coordinates keep their existing behavior. Refresh the frontend to load this
 layout change; no backend restart is needed.
 
-### On main, not yet released: seven colors, JSON import/export and ID cards
+### 1.0.9: seven colors, JSON import/export and ID cards
 
-These features are available from the current GitHub main branch; the Registry
-and v1.0.8 release packages do not include them yet. See the illustrated
-[JSON import instructions](#layout-json-import-main--unreleased) and
-[per-box ID card instructions](#per-box-id-cards-main--unreleased).
-See [JSON export and editable re-import](#json-export-and-editable-re-import-main--unreleased)
+Version 1.0.9 adds the features below. See the illustrated
+[JSON import instructions](#layout-json-import-109) and
+[per-box ID card instructions](#per-box-id-cards-109).
+See [JSON export and editable re-import](#json-export-and-editable-re-import-109)
 to transfer layouts with per-ID prompts and styles. Import now defaults to
 **Replace boxes**, and deleting a Canvas preset asks for confirmation.
 
@@ -50,7 +49,9 @@ appended. Existing five-color workflows load with the two new cards blank and
 keep the same generated prompt. Multiple boxes can still share any color.
 This adds independent descriptions, not a seven-box limit. Restart ComfyUI and
 refresh the browser after installing this main-branch update. Workflows using the
-new colors need this update; they cannot be opened fully by released 1.0.8.
+new colors or per-ID prompts require 1.0.9 or newer; 1.0.8 does not fully interpret them.
+
+[Download Standard + DMD + reference image ZIP](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/download/v1.0.9/MOSS_BBOX_Workflows_1.0.9.zip). The two workflow JSONs are unchanged from v1.0.8. Restart ComfyUI and refresh the browser after updating.
 
 ### 1.0.8: alignment, Text styles and two color pickers
 
@@ -435,6 +436,7 @@ the archived v1.0.0 files below do not include Preview and remain usable.
 
 | Release | Standard | DMD |
 | --- | --- | --- |
+| [v1.0.9](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/tag/v1.0.9) | [Download JSON](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/download/v1.0.9/MOSS_BBOX_Standard.json) | [Download JSON](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/download/v1.0.9/MOSS_BBOX_DMD.json) |
 | [v1.0.8](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/tag/v1.0.8) | [Download JSON](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/download/v1.0.8/MOSS_BBOX_Standard.json) | [Download JSON](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/download/v1.0.8/MOSS_BBOX_DMD.json) |
 | [v1.0.7](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/tag/v1.0.7) | [Download JSON](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/download/v1.0.7/MOSS_BBOX_Standard.json) | [Download JSON](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/download/v1.0.7/MOSS_BBOX_DMD.json) |
 | [v1.0.6](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/tag/v1.0.6) | [Download JSON](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/download/v1.0.6/MOSS_BBOX_Standard.json) | [Download JSON](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/download/v1.0.6/MOSS_BBOX_DMD.json) |
@@ -700,7 +702,7 @@ See `TEST_REPORT.md` for the tested scope and pending checks, and `NOTICE.md` /
 `LICENSE` for Krea2 attribution. Core/Krea2 files and existing workflows are not
 modified by this package.
 
-### Layout JSON import (main / unreleased)
+### Layout JSON import (1.0.9)
 
 ![JSON import button in the Canvas Preset panel](docs/layout-json-button.png)
 
@@ -724,7 +726,7 @@ Supports MOSS Layout JSON (`items`, `bbox_format: yxyx`, `bbox_coord_space: abs_
 
 Import is one Undo/Redo step. Edge/outside coordinates are preserved through saving and reloading; they are not silently cropped. Unsupported or malformed JSON is rejected without changing the layout. External placement imports do not import prompts; neither format includes reference images or camera settings. This is not a general Workflow JSON loader.
 
-### JSON export and editable re-import (main / unreleased)
+### JSON export and editable re-import (1.0.9)
 
 Open **JSON… → Export**, choose **Export contents**, then **Download JSON** or **Copy JSON**. Export is read-only: it does not modify the layout, selection, locks or Undo/Redo history. Locked boxes can be exported.
 
@@ -743,7 +745,7 @@ Both native formats use `format: "moss_bbox_layout"`, `version: 1`, `contents: "
 
 **Deleting a Canvas preset:** Delete asks for confirmation and shows the selected preset's name in ComfyUI's display language. Cancel keeps the preset and selection. Confirm removes that saved preset only; the current Canvas layout remains. No preset selected means no deletion.
 
-### Per-box ID cards (main / unreleased)
+### Per-box ID cards (1.0.9)
 
 Connect Canvas `framing_data` and Prompter `prompt_ui_data` to the same MOSS BBOX Export. In Prompter, choose **ID cards**; creating or importing another Canvas box adds another card, including the eighth and beyond. If multiple Canvases feed Exports using this Prompter, select the Canvas in the selector. Direct connections and Reroute connections are supported.
 

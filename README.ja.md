@@ -2,10 +2,10 @@
 
 [English](README.md) | **日本語**
 
-**最新リリース：1.0.8** — [GitHub Releases](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases)
+**最新リリース：1.0.9** — [GitHub Releases](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases)
 ・[Comfy Registry](https://registry.comfy.org/nodes/mossimage-bbox-prompter)
 
-**mainの未リリース更新：** 7色対応・外部配置JSON読み込み・ID別プロンプトカード・JSON書き出しと再編集用の再読み込みは、GitHubのmainに含まれます。読み込みの初期値は「枠を置き換え」で、Canvasプリセットの削除時には確認が出ます。Registryとv1.0.8の配布物にはまだ含まれません。下記の「配置JSON読み込み」「JSON書き出しと再編集用の読み込み」「ID別プロンプトカード」に使い方を記載しています。
+**1.0.9の更新：** 7色対応・外部配置JSON読み込み・ID別プロンプトカード・JSON書き出しと再編集用の再読み込みを追加しました。読み込みの初期値は「枠を置き換え」で、Canvasプリセットの削除時には確認が出ます。下記の「配置JSON読み込み」「JSON書き出しと再編集用の読み込み」「ID別プロンプトカード」に使い方を記載しています。更新後はComfyUIを再起動し、ブラウザを更新してください。
 
 MOSS-Image向けに、人物・物体・文字の配置をBBOXで指定するComfyUIカスタムノードです。
 Canvasで枠を描き、Prompterで色ごとの説明を入力し、ExportでMOSS用のプロンプトを出力します。
@@ -40,7 +40,7 @@ MOSS-Image対応のComfyUIと、使用するモデル・CLIP・VAEが必要で�
 
 ## ワークフローと接続
 
-[通常版・DMD版・参照画像をまとめたZIP](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/download/v1.0.8/MOSS_BBOX_Workflows_1.0.8.zip)
+[通常版・DMD版・参照画像をまとめたZIP](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/download/v1.0.9/MOSS_BBOX_Workflows_1.0.9.zip)
 をダウンロードできます。中身は次の3ファイルです。
 
 - [MOSS_BBOX_Standard.json](examples/MOSS_BBOX_Standard.json)：通常版。LoRA OFF・25 steps・CFG 2.5。
@@ -68,7 +68,7 @@ Typeは**Character（人物）／Object（物体）／Text（文字）**を選�
 Canvasの座標をMOSS標準の中央原点・ピクセル`yxyx`形式へ変換し、出力します。
 プロンプトの翻訳・要約やモデル処理は行いません。
 
-## ローカル実装・未公開：7色の枠・プロンプト
+## 1.0.9：7色の枠・プロンプト
 
 従来の5色にシアン・オレンジを追加し、別々の説明を7種類まで設定できます。
 Canvasの追加色を選んで枠を描き、Prompterの同じ色のカードへ説明を入力します。
@@ -80,7 +80,7 @@ Textの共通／個別スタイルと2種類のカラーパレットを既存の
 旧5色Workflowは追加2色が空欄になり、従来の出力を維持します。
 同じ色の枠は複数作成できるため、枠の上限が7個になるわけではありません。
 反映にはComfyUIの再起動とブラウザ更新が必要です。追加色を使用したWorkflowは
-このローカル更新版が必要で、公開済み1.0.8では完全には読み込めません。
+1.0.9以降が必要で、1.0.8では追加色やID別の設定を完全には読み込めません。
 
 ## 1.0.8：整列・Textスタイル・2種類のカラーパレット
 
@@ -247,6 +247,7 @@ Preview入りWorkflowにはv1.0.3以降が必要です。日本語説明・縮�
 
 | バージョン | 通常版 | DMD版 |
 | --- | --- | --- |
+| [v1.0.9](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/tag/v1.0.9) | [JSONをダウンロード](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/download/v1.0.9/MOSS_BBOX_Standard.json) | [JSONをダウンロード](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/download/v1.0.9/MOSS_BBOX_DMD.json) |
 | [v1.0.8](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/tag/v1.0.8) | [JSONをダウンロード](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/download/v1.0.8/MOSS_BBOX_Standard.json) | [JSONをダウンロード](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/download/v1.0.8/MOSS_BBOX_DMD.json) |
 | [v1.0.7](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/tag/v1.0.7) | [JSONをダウンロード](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/download/v1.0.7/MOSS_BBOX_Standard.json) | [JSONをダウンロード](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/download/v1.0.7/MOSS_BBOX_DMD.json) |
 | [v1.0.6](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/tag/v1.0.6) | [JSONをダウンロード](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/download/v1.0.6/MOSS_BBOX_Standard.json) | [JSONをダウンロード](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/download/v1.0.6/MOSS_BBOX_DMD.json) |
@@ -291,7 +292,7 @@ Gridの横のSnapで、ドラッグ中に枠の端・中央を中央線や三分
 新規作成は現在のCanvas／Prompter／Exportを使用してください。
 旧ノードの詳細仕様、出力スキーマ、開発者向け検証手順は[英語版README](README.md#legacy-separate-canvas-and-prompter)に記載しています。
 
-### 配置JSON読み込み（main・未リリース）
+### 配置JSON読み込み（1.0.9）
 
 ![Canvas Preset内のJSON読み込みボタン](docs/layout-json-button.png)
 
@@ -315,7 +316,7 @@ Canvasの描画領域の下にある **Canvas Preset** 欄の右上が、**JSON�
 
 適用全体をUndo／Redo各1回で戻せます。画像端・範囲外の座標も保存・再読み込みで維持し、黙って切り詰めません。不正・未対応JSONは理由を表示して適用を止めます。外部配置JSONから文章は取り込みません。どちらの形式も参照画像・カメラ設定は含みません。Workflow全体のJSONを読み込む機能ではありません。
 
-### JSON書き出しと再編集用の読み込み（main・未リリース）
+### JSON書き出しと再編集用の読み込み（1.0.9）
 
 **JSON… → 書き出し** を開き、**書き出す内容** を選んで **JSONをダウンロード** または **JSONをコピー** を押します。書き出しでは配置・選択・ロック・Undo／Redo履歴は変わりません。ロック中の枠も書き出せます。
 
@@ -334,7 +335,7 @@ Canvasの描画領域の下にある **Canvas Preset** 欄の右上が、**JSON�
 
 **Canvasプリセットの削除：** Deleteを押すと、対象のプリセット名を表示して確認します。確認文はComfyUI本体の言語に従います。キャンセルすればプリセットと選択は残り、承認した場合だけその保存済みプリセットを削除します。現在のCanvas配置は残ります。未選択の場合は削除しません。
 
-### ID別プロンプトカード（main・未リリース）
+### ID別プロンプトカード（1.0.9）
 
 Canvasのframing_dataとPrompterのprompt_ui_dataを同じMOSS BBOX Exportへ接続します。Prompterの **ID別カード** を選ぶと、枠ごとのカードを表示します。Canvasで枠を作成・読み込みすると8個目以降も追加されます。同じPrompterが複数CanvasのExportに接続されている場合は、選択欄でCanvasを指定してください。直接接続とReroute経由に対応します。
 

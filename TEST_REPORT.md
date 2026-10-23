@@ -1454,3 +1454,12 @@ The user confirmed operation of the final Replace-default version and authorized
 Final local pre-push checks: Python 63/63, JavaScript 55/55 and JavaScript syntax checks for 23 files passed. Existing Canvas and Prompter fixture results above cover locks, Undo/Redo, save/reload, actual download/re-import and localized confirmation. No further live ComfyUI operation or GPU generation was performed for publication. Existing Standard/DMD workflow files, Python implementation, node IDs, sockets and widget order are unchanged.
 
 The version remains 1.0.8. The existing push workflow validates Python, JavaScript, Ruff S102/E702 and the tracked source ZIP. Registry version checks and publication remain restricted to an explicit manual publish=true run; this update does not authorize or dispatch that run. The GitHub run URL and final results are recorded separately after the commit is pushed.
+
+
+## Version 1.0.9 release preparation — 2026-10-23
+
+Version 1.0.9 packages seven-color support, per-ID prompt cards, external layout import, placement/editable JSON export and re-import, localized dialogs, preset deletion confirmation and Replace/current-size import defaults. The user confirmed operation and authorized Registry publication and a GitHub Release. No generation logic or workflow bytes change in this version bump.
+
+The preceding implementation commit 2a80d557331b53ecfbf831c1c9774c4427ad7483 passed GitHub run 39947538701: Python 63, JavaScript 55, syntax, Ruff S102/E702, and source ZIP equality for 52 files. Its Registry step was skipped as requested. The release commit runs the same checks again before an explicitly authorized manual Registry dispatch. Local browser and user-reported checks are recorded above; no new GPU test or service restart is part of this release.
+
+Release assets are MOSS_BBOX_Standard.json and MOSS_BBOX_DMD.json, unchanged from v1.0.8, plus MOSS_BBOX_Workflows_1.0.9.zip containing only those two JSONs and ComfyUI_00238_.webp. Existing release assets remain available. Registry upload, download availability and moderation status are checked separately after publication and recorded in the local release record.
