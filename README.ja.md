@@ -2,7 +2,7 @@
 
 [English](README.md) | **日本語**
 
-**現在のバージョン：1.0.7** — [GitHub Releases](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases)
+**現在のバージョン：1.0.8** — [GitHub Releases](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases)
 ・[Comfy Registry](https://registry.comfy.org/nodes/mossimage-bbox-prompter)
 
 MOSS-Image向けに、人物・物体・文字の配置をBBOXで指定するComfyUIカスタムノードです。
@@ -38,7 +38,7 @@ MOSS-Image対応のComfyUIと、使用するモデル・CLIP・VAEが必要で�
 
 ## ワークフローと接続
 
-[通常版・DMD版・参照画像をまとめたZIP](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/download/v1.0.7/MOSS_BBOX_Workflows_1.0.7.zip)
+[通常版・DMD版・参照画像をまとめたZIP](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/download/v1.0.8/MOSS_BBOX_Workflows_1.0.8.zip)
 をダウンロードできます。中身は次の3ファイルです。
 
 - [MOSS_BBOX_Standard.json](examples/MOSS_BBOX_Standard.json)：通常版。LoRA OFF・25 steps・CFG 2.5。
@@ -66,7 +66,16 @@ Typeは**Character（人物）／Object（物体）／Text（文字）**を選�
 Canvasの座標をMOSS標準の中央原点・ピクセル`yxyx`形式へ変換し、出力します。
 プロンプトの翻訳・要約やモデル処理は行いません。
 
-## mainの次期変更：Textごとのスタイル（Registry未公開）
+## 1.0.8：整列・Textスタイル・2種類のカラーパレット
+
+複数の枠を整列・等間隔配置でき、ロックとUndo／Redoに対応します。
+Textには書体・太さ・文字色・補足を個別指定でき、初期値は従来の共通設定です。
+文字色は自由選択と256マスのプリセット一覧の2通りから選べます。
+既存のノードID・保存形式・ワークフローは維持しています。
+今回添付する通常版・DMD版のJSONは1.0.7と同じです。
+ノード更新後はComfyUIを再起動し、ブラウザも更新してください。
+
+## 1.0.8：Textごとのスタイル
 
 TypeがTextの色カードに「文字スタイル」を追加しました。初期値は**共通設定を使用**で、
 従来のExportの`text_style`をそのまま使用します。**個別に指定**を選ぶと、
@@ -90,7 +99,7 @@ Character／Objectでは欄を隠し、Typeや共通設定へ切り替えても�
 UI保存状態に含めるため、ソケット・ウィジェット順は変えません。保存・再読込・複製に対応します。
 旧Workflowは共通設定で動きます。反映にはComfyUIの再起動とブラウザー更新が必要です。
 
-## mainの次期変更：整列・等間隔配置（Registry未公開）
+## 1.0.8：整列・等間隔配置
 
 未ロック枠を2つ以上選択し、X／Y／W／H・Lockの横の**整列・分布**から操作します。
 左揃え・左右中央・右揃え・上揃え・上下中央・下揃えは、選択した枠全体の範囲を基準にします。
@@ -222,6 +231,7 @@ Preview入りWorkflowにはv1.0.3以降が必要です。日本語説明・縮�
 
 | バージョン | 通常版 | DMD版 |
 | --- | --- | --- |
+| [v1.0.8](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/tag/v1.0.8) | [JSONをダウンロード](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/download/v1.0.8/MOSS_BBOX_Standard.json) | [JSONをダウンロード](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/download/v1.0.8/MOSS_BBOX_DMD.json) |
 | [v1.0.7](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/tag/v1.0.7) | [JSONをダウンロード](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/download/v1.0.7/MOSS_BBOX_Standard.json) | [JSONをダウンロード](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/download/v1.0.7/MOSS_BBOX_DMD.json) |
 | [v1.0.6](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/tag/v1.0.6) | [JSONをダウンロード](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/download/v1.0.6/MOSS_BBOX_Standard.json) | [JSONをダウンロード](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/download/v1.0.6/MOSS_BBOX_DMD.json) |
 | [v1.0.5](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/tag/v1.0.5) | [JSONをダウンロード](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/download/v1.0.5/MOSS_BBOX_Standard.json) | [JSONをダウンロード](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/download/v1.0.5/MOSS_BBOX_DMD.json) |

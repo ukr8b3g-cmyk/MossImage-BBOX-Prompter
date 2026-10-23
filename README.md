@@ -2,7 +2,7 @@
 
 **English** | [Japanese](README.ja.md)
 
-**Current version: 1.0.7** — [GitHub Releases](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases)
+**Current version: 1.0.8** — [GitHub Releases](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases)
 · [Comfy Registry](https://registry.comfy.org/nodes/mossimage-bbox-prompter)
 
 <img width="1154" height="839" alt="image" src="https://github.com/user-attachments/assets/739cff51-f11a-4c25-88d5-7b0c5eb1a76c" />
@@ -29,7 +29,18 @@ Only the MOSS Canvas DOM is rearranged; Krea2 nodes, saved widgets, presets and
 box coordinates keep their existing behavior. Refresh the frontend to load this
 layout change; no backend restart is needed.
 
-### Unreleased on main: per-color Text styles
+### 1.0.8: alignment, Text styles and two color pickers
+
+Align multiple boxes or distribute their gaps evenly, with lock guards and
+Undo/Redo. Text cards now support individual typeface, weight, color and extra
+appearance hints, defaulting to shared settings. Choose colors freely or from
+256 presets in a compact grid. Existing node IDs and workflows stay compatible.
+
+[Download Standard + DMD + reference image ZIP](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/download/v1.0.8/MOSS_BBOX_Workflows_1.0.8.zip).
+The JSON templates are unchanged from v1.0.7; per-Text styles default to shared.
+Restart ComfyUI and refresh the browser after updating the node package.
+
+### 1.0.8: per-color Text styles
 
 Each **Text** card has **Text style: Use shared settings** (default) or
 **Individual settings**. Individual mode exposes Typeface, Weight, Text color
@@ -58,7 +69,7 @@ share one style. Style preferences are stored inside the existing
 Old workflows default to shared style. Save/reload and duplication preserve the
 new values. Restart ComfyUI and refresh the browser to load both backend and UI.
 
-### Unreleased on main: alignment and equal-gap distribution
+### 1.0.8: alignment and equal-gap distribution
 
 Select two or more unlocked boxes, then use **Align / Distribute** beside
 X/Y/W/H and Lock. Left/center/right and top/middle/bottom use the selected
@@ -401,6 +412,7 @@ the archived v1.0.0 files below do not include Preview and remain usable.
 
 | Release | Standard | DMD |
 | --- | --- | --- |
+| [v1.0.8](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/tag/v1.0.8) | [Download JSON](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/download/v1.0.8/MOSS_BBOX_Standard.json) | [Download JSON](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/download/v1.0.8/MOSS_BBOX_DMD.json) |
 | [v1.0.7](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/tag/v1.0.7) | [Download JSON](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/download/v1.0.7/MOSS_BBOX_Standard.json) | [Download JSON](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/download/v1.0.7/MOSS_BBOX_DMD.json) |
 | [v1.0.6](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/tag/v1.0.6) | [Download JSON](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/download/v1.0.6/MOSS_BBOX_Standard.json) | [Download JSON](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/download/v1.0.6/MOSS_BBOX_DMD.json) |
 | [v1.0.5](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/tag/v1.0.5) | [Download JSON](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/download/v1.0.5/MOSS_BBOX_Standard.json) | [Download JSON](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/download/v1.0.5/MOSS_BBOX_DMD.json) |

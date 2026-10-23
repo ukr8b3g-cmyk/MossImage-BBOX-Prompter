@@ -1,3 +1,18 @@
+# v1.0.8 release validation (2026-10-23)
+
+- Version and bilingual release/workflow links updated to 1.0.8. This release
+  packages the tested arrangement, per-Text styles and both color pickers.
+  Previous main 4e70361 passed public CI: Python 51, JavaScript 40, Ruff,
+  syntax and exact source ZIP (44 files). The release commit is checked again
+  by the same workflow before Registry publication.
+- Standard/DMD JSONs and ComfyUI_00238_.webp are byte-identical to v1.0.7.
+  Both workflows remain available as separate Release assets, plus a ZIP with
+  the two JSONs and reference image. Prior Release tags/assets are preserved.
+- Node IDs, input/socket contracts and saved widget order remain unchanged.
+  This release preparation adds no GPU generation or live ComfyUI operation.
+  Registry upload, API/CDN availability and moderation are checked separately;
+  successful publication does not imply Active moderation or a Manager install.
+
 # Main update verification: arrangement, Text styles and color pickers (2026-10-23)
 
 - Scope: six alignment modes, horizontal/vertical equal gaps, per-color Text
