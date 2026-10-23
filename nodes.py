@@ -22,7 +22,7 @@ class MOSSBBoxCanvasPrompt:
     RETURN_NAMES = ("prompt", "width", "height", "moss_json")
     FUNCTION = "build"
     CATEGORY = "conditioning/MOSS"
-    DESCRIPTION = "Five-color MOSS canvas. Hybrid prose + official layout JSON; boxes guide generation without guaranteeing placement."
+    DESCRIPTION = "Seven-color MOSS canvas. Hybrid prose + official layout JSON; boxes guide generation without guaranteeing placement."
 
     def build(self, moss_state):
         result = build_prompt(moss_state)
@@ -38,7 +38,7 @@ class MOSSBBoxCanvas:
     RETURN_NAMES = ("canvas_data", "width", "height")
     FUNCTION = "build"
     CATEGORY = "conditioning/MOSS"
-    DESCRIPTION = "Five-color MOSS canvas. Connect canvas_data to MOSS BBOX Prompter and dimensions to the latent."
+    DESCRIPTION = "Seven-color MOSS canvas. Connect canvas_data to MOSS BBOX Prompter and dimensions to the latent."
 
     def build(self, moss_state):
         state = parse_state(moss_state)
@@ -56,7 +56,7 @@ class MOSSBBoxPrompter:
     RETURN_NAMES = MOSSBBoxCanvasPrompt.RETURN_NAMES
     FUNCTION = "build"
     CATEGORY = "conditioning/MOSS"
-    DESCRIPTION = "Whole-image and five-color prompts. Combines the connected canvas with original text into MOSS hybrid output."
+    DESCRIPTION = "Whole-image and seven-color prompts. Combines the connected canvas with original text into MOSS hybrid output."
 
     def build(self, canvas_data, moss_state):
         layout = parse_state(canvas_data)
@@ -110,7 +110,7 @@ class MOSSSharedCanvas:
     RETURN_NAMES = ("framing_data",)
     FUNCTION = "execute"
     CATEGORY = "conditioning/MOSS"
-    DESCRIPTION = "Five-color MOSS canvas with shared drawing, presets and workflow persistence. Default 896 x 1184."
+    DESCRIPTION = "Seven-color MOSS canvas with shared drawing, presets and workflow persistence. Default 896 x 1184."
 
     def execute(self, reference_image=None, **kwargs):
         result = controls.CanvasControls().execute(**kwargs)
@@ -123,15 +123,22 @@ class MOSSSharedPrompter:
     @classmethod
     def INPUT_TYPES(cls):
         inputs = controls.PromptControls.INPUT_TYPES()
-        for slot in SLOTS:
+        for slot in controls.REGIONS:
             inputs["required"][f"{slot}_type"] = ([*ELEMENT_TYPES, "obj"], {"default": "object"})
+        # Append the new widgets after the original 23; old positional saves stay valid.
+        inputs["optional"] = {}
+        for slot in SLOTS[len(controls.REGIONS):]:
+            inputs["optional"][f"{slot}_prompt"] = controls._text("")
+            inputs["optional"][f"{slot}_type"] = ([*ELEMENT_TYPES, "obj"], {"default": "object"})
+            inputs["optional"][f"{slot}_framing"] = (controls.FRAMING_OPTIONS, {"default": "Auto"})
+            inputs["optional"][f"{slot}_angle"] = (controls.ANGLE_OPTIONS, {"default": "Auto"})
         return inputs
 
     RETURN_TYPES = ("KREA2_ELEMENT_PROMPT_DATA",)
     RETURN_NAMES = ("prompt_ui_data",)
     FUNCTION = "execute"
     CATEGORY = "conditioning/MOSS"
-    DESCRIPTION = "MOSS scene and five color prompts. Choose character, object or text per color. Text cards support shared or individual typography in Export literal mode. Includes presets and workflow persistence."
+    DESCRIPTION = "MOSS scene, seven color defaults and per-box ID cards. Connect Canvas and Prompter to the same Export to edit independent box prompts. Individual box settings are saved with Canvas. Text supports shared or individual typography in Export literal mode."
 
     def execute(self, **kwargs):
         slots = {}
@@ -152,6 +159,10 @@ class MOSSSharedPrompter:
                 style = saved.get("textStyle") if isinstance(saved, dict) else None
                 if isinstance(style, dict) and style.get("mode") == "individual":
                     slots[slot]["text_style"] = style
+            if slot not in controls.REGIONS and slots[slot] == {
+                "type": "object", "prompt": "", "framing": "Auto", "angle": "Auto"
+            }:
+                del slots[slot]
         data = controls._prompt_ui_data(kwargs.get("scene", ""), kwargs.get("background", ""), slots)
         return (json.dumps(data, ensure_ascii=False, separators=(",", ":")),)
 

@@ -70,7 +70,7 @@ jobs:
         run: python -B -m unittest discover -s tests -p "test_*.py" -v
       - name: Run JavaScript regression and syntax tests
         run: |
-          node --test tests/state.test.mjs tests/shared_ui.test.mjs tests/preview.test.mjs
+          node --test tests/*.test.mjs
           for path in web/*.js web/*.mjs tests/*.mjs; do
             node --check "$path"
           done

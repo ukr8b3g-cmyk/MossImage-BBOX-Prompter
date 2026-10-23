@@ -2,7 +2,7 @@
 
 **English** | [Japanese](README.ja.md)
 
-**Current version: 1.0.8** — [GitHub Releases](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases)
+**Latest release: 1.0.8** — [GitHub Releases](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases)
 · [Comfy Registry](https://registry.comfy.org/nodes/mossimage-bbox-prompter)
 
 <img width="1154" height="839" alt="image" src="https://github.com/user-attachments/assets/739cff51-f11a-4c25-88d5-7b0c5eb1a76c" />
@@ -28,6 +28,26 @@ horizontal overflow. Camera/preset explanations remain available on hover.
 Only the MOSS Canvas DOM is rearranged; Krea2 nodes, saved widgets, presets and
 box coordinates keep their existing behavior. Refresh the frontend to load this
 layout change; no backend restart is needed.
+
+### On main, not yet released: seven colors, JSON import and ID cards
+
+These features are available from the current GitHub main branch; the Registry
+and v1.0.8 release packages do not include them yet. See the illustrated
+[JSON import instructions](#layout-json-import-main--unreleased) and
+[per-box ID card instructions](#per-box-id-cards-main--unreleased).
+
+Cyan and Orange extend the five existing color groups to seven. Each new
+Prompter card starts closed and supports Character/Object/Text, framing, angle,
+shared/individual Text styles and both color pickers. Use their Canvas swatches
+to draw boxes; move, duplicate, lock, arrange and Undo/Redo work as before.
+Preview uses the same Cyan/Orange borders.
+
+The original 23 Prompter widgets keep their order; eight optional widgets are
+appended. Existing five-color workflows load with the two new cards blank and
+keep the same generated prompt. Multiple boxes can still share any color.
+This adds independent descriptions, not a seven-box limit. Restart ComfyUI and
+refresh the browser after installing this main-branch update. Workflows using the
+new colors need this update; they cannot be opened fully by released 1.0.8.
 
 ### 1.0.8: alignment, Text styles and two color pickers
 
@@ -169,7 +189,7 @@ assets remain available for older versions; old workflows work with the new node
 - **Alt + drag inside a BBOX** creates a copy after 4 screen pixels of movement.
   It copies the selected box when the pointer is inside it, otherwise the topmost
   box under the pointer. The original stays in place; the copy gets a new ID and
-  remains selected. Both boxes keep the same color and share that color's prompt.
+  remains selected. Both boxes keep the same color. Color defaults are shared; individual ID settings are copied and remain independently editable.
   To describe a different subject, draw a box using another color card.
 - **Alt + click** without dragging still cycles through overlapping boxes.
   Drawing mode draws a new box instead of duplicating; hidden boxes cannot be
@@ -536,7 +556,7 @@ The earlier separate interface has two nodes:
 - **MOSS BBOX Canvas** (`MOSSBBoxCanvas`): large canvas, color swatches, grid,
   Show Boxes / Draw / Reset controls, latent dimensions and per-box type/text.
 - **MOSS BBOX Prompter (Hybrid)** (`MOSSBBoxPrompter`): whole-image prompt and
-  five collapsible color cards, with the full derived output below them.
+  seven collapsible color cards on main, with the full derived output below them.
 
 Connect Canvas **canvas_data** to Prompter **canvas_data**. Connect Canvas width
 and height to Empty Flux 2 Latent; connect Prompter prompt to CLIP Text Encode.
@@ -676,3 +696,37 @@ installed only on the CI runner, with no added package runtime dependency.
 See `TEST_REPORT.md` for the tested scope and pending checks, and `NOTICE.md` /
 `LICENSE` for Krea2 attribution. Core/Krea2 files and existing workflows are not
 modified by this package.
+
+### Layout JSON import (main / unreleased)
+
+![JSON import button in the Canvas Preset panel](docs/layout-json-button.png)
+
+The **JSON…** button is at the upper right of **Canvas Preset**, below the Canvas drawing area.
+
+![Layout JSON import dialog in English](docs/layout-json-import.png)
+
+The import dialog lets you select a file or paste JSON, review placement, and choose how to apply it.
+
+1. Click **JSON…** to open the import dialog.
+2. Click **Choose JSON file** to select a `.json` file, or paste JSON into the text area.
+3. Enter **Source width / Source height** if the JSON does not contain the original image dimensions.
+4. Review the preview and color assignments. The defaults are **Add to existing boxes** and **Keep current Canvas size**.
+5. Click **Apply** to import, or **Cancel** to leave the layout unchanged.
+
+The dialog, file-selection button and empty-file message follow **ComfyUI's display language**, independently of the Canvas's saved UI Language. Close and reopen the dialog after changing the language.
+
+Import is **placement only**. New boxes use the current Prompter's color defaults for text, Type and styles. Edit **ID cards** after importing for independent prompts, including the eighth box and beyond; otherwise same-color boxes share their prompt.
+
+Supports MOSS Layout JSON (`items`, `bbox_format: yxyx`, `bbox_coord_space: abs_centralized`) and Canvas `boxes` with pixel `x1/y1/x2/y2`. Enter the original width and height if absent; dimensions are never inferred from box extents. Changing aspect ratio scales X and Y independently. Source-size mode requires positive multiples of 16 and no external size connection. Locked boxes prevent replacement and size changes, but permit additions.
+
+Import is one Undo/Redo step. Edge/outside coordinates are preserved through saving and reloading; they are not silently cropped. Unsupported or malformed JSON is rejected without changing the layout. Prompts, reference images and camera settings are not imported. This is not a general Workflow JSON loader.
+
+**Preset portability:** Save Preset / Load / Delete manage Canvas presets; they do not download a preset JSON file. The JSON dialog currently imports layouts only. Save the complete ComfyUI workflow to retain the layout and per-ID prompts. A dedicated layout/preset export is not implemented yet.
+
+### Per-box ID cards (main / unreleased)
+
+Connect Canvas `framing_data` and Prompter `prompt_ui_data` to the same MOSS BBOX Export. In Prompter, choose **ID cards**; creating or importing another Canvas box adds another card, including the eighth and beyond. If multiple Canvases feed Exports using this Prompter, select the Canvas in the selector. Direct connections and Reroute connections are supported.
+
+Color defaults preserve existing workflows. Editing an ID card creates an independent prompt, Character/Object/Text type, framing, angle and Text style for that box. **Use color settings** removes that override. Color is a visual group and default source, not the identity of an individual card. Optional names help identify cards. Clicking a box opens/highlights its card; clicking a card highlights its box. Scrolling is contained inside the existing Prompter.
+
+Individual settings live in the Canvas layout alongside the box ID and are saved in the workflow. Canvas Undo/Redo (also available in the ID-card toolbar) restores these edits. Alt-duplicate copies the settings into a new ID; subsequent edits are independent. Deleting and undoing a box restores its settings too. Box locks protect geometry, while prompt fields remain editable. Save the workflow containing both nodes. Refresh after restarting ComfyUI for the updated backend; older versions do not interpret the new per-box settings.

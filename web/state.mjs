@@ -3,6 +3,7 @@ export const SCHEMA_VERSION = "moss_bbox_v1";
 export const SLOTS = [
   ["red", "#ff3b30"], ["blue", "#2f80ff"], ["yellow", "#ffd91a"],
   ["green", "#35b84b"], ["magenta", "#d943c8"],
+  ["cyan", "#00c8d7"], ["orange", "#ff9500"],
 ];
 const slotIds = SLOTS.map(([id]) => id);
 export const LABELS = ["character", "object", "text"];

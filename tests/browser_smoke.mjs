@@ -6,7 +6,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { resolve, extname, relative } from "node:path";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
-const artifacts = resolve(root, "tests/artifacts");
+const artifacts = process.env.MOSS_TEST_ARTIFACTS || resolve(root, "tests/artifacts");
 await mkdir(artifacts, { recursive: true });
 const moduleName = process.env.PLAYWRIGHT_MODULE ? pathToFileURL(process.env.PLAYWRIGHT_MODULE).href : "playwright";
 const { chromium } = await import(moduleName);
@@ -69,10 +69,11 @@ const server = createServer(async (req, res) => {
   } catch { res.writeHead(404); res.end(); }
 });
 await new Promise(resolve => server.listen(0, "127.0.0.1", resolve));
+console.log(JSON.stringify({fixture_pid:process.pid,port:server.address().port,launch:"node tests/browser_smoke.mjs",gpu:false}));
 let browser;
 const checks = [];
 try {
-  browser = await chromium.launch({ headless: true, ...(process.env.CHROMIUM_PATH ? { executablePath: process.env.CHROMIUM_PATH } : {}) });
+  browser = await chromium.launch({ headless: true, args:["--disable-gpu"], ...(process.env.CHROMIUM_PATH ? { executablePath: process.env.CHROMIUM_PATH } : {}) });
   const page = await browser.newPage({ viewport: { width: 1600, height: 1500 } });
   const errors = [];
   page.on("pageerror", err => errors.push(err.message));
@@ -224,9 +225,11 @@ try {
   await canvasEditor.getByLabel("Grid", { exact: true }).selectOption("Thirds");
   await page.screenshot({ path: resolve(artifacts, "split-editor.jpg"), type: "jpeg", quality: 85, fullPage: true });
   assert.deepEqual(errors, []);
-  checks.push("five collapsible prompt cards, blank restore, grid/show controls and split UI screenshot");
+  assert.equal(await promptEditor.locator('details.moss-slot').count(),7);
+  checks.push("seven collapsible prompt cards, blank restore, grid/show controls and split UI screenshot");
   console.log(JSON.stringify({ passed: true, checks, note: "Isolated DOM fixture; actual ComfyUI LiteGraph/Vue, tab manager, queue and image drag/drop not exercised." }, null, 2));
 } finally {
   if (browser) await browser.close();
   await new Promise(resolve => server.close(resolve));
+  console.log(JSON.stringify({fixture_stopped:true,http_listening:server.listening}));
 }

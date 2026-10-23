@@ -12,7 +12,7 @@ const PRESET_COLORS = [
     [0,51,102,153,204,255].map(b=>"#"+hex(r)+hex(g)+hex(b)))),
 ];
 
-export function mountTextStyle(slot, {type,language,changed}) {
+export function mountTextStyle(slot, {type,language,changed,helpKey="individual_text_style"}) {
   const element=document.createElement("div");
   element.className="moss-text-style";
   element.dataset.slot=slot;
@@ -80,7 +80,7 @@ export function mountTextStyle(slot, {type,language,changed}) {
     [color,"color","Text color","文字色"],[extra,"extra","Additional description","補足"]];
   const labels=[];
   for(const [control,key,en,jp,items] of entries){
-    control.setAttribute("aria-label",`${slot} text style ${key}`);bindHelp(control,"individual_text_style");
+    control.setAttribute("aria-label",`${slot} text style ${key}`);bindHelp(control,helpKey);
     const label=document.createElement(key==="color"?"div":"label"),title=document.createElement("span");
     label.style.cssText="display:flex;flex-direction:column;gap:2px;font-size:10px;min-width:0";
     if(key==="extra")label.style.gridColumn="1/-1";

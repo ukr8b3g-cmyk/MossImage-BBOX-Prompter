@@ -1,3 +1,51 @@
+# Local / unreleased: Cyan and Orange color groups (2026-10-23)
+
+- Seven Canvas swatches and Prompter cards; the added cards start closed. The
+  existing Character/Object/Text controls, framing/angle, Text styles and both
+  color pickers are reused. Canvas and Preview use consistent Cyan #00c8d7 and
+  Orange #ff9500 borders. Multiple boxes per color remain supported.
+- Original 23 required Prompter widgets retain their order and defaults. Eight
+  optional widgets append at indices 23–30. Five-color wire payloads stay exact
+  when the added cards are unused. Older saves fill missing optional values;
+  loading an old save into a used seven-color node clears extra prompts/styles,
+  framing and angles rather than retaining stale values. The bundled five-color
+  compatibility helper and unrelated Krea2 nodes are unchanged.
+- Python CPU regression: **58 passed, 0 skipped**, including the old Standard
+  and DMD exports compared byte-for-byte with the pre-change source, all output
+  modes, extra-card types, literal/legacy text, independent appearance hints,
+  old schema input order, missing extra data and Preview layout validation.
+- JavaScript regression: **43 passed, 0 skipped**. All web/test JS and Python
+  syntax passed. Ruff was not rerun locally because it is not installed; no
+  new dependency was added. No GitHub CI was run for this local implementation.
+- Isolated CPU Chromium Canvas fixture: new-color drawing, Undo/Redo, combined
+  movement and Alt duplication, lock guards, reload, stable dimensions and
+  toolbar containment at 830/640/430px passed, with earlier Canvas tests.
+- Isolated Prompter fixture: seven cards, closed defaults, appended widgets,
+  extra Character/Text settings, individual style and palette, save/clone/reload
+  and reloading an old five-color save into the same node passed. The fixture
+  constrains its scroll area to its node height, preventing unrelated test nodes
+  in the next row from covering lower cards. Exact original text is preserved.
+- Preview fixture confirmed Cyan/Orange strokes; the legacy editor fixture
+  passed its prior checks and seven collapsible color cards. All four fixtures
+  reported no page errors and stopped their temporary HTTP services afterward.
+- Browser-saved 31 widgets were executed by the actual Python Prompter/Export:
+  Cyan kept Character/framing/angle; Orange retained exact multiline Unicode,
+  pipes and quotes, with 'sans-serif lettering, bold weight, lettering color:
+  #ff9900'. Dimensions stayed 896 × 1184. No GPU generation was used.
+- The user's two existing ComfyUI_test workflows were also exported offline
+  with the pre-change 1.0.8 and new Python packages. All four returned values
+  matched byte-for-byte for Standard and DMD; their files were not edited.
+- Public source 1.0.8 was hash-checked and snapshotted before editing. Existing
+  runtime workflow differences and unrelated test differences are protected.
+  Local package files are copied to ComfyUI_test after validation; this is not a
+  live UI check. User-managed backend restart plus browser refresh is required.
+  No restart, GPU job, commit, push, version bump or Registry publication.
+
+Evidence in the existing artifacts folder: seven-slots-preflight.json,
+seven-slots-local.json, seven-slots-python.log, seven-slots-js.log,
+seven-slots-{canvas,prompter,preview,legacy}.log, seven-slots-wire-result.json
+and seven-slots-{canvas,prompter,preview}.jpg.
+
 # v1.0.8 release validation (2026-10-23)
 
 - Version and bilingual release/workflow links updated to 1.0.8. This release
@@ -1348,3 +1396,37 @@ Evidence: `lock-reference.diff`, `lock-reference-local.json`,
 `canvas-footer-checks.json`, `canvas-lock-reference.jpg` in the existing local
 `moss-canvas-editing/artifacts` folder.
 
+
+## External layout JSON import — local / unpublished
+
+Implemented file/paste import with a staged preview, seven-color mapping, placement-only contents, append/current-size defaults, optional replace/source-size, and one-step Canvas history. Imports preserve edge/outside coordinates on reload. Existing locked boxes block replacement/size changes; append preserves them. No widget order, socket or bundled workflow changes.
+
+Validation: Python 58 passed, JavaScript 48 passed; modified JS syntax passed. Isolated CPU Chromium Canvas and Prompter fixtures passed with zero page errors. Canvas covers malformed input, file selection, paste, source dimensions, replace/resize plus Undo, append, unique IDs, locks, color mapping, and saved edge-coordinate reload. Existing Canvas gestures, reference controls, arrangement, seven slots and corrupt-layout checks also passed. Prompter fixture now waits for DOM hydration as well as widget restoration; the timing failure also reproduced on the pre-change snapshot.
+
+No real ComfyUI browser operation or GPU generation was performed for this feature. No commit, push, version bump or Registry publication. Runtime package files synchronized separately without restarting the user-managed service.
+
+## Per-box ID prompts — local / unpublished
+
+Added ID cards associated through the same Export (direct or Reroute), with explicit Canvas choice for ambiguous associations. Existing color defaults remain the fallback; edits store promptData on the Canvas box without changing sockets, widget order or example workflows. Box selection and card selection are linked. Card scrolling stays inside Prompter. Optional names, type, framing, angle and existing individual Text style/palettes are available. Canvas history includes prompt metadata.
+
+Validation: Python 63 passed; JavaScript 50 passed. CPU Chromium Canvas and Prompter fixtures passed with no page errors. Nine same-color boxes can export nine distinct captions across all output modes; literal text keeps spaces, quotes, Japanese and newlines. UI regression covers independent eighth/ninth cards, type edits, bidirectional mouse selection, save/reload, color fallback, Undo/Redo, Alt duplication and independent copy edits, deletion and restoration. Existing Canvas, JSON import, lock, precision, snap, arrangement, reference image and corrupt-layout checks also passed. Browser-saved Canvas and Prompter widget values were executed through the real CPU backend, yielding nine items with independent eighth caption and exact ninth literal text.
+
+No GPU generation, live ComfyUI browser operation, commit, push, version bump, Release or Registry publication. Runtime code is copied separately; backend changes require a user-managed restart.
+
+## Layout import language and illustrated instructions — local / unpublished
+
+The JSON import dialog now reads Comfy.Locale when opened, independently of the saved Canvas language. A translated file-selection button and filename label replace the browser-localized inline file input. The native chooser remains available through that button. The dialog explains that new boxes use color defaults and can be edited independently through ID cards. English and Japanese READMEs include the user-provided Canvas Preset screenshot and file/paste import steps.
+
+Validation: JavaScript 50/50 passed; syntax checks passed for both changed modules and the browser fixture. The isolated CPU Chromium Canvas fixture passed with no page errors, including Japanese ComfyUI with an English Canvas, English ComfyUI with a Japanese Canvas, localized file labels and errors, opening the actual file chooser, a Japanese filename, paste validation, and Cancel preserving existing boxes. Existing import, locks, history, reload and Canvas gesture regressions also passed. Evidence: canvas-footer-checks.json and import-locale-local.json in the existing artifacts folder. The fixture process and HTTP listener were stopped after the run.
+
+No Python implementation or workflow changes. No GPU generation, live ComfyUI UI operation, restart, commit, push or publication. Frontend files are synchronized to ComfyUI_test separately; refresh the browser to load them. Updated real-screen screenshots are pending the user's capture.
+
+## Seven colors, layout import and ID cards — main publication, 2026-10-23
+
+The user confirmed operation after the language fix and provided the English import-dialog screenshot. Both that screenshot and the earlier Canvas Preset / JSON button screenshot are included in the English and Japanese READMEs. This is user-reported live confirmation, separate from the isolated CPU/browser checks above; no new GPU or live-browser operation was performed by the agent for this publication.
+
+The publication groups seven-color support, file/paste layout import, per-ID prompt cards, ComfyUI-language selection and illustrated instructions. Existing node IDs, sockets, widget order and bundled Standard/DMD workflows are preserved. GitHub CI now discovers all tests/*.test.mjs, including the new import and ID-card suites. Python tests are already discovered automatically. The existing manual publish=true gate is unchanged; a push runs validation without Registry publication. The version stays 1.0.8 pending a separately authorized release. Earlier local/unpublished entries describe validation at the time of each change.
+
+The import dialog remains placement-only. Dedicated layout/preset export is a future task; the README explicitly states that Save Preset does not download a JSON file and that complete workflows retain layout and per-ID prompt data.
+
+Pre-push recheck: Python 63/63, JavaScript 50/50 and syntax checks for 23 JavaScript files passed. Ruff is not installed in the local ComfyUI virtual environment; its S102/E702 check and the source ZIP comparison are delegated to the existing GitHub CI job, which installs its pinned test tools. The Canvas browser fixture was already rerun for the final language fix, and the user subsequently confirmed operation. Bundled workflow bytes match the published v1.0.8 sources.

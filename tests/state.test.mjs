@@ -1,8 +1,29 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { defaultState, parseState, resizeState, pixelBBox, buildPrompt, hitTest, dragBox } from "../web/state.mjs";
+import { SLOTS, defaultState, parseState, resizeState, pixelBBox, buildPrompt, hitTest, dragBox } from "../web/state.mjs";
 
 const box = { id: "one", slot: "red", label: "object", text: "", x1: 100, y1: 200, x2: 400, y2: 800 };
+
+test("Seven-slot state restores five-slot input without changing its output or source", () => {
+  assert.deepEqual(SLOTS.map(([id])=>id),['red','blue','yellow','green','magenta','cyan','orange']);
+  const old=defaultState();delete old.slots.cyan;delete old.slots.orange;
+  old.boxes=[box];old.slots.red='Original 日本語';
+  const before=structuredClone(old),restored=parseState(old);
+  assert.equal(restored.slots.cyan,'');assert.equal(restored.slots.orange,'');
+  assert.deepEqual(buildPrompt(old),buildPrompt(restored));assert.deepEqual(old,before);
+});
+
+test("Cyan and orange keep independent captions, literal text and colors across JSON reload", () => {
+  const state=defaultState();state.settings.active_slot='cyan';
+  state.slots.cyan='A cyan vase';state.slots.orange='bold orange lettering';
+  state.boxes=[{...box,id:'cyan',slot:'cyan'},
+    {...box,id:'orange',slot:'orange',label:'text',text:'  日本語 | "Title"\nnext  '}];
+  const restored=parseState(JSON.stringify(state)),items=JSON.parse(buildPrompt(restored).moss_json).items;
+  assert.equal(restored.settings.active_slot,'cyan');
+  assert.equal(items[0].caption,'A cyan vase');assert.equal(items[1].caption,'bold orange lettering');
+  assert.equal(items[1].text,state.boxes[1].text);
+  assert.equal(new Map(SLOTS).get('cyan'),'#00c8d7');assert.equal(new Map(SLOTS).get('orange'),'#ff9500');
+});
 
 test("portrait defaults, resize, and source immutability", () => {
   const state = defaultState(); state.boxes = [box]; state.slots.red = "Original 日本語";

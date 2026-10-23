@@ -143,6 +143,14 @@ try {
   await page.evaluate(()=>{const m=message();m.moss_bbox_preview[0].layout.boxes=[];node.onExecuted(m)});
   await host.getByRole('status').filter({hasText:'0 boxes'}).waitFor();
   assert.equal(await overlay.locator('rect').count(),0);
+  await page.evaluate(()=>{
+    const m=message();m.moss_bbox_preview[0].layout.boxes=[
+      {slot:'cyan',x1:40,y1:80,x2:220,y2:360},{slot:'orange',x1:260,y1:440,x2:600,y2:900}];
+    node.onExecuted(m);
+  });
+  await host.getByRole('status').filter({hasText:'2 boxes'}).waitFor();
+  assert.deepEqual(await overlay.locator('rect').evaluateAll(es=>es.map(el=>el.getAttribute('stroke'))),['#00c8d7','#ff9500']);
+  await show.check();await host.screenshot({path:resolve(artifacts,'seven-slots-preview.jpg'),type:'jpeg',quality:85});
   await page.evaluate(()=>{copy.onExecuted(message('slow.webp'));copy.onRemoved()});
   await page.waitForTimeout(350);
   assert.equal(await copy.locator('.moss-bbox-preview').count(),0);
@@ -152,7 +160,7 @@ try {
   const result={default_on:true,toggle_without_requests:true,opacity:true,next_execution_keeps_off:true,
     save_reload:true,batch_navigation:true,coordinate_scaling:true,reversed_fractional:true,resize:true,
     execution_snapshot:true,stale_image_guard:true,image_error:true,empty_layout:true,removed_cleanup:true,
-    original_hooks:true,page_errors:errors,gpu:false};
+    original_hooks:true,cyan_orange_preview:true,page_errors:errors,gpu:false};
   await writeFile(resolve(artifacts,'bbox-preview-checks.json'),JSON.stringify(result,null,2));
   console.log(JSON.stringify(result));
 }finally{

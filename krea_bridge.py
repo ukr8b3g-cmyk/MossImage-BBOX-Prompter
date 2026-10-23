@@ -89,8 +89,27 @@ def build_from_krea(framing_data, prompt_ui_data, auto_position_hint=False,
         if slot not in SLOTS:
             raise ValueError(f"Unknown Canvas box color: {slot}")
         label, text = metadata[slot]
-        state["boxes"].append({"id": str(index), "slot": slot, "label": label, "text": text,
-                               **{key: source[key] for key in ("x1", "y1", "x2", "y2")}})
+        box = {"id": str(index), "slot": slot, "label": label, "text": text,
+               **{key: source[key] for key in ("x1", "y1", "x2", "y2")}}
+        if "promptData" in source:
+            individual = source["promptData"]
+            if not isinstance(individual, dict) or not isinstance(individual.get("prompt"), str):
+                raise ValueError("Box promptData must contain a prompt string")
+            kind = element_type(individual.get("type", "object"))
+            content = individual["prompt"]
+            if kind == "text":
+                if text_mode == "literal":
+                    style = individual_text_caption(individual.get("textStyle"))
+                    caption = text_style if style is None else style
+                    text = content
+                else:
+                    text, caption = controls._split_visible_text_desc(controls._strip_text_marker(controls._clean(content)))
+            else:
+                text = ""
+                caption = controls._append_framing_hint(controls._clean(content), individual.get("framing", "Auto"))
+                caption = controls._append_angle_hint(caption, individual.get("angle", "Auto"))
+            box.update(label=kind, text=text, caption=caption)
+        state["boxes"].append(box)
     used = {box["slot"] for box in state["boxes"]}
     caption_output = output_mode == "caption" or (output_mode == "auto" and not state["boxes"])
     if caption_output:

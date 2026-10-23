@@ -3,14 +3,24 @@ import { installControls } from "./moss_controls.mjs";
 import { helpText } from "./help.mjs";
 
 const sharedTypes = new Set(["MOSSSharedCanvas", "MOSSSharedPrompter"]);
-const slots = ["red", "blue", "yellow", "green", "magenta"];
+const slots = ["red", "blue", "yellow", "green", "magenta", "cyan", "orange"];
+const extraDefaults = Object.fromEntries(slots.slice(5).flatMap(slot => [
+  [`${slot}_prompt`, ""], [`${slot}_type`, "object"],
+  [`${slot}_framing`, "Auto"], [`${slot}_angle`, "Auto"],
+]));
 const typeNames = new Set(slots.map(slot => `${slot}_type`));
 const mossTypes = [["character", "Character"], ["object", "Object"], ["text", "Text"]];
 const canonicalType = value => value === "obj" ? "object" : value;
 
 function normalizeTypeValues(node, values) {
-  return Array.isArray(values) ? values.map((value, index) =>
-    typeNames.has(node.widgets[index]?.name) ? canonicalType(value) : value) : values;
+  if (!Array.isArray(values)) return values;
+  const normalized = values.map((value, index) =>
+    typeNames.has(node.widgets[index]?.name) ? canonicalType(value) : value);
+  node.widgets.forEach((widget, index) => {
+    if (Object.hasOwn(extraDefaults, widget.name) && normalized[index] === undefined)
+      normalized[index] = extraDefaults[widget.name];
+  });
+  return normalized;
 }
 
 function normalizePromptConfig(node, info) {

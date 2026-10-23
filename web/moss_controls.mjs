@@ -6,6 +6,8 @@ import { api } from "../../scripts/api.js";
 import { mountCanvasReference } from "./canvas_reference.mjs";
 import { bindHelp } from "./help.mjs";
 import { mountTextStyle } from "./text_style.mjs";
+import { openLayoutImport } from "./layout_import.mjs";
+import { mountBoxPrompts, notifyBoxEdit } from "./box_prompts.mjs";
 import { createCanvasHistory, nextOverlappingBox, snapBoxToGuides, resizeBoxWithAspect, moveBoxSelection, arrangeBoxes } from "./canvas_editing.mjs";
 
 const CANVAS_NODE = "MOSSSharedCanvas";
@@ -61,6 +63,8 @@ const SLOTS = [
   ["yellow", "YELLOW", "#ffd91a", "yellow_prompt", "yellow_type", "yellow_framing", "yellow_angle"],
   ["green", "GREEN", "#35b84b", "green_prompt", "green_type", "green_framing", "green_angle"],
   ["magenta", "MAGENTA", "#d943c8", "magenta_prompt", "magenta_type", "magenta_framing", "magenta_angle"],
+  ["cyan", "CYAN", "#00c8d7", "cyan_prompt", "cyan_type", "cyan_framing", "cyan_angle"],
+  ["orange", "ORANGE", "#ff9500", "orange_prompt", "orange_type", "orange_framing", "orange_angle"],
 ];
 
 const FRAMING_OPTIONS = [
@@ -517,7 +521,7 @@ function k2cfPromptUiHasMeaningfulState(value) {
   }
   if (k2cfNormalizeNodeSize(data.nodeSize)) return true;
   if (data.wrapSize && (Number(data.wrapSize.h || 0) >= 45 || Number(data.wrapSize.w || 0) >= 80)) return true;
-  const defaults = { red: true, blue: true, yellow: true, green: false, magenta: false };
+  const defaults = { red: true, blue: true, yellow: true, green: false, magenta: false, cyan: false, orange: false };
   const slotOpen = data.slotOpen && typeof data.slotOpen === "object" ? data.slotOpen : {};
   return Object.keys(defaults).some((k) => slotOpen[k] !== undefined && Boolean(slotOpen[k]) !== defaults[k]);
 }
@@ -1033,6 +1037,8 @@ const PROMPT_WIDGETS = [
   "prompt_ui_data",
   "red_framing", "blue_framing", "yellow_framing", "green_framing", "magenta_framing",
   "red_angle", "blue_angle", "yellow_angle", "green_angle", "magenta_angle",
+  "cyan_prompt", "cyan_type", "cyan_framing", "cyan_angle",
+  "orange_prompt", "orange_type", "orange_framing", "orange_angle",
 ];
 
 function k2cfIsLegacyRedTestResidue(values) {
@@ -1415,6 +1421,7 @@ function setupCanvasNode(node) {
   function selectBoxes(ids, primary = ids.at(-1)) {
     state.selectedIds = [...new Set(ids)].filter(id => state.boxes.some(b => b.id === id));
     state.selectedId = state.selectedIds.includes(primary) ? primary : state.selectedIds.at(-1) ?? null;
+    notifyBoxEdit(node);
   }
   function selectedBoxes() {
     return state.boxes.filter(b => state.selectedIds.includes(b.id));
@@ -1505,6 +1512,7 @@ function setupCanvasNode(node) {
       updateHistoryButtons();
     }
     try { app.graph?.setDirtyCanvas?.(true, true); } catch (_) {}
+    notifyBoxEdit(node);
   }
 
   function restoreCanvasLayout() {
@@ -2022,6 +2030,7 @@ function setupCanvasNode(node) {
   node.onConnectionsChange = function() {
     const result = oldConnectionsChange?.apply(this, arguments);
     requestAnimationFrame(updateExternalSizeStatus);
+    notifyBoxEdit(node);
     return result;
   };
   const canvasPresetLabel = document.createElement("div");
@@ -2243,6 +2252,34 @@ function setupCanvasNode(node) {
   const canvasPresetNote = document.createElement("div");
   canvasPresetNote.className = "moss-k2cf-note";
   canvasPresetNote.textContent = tr(resolveLang(controls.ui_language?.value || "Auto"), "canvasPresetNote");
+  const importBtn = button("JSON…", "Import layout JSON");
+  bindHelp(importBtn, "layout_import");
+  canvasPresetLabel.style.position = "relative";
+  importBtn.style.cssText = "position:absolute;right:0;top:-2px;padding:0 5px;line-height:14px;font-size:10px";
+  canvasPresetLabel.append(importBtn);
+  importBtn.addEventListener("click", () => {
+    if (state.layoutError || pointerStart) return;
+    const before = JSON.stringify(snapshotCanvasEdit());
+    openLayoutImport({
+      ja: /^ja(?:-|$)/i.test(app.ui?.settings?.getSettingValue("Comfy.Locale") || document.documentElement.lang || "en"),
+      currentSize, getExisting: () => state.boxes,
+      canResize: () => !linkedInputInfo("width_override") && !linkedInputInfo("height_override"),
+      apply: ({boxes, width: w, height: h, resize, mode}) => {
+        if (!wrap.isConnected || state.layoutError || pointerStart || before !== JSON.stringify(snapshotCanvasEdit())) throw new Error("changed");
+        if ((linkedInputInfo("width_override") && externalPreviewSize.width == null) || (linkedInputInfo("height_override") && externalPreviewSize.height == null)) throw new Error("changed");
+        if ((mode === "replace" || resize) && state.boxes.some(b => b.locked === true)) throw new Error("locked");
+        if (resize && (linkedInputInfo("width_override") || linkedInputInfo("height_override"))) throw new Error("changed");
+        historySuspended++;
+        try {
+          if (resize) setSize(w, h, "Custom");
+          const incoming = boxes.map(b => ({...b, id: newBoxId()}));
+          state.boxes = mode === "replace" ? incoming : [...state.boxes, ...incoming];
+          selectBoxes(incoming.map(b => b.id));
+        } finally { historySuspended--; }
+        writeBoxes();
+      }
+    });
+  });
   canvasPresetGroup.append(canvasPresetLabel, canvasPresetBar, canvasPresetNote);
   bindHelp(cameraGroup, "camera"); bindHelp(canvasPresetGroup, "canvas_preset");
   cameraGroup.append(cameraLabel, cameraRows, cameraNote);
@@ -2342,8 +2379,9 @@ function setupCanvasNode(node) {
     overlayCtx.save();
     overlayCtx.globalAlpha = selected ? 0.23 : 0.14; overlayCtx.fillStyle = color; overlayCtx.fillRect(x1,y1,x2-x1,y2-y1);
     overlayCtx.globalAlpha = 1; overlayCtx.lineWidth = selected ? 4 : 3; overlayCtx.strokeStyle = selected ? "#fff" : color; overlayCtx.strokeRect(x1,y1,x2-x1,y2-y1);
-    overlayCtx.fillStyle = color; overlayCtx.fillRect(x1, Math.max(0,y1-28), 76, 28);
-    overlayCtx.fillStyle = "#fff"; overlayCtx.font = "bold 18px sans-serif"; overlayCtx.fillText(String(b.slot||"").toUpperCase(), x1+8, Math.max(18,y1-8));
+    const label = `${state.boxes.length > 7 || b.promptData ? '#' + (state.boxes.indexOf(b) + 1) + ' ' : ''}${String(b.slot||'').toUpperCase()}`;
+    overlayCtx.fillStyle = color; overlayCtx.fillRect(x1, Math.max(0,y1-28), Math.max(76,label.length*12), 28);
+    overlayCtx.fillStyle = "#fff"; overlayCtx.font = "bold 18px sans-serif"; overlayCtx.fillText(label, x1+8, Math.max(18,y1-8));
     overlayCtx.fillStyle = color; overlayCtx.beginPath(); overlayCtx.arc(x2, y1, 18, 0, Math.PI*2); overlayCtx.fill();
     overlayCtx.fillStyle = "#fff"; overlayCtx.font = "bold 24px sans-serif"; overlayCtx.fillText(b.locked === true ? "🔒" : "×", x2-7, y1+8);
     overlayCtx.restore();
@@ -2380,7 +2418,7 @@ function setupCanvasNode(node) {
       b.y1 = Number(b.ny1) * h;
       b.x2 = Number(b.nx2) * w;
       b.y2 = Number(b.ny2) * h;
-      clampBox(b);
+      if (!b.layoutImported) clampBox(b);
     }
   }
   function ensureNormalizedBoxes() {
@@ -2634,6 +2672,19 @@ function setupCanvasNode(node) {
   }
 
   node.__k2cfHydrateFromWidgets = hydrateCanvasFromWidgets;
+  node.__mossBoxEditor = {
+    read: () => ({boxes: structuredClone(state.boxes), selectedId: state.selectedId, canUndo: history.canUndo, canRedo: history.canRedo}),
+    select: id => { if (!state.layoutError && state.boxes.some(b => b.id === id)) { selectBoxes([id]); drawOverlay(); refreshPrecision(); } },
+    update: (id, value) => {
+      if (state.layoutError || pointerStart) return;
+      const box = state.boxes.find(b => b.id === id);
+      if (!box) return;
+      if (value == null) delete box.promptData;
+      else box.promptData = structuredClone(value);
+      writeBoxes();
+    },
+    undo: () => restoreHistory("undo"), redo: () => restoreHistory("redo"),
+  };
   hydrateCanvasFromWidgets();
   if (k2cfHasMeaningfulState(configuredValues)) {
     applyConfiguredValuesToWidgets(node, CANVAS_WIDGETS, configuredValues);
@@ -2668,6 +2719,8 @@ function setupCanvasNode(node) {
 
   const oldResize=node.onResize; node.onResize=function(){ const r = oldResize?.apply(this,arguments); scheduleCanvasRefresh(false); return r; };
   const oldRemoved=node.onRemoved; node.onRemoved=function(){
+    delete node.__mossBoxEditor;
+    notifyBoxEdit(node);
     reference.dispose();
     window.removeEventListener("keydown", onCanvasKeyDown, true);
     history.clear();
@@ -2738,14 +2791,15 @@ function setupPromptNode(node) {
     k2cfWriteLocalState(node, "prompt", node.properties.k2cfPromptState);
     node.__k2cfConfiguredWidgetValues = null;
     try { app.graph?.setDirtyCanvas?.(true, true); } catch (_) {}
+    notifyBoxEdit(node);
   }
 
   const defaultPromptUiState = () => ({
     version: "prompt_ui_element_v1",
     heightCaptureMode: K2CF_PROMPT_HEIGHT_CAPTURE_MODE,
-    textHeights: { red_prompt: 125, blue_prompt: 125, yellow_prompt: 125, green_prompt: 125, magenta_prompt: 125 },
-    textHeightManual: { red_prompt: true, blue_prompt: true, yellow_prompt: true, green_prompt: true, magenta_prompt: true },
-    slotOpen: { red: true, blue: true, yellow: false, green: false, magenta: false },
+    textHeights: Object.fromEntries(SLOTS.map(([, , , name]) => [name, 125])),
+    textHeightManual: Object.fromEntries(SLOTS.map(([, , , name]) => [name, true])),
+    slotOpen: { red: true, blue: true, yellow: false, green: false, magenta: false, cyan: false, orange: false },
     scenePreset: "",
     slotPreset: {},
     slotValues: {},
@@ -3176,6 +3230,7 @@ function setupPromptNode(node) {
   }
 
   for (const [slot, label, color, promptName, typeName, framingName, angleName] of SLOTS) {
+    if (!widgets[promptName]) continue;
     const card = document.createElement("div");
     card.className = "moss-k2cf-slot-card";
     const head = document.createElement("div");
@@ -3372,8 +3427,11 @@ function setupPromptNode(node) {
         const stored = promptUiState.slotValues?.[slot] || {};
         if (controls[promptName]) controls[promptName].value = widgets[promptName]?.value || "";
         const nextType = selectValueWithStored(widgets[typeName]?.value, stored.type, "obj");
-        const nextFraming = selectValueWithStored(widgets[framingName]?.value, stored.framing, "Auto");
-        const nextAngle = selectValueWithStored(widgets[angleName]?.value, stored.angle, "Auto");
+        const extra = slot === "cyan" || slot === "orange";
+        const nextFraming = extra ? widgets[framingName]?.value || "Auto"
+          : selectValueWithStored(widgets[framingName]?.value, stored.framing, "Auto");
+        const nextAngle = extra ? widgets[angleName]?.value || "Auto"
+          : selectValueWithStored(widgets[angleName]?.value, stored.angle, "Auto");
         if (controls[typeName]) controls[typeName].value = nextType;
         if (controls[framingName]) controls[framingName].value = nextFraming;
         if (controls[angleName]) controls[angleName].value = nextAngle;
@@ -3387,11 +3445,20 @@ function setupPromptNode(node) {
       scheduleApplyAllSavedTextHeights();
     } finally {
       isHydrating = false;
+      notifyBoxEdit(node);
     }
   }
 
   node.__k2cfPromptUiSnapshot = (markDirty = false, allowShrink = false) => captureCurrentTextHeights(markDirty, allowShrink);
   node.__k2cfHydrateFromWidgets = hydratePromptFromWidgets;
+  mountBoxPrompts(node, wrap, {
+    language: () => resolveLang(promptLangSelect.value), framing: FRAMING_OPTIONS, angles: ANGLE_OPTIONS,
+    defaults: slot => ({
+      prompt: widgets[`${slot}_prompt`]?.value || "", type: widgets[`${slot}_type`]?.value || "object",
+      framing: widgets[`${slot}_framing`]?.value || "Auto", angle: widgets[`${slot}_angle`]?.value || "Auto",
+      textStyle: textStyles[slot]?.get(),
+    }),
+  });
 
   node.addDOMWidget("krea2_prompt_ui", "Krea2PromptUI", wrap, {
     serialize:false,

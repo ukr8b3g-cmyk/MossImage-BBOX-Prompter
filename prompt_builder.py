@@ -5,7 +5,7 @@ import math
 import re
 
 SCHEMA_VERSION = "moss_bbox_v1"
-SLOTS = ("red", "blue", "yellow", "green", "magenta")
+SLOTS = ("red", "blue", "yellow", "green", "magenta", "cyan", "orange")
 LABELS = ("character", "object", "text")
 OUTPUT_MODES = ("hybrid", "caption", "layout_json", "auto")
 
@@ -58,6 +58,8 @@ def parse_state(value):
         if box.get("slot") not in SLOTS or box.get("label") not in LABELS:
             raise ValueError(f"Invalid slot or label for box {box_id}")
         clean = {"id": box_id, "slot": box["slot"], "label": box["label"], "text": _string(box.get("text", ""), "box text")}
+        if "caption" in box:
+            clean["caption"] = _string(box["caption"], "box caption")
         for key in ("x1", "y1", "x2", "y2"):
             number = box.get(key)
             if isinstance(number, bool) or not isinstance(number, (int, float)) or not math.isfinite(number):
@@ -134,7 +136,7 @@ def build_prompt(value, output_mode="hybrid"):
     has_unboxed = False
     for index, box in enumerate(state["boxes"]):
         slot = box["slot"]
-        caption = state["slots"][slot]
+        caption = box.get("caption", state["slots"][slot])
         used.add(slot)
         item = {"label": box["label"], "caption": caption}
         if box["label"] == "text":
@@ -156,9 +158,10 @@ def build_prompt(value, output_mode="hybrid"):
                 description += f"\nIn the {hint}."
             if description:
                 parts.append(description)
-        if slot not in terms_by_slot:
-            terms_by_slot[slot] = tuple(a or b for a, b in zip(scene_terms, _position_terms(caption)))
-        if _position_conflict(terms_by_slot[slot], box, width, height):
+        term_key = ("id", box["id"]) if "caption" in box else slot
+        if term_key not in terms_by_slot:
+            terms_by_slot[term_key] = tuple(a or b for a, b in zip(scene_terms, _position_terms(caption)))
+        if _position_conflict(terms_by_slot[term_key], box, width, height):
             warnings.append(f"Box {index + 1}: possible conflict with manual position words; original text kept.")
         if not caption.strip() and (box["label"] != "text" or not box["text"].strip()):
             warnings.append(f"Box {index + 1}: empty description/text is kept in the output.")

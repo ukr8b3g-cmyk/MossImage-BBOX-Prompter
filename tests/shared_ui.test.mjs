@@ -442,6 +442,29 @@ test("restore widgets-only workflows before the shared renderer reads its creati
   assert.deepEqual(node.widgets.map(widget => widget.value), ["", "text"]);
 });
 
+test("Seven-color restore appends defaults after the original widgets and clears stale extras", () => {
+  class MossPrompt {}
+  installControls=type=>{
+    type.prototype.onConfigure=function(info){this.lastConfig=info;info.widgets_values.forEach((value,i)=>this.widgets[i].value=value);};
+  };
+  extension.beforeRegisterNodeDef(MossPrompt,{name:'MOSSSharedPrompter'});
+  const colors=['red','blue','yellow','green','magenta'];
+  const oldNames=['scene','background',...colors.map(s=>s+'_prompt'),...colors.map(s=>s+'_type'),
+    'prompt_ui_data',...colors.map(s=>s+'_framing'),...colors.map(s=>s+'_angle')];
+  const extraNames=['cyan','orange'].flatMap(s=>[s+'_prompt',s+'_type',s+'_framing',s+'_angle']);
+  const node=new MossPrompt();node.widgets=[...oldNames,...extraNames].map(name=>({name,value:'stale'}));
+  const original={widgets_values:oldNames.map(name=>name.endsWith('_type')?'obj':name),properties:{}};
+  const copy=structuredClone(original);node.onConfigure(original);
+  assert.deepEqual(original,copy);
+  assert.deepEqual(node.widgets.slice(23).map(w=>w.value),['','object','Auto','Auto','','object','Auto','Auto']);
+  assert.deepEqual(node.widgets.slice(0,23).map(w=>w.value),original.widgets_values.map((v,i)=>oldNames[i].endsWith('_type')?'object':v));
+  const values=node.widgets.map(w=>w.value);values[23]='A cyan vase';values[24]='obj';values[27]='Title';values[28]='text';
+  node.onConfigure({widgets_values:values,properties:{}});
+  assert.deepEqual(node.widgets.slice(23).map(w=>w.value),['A cyan vase','object','Auto','Auto','Title','text','Auto','Auto']);
+  node.onConfigure(original);
+  assert.deepEqual(node.widgets.slice(23).map(w=>w.value),['','object','Auto','Auto','','object','Auto','Auto']);
+});
+
 const controlsSource = await readFile(new URL("../web/moss_controls.mjs", import.meta.url), "utf8");
 function canvasLayoutHarness(raw, previousRaw = raw) {
   const app = { graph: { _nodes: [] },
@@ -466,7 +489,7 @@ function canvasLayoutHarness(raw, previousRaw = raw) {
     const end = controlsSource.indexOf("\n  }", start);
     return controlsSource.slice(start, end + 4);
   }).join("\n");
-  const bindings = { ...helpers, app, node, widgets, state, controls: {},
+  const bindings = { ...helpers, app, node, widgets, state, controls: {}, notifyBoxEdit() {},
     externalPreviewSize: { width: null, height: null }, localStorage: { setItem() {} },
     CANVAS_GRID_KEY: "grid", CANVAS_LANGUAGE_KEY: "language" };
   const actions = new Function(...Object.keys(bindings),
