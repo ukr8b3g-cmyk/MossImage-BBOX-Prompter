@@ -1,14 +1,16 @@
 // Adapted from Krea2 BBOX Prompter Suite v1.0.2 (98f3a29c).
 // Copyright (c) 2026 ukr8b3g-cmyk. MIT; see LICENSE and NOTICE.md.
 
+import { FOCUS_OPTIONS, normalizeFocus, localizeCameraSelect, presetFocus } from "./camera_options.mjs?v=20261027-simple4";
 import { app } from "../../scripts/app.js";
 import { api } from "../../scripts/api.js";
-import { mountCanvasReference } from "./canvas_reference.mjs";
-import { bindHelp } from "./help.mjs";
-import { mountTextStyle } from "./text_style.mjs";
-import { openLayoutImport } from "./layout_import.mjs";
-import { mountBoxPrompts, notifyBoxEdit } from "./box_prompts.mjs";
-import { createCanvasHistory, nextOverlappingBox, snapBoxToGuides, resizeBoxWithAspect, moveBoxSelection, arrangeBoxes } from "./canvas_editing.mjs";
+import { mountCanvasReference } from "./canvas_reference.mjs?v=20261027-simple4";
+import { bindHelp } from "./help.mjs?v=1.0.11";
+import { mountTextStyle } from "./text_style.mjs?v=1.0.11";
+import { openLayoutImport } from "./layout_import.mjs?v=20261027-simple4";
+import { mountBoxPrompts, notifyBoxEdit, BOX_PROMPT_HEIGHTS, mountCardOptions } from "./box_prompts.mjs?v=1.0.11";
+import { mountBoxSelectionMenu } from "./box_selection.mjs?v=20261027-simple4";
+import { createCanvasHistory, nextOverlappingBox, snapBoxToGuides, resizeBoxWithAspect, moveBoxSelection, arrangeBoxes } from "./canvas_editing.mjs?v=20261027-simple4";
 
 const CANVAS_NODE = "MOSSSharedCanvas";
 
@@ -49,9 +51,9 @@ function k2cfAttachPyssssAutocomplete(textarea) {
   });
 }
 
-const K2CF_CANVAS_DEFAULT_SIZE = [830, 980];
+const K2CF_CANVAS_DEFAULT_SIZE = [1000, 1300];
 
-const K2CF_PROMPT_DEFAULT_SIZE = [540, 990];
+const K2CF_PROMPT_DEFAULT_SIZE = [570, 1300];
 
 const K2CF_PROMPT_LEGACY_BUG_SIZES = [[400, 572]];
 
@@ -105,7 +107,8 @@ const ANGLE_OPTIONS = [
   "Telephoto",
   "Worm view",
   "Bird view",
-  "Foreground frame"
+  "Foreground frame",
+  "Rear 3/4 right", "Rear 3/4 left", "Voyeur low angle"
 ];
 
 const PRESETS = {
@@ -200,7 +203,7 @@ const I18N = {
     framingHelp: "Choose how the subject should be framed inside this colored box.",
     angle: "Angle",
     angleHelp: "Choose the viewing direction or camera perspective for this colored box.",
-    slotHeaderHelp: "{label} box prompt. Click to open or close this section.",
+    slotHeaderHelp: "Select a matching {label} box. Use the arrow to expand or collapse this card without changing its prompt.",
     slotPromptHelp: "Write what should appear in this colored box. Keep boxes simple and avoid overlapping instructions.",
     enterPrompt: "Enter prompt for {label} box..."
   },
@@ -253,11 +256,11 @@ const I18N = {
     clearPrompt: "このプロンプトを消去",
     elementType: "タイプ",
     elementTypeHelp: "この色ボックスで指定する対象を選びます。Objectは被写体、Textは文字・ロゴ・看板・吹き出し向けです。",
-    framing: "フレーミング",
+    framing: "構図",
     framingHelp: "この色ボックス内で、被写体をどの範囲で写すかを選びます。",
-    angle: "アングル",
+    angle: "角度",
     angleHelp: "この色ボックスに対する視点・カメラ角度を選びます。",
-    slotHeaderHelp: "{label} ボックスのプロンプト欄です。クリックで開閉します。",
+    slotHeaderHelp: "同じ{label}の枠を選択します。カードの開閉は矢印で行い、文章は変わりません。",
     slotPromptHelp: "この色ボックス内に出したい内容を書きます。指示はシンプルにし、ボックス同士の矛盾や重なりを避けてください。",
     enterPrompt: "{label} ボックスのプロンプトを入力..."
   }
@@ -325,10 +328,9 @@ function k2cfReadBrowserLocalJson(key) {
   try { return k2cfReadStorageJson(localStorage, key); } catch (_) { return null; }
 }
 
-function k2cfPickLatestState(states) {
+function k2cfFirstSavedState(states) {
   const valid = states.filter((state) => state && typeof state === "object");
   if (!valid.length) return null;
-  valid.sort((a, b) => Number(b.saved_at || 0) - Number(a.saved_at || 0));
   return valid[0];
 }
 
@@ -348,7 +350,7 @@ function k2cfReadLocalState(node, kind) {
     states.push(k2cfReadSessionJson(key));
     states.push(k2cfReadBrowserLocalJson(key));
   }
-  return k2cfPickLatestState(states);
+  return k2cfFirstSavedState(states);
 }
 
 function k2cfWriteLocalState(node, kind, data) {
@@ -366,36 +368,17 @@ function k2cfWriteLocalState(node, kind, data) {
 }
 
 function k2cfBestSavedState(node, kind) {
-  const propName = kind === "prompt" ? "k2cfPromptState" : ("k2cfCanvasState");
-  const workflowCandidates = [
-    node?.properties?.[propName],
-    kind === "prompt" ? node?.__k2cfConfiguredPromptState : (node?.__k2cfConfiguredCanvasState)
-  ].filter((state) => Array.isArray(state?.widgets_values) && (
-    k2cfHasMeaningfulState(state.widgets_values)
-  ));
-  if (workflowCandidates.length) {
-    workflowCandidates.sort((a, b) => Number(b.saved_at || 0) - Number(a.saved_at || 0));
-    const picked = workflowCandidates[0];
-    if (kind === "prompt") picked.widgets_values = k2cfSanitizePromptValues(picked.widgets_values);
-    return picked;
-  }
-
-  if (kind === "prompt" && node?.__k2cfSkipLocalPromptState) return null;
-  if (kind === "canvas" && node?.__k2cfSkipLocalCanvasState) return null;
-
-  const localState = k2cfReadLocalState(node, kind);
-  if (Array.isArray(localState?.widgets_values) && (
-    k2cfHasMeaningfulState(localState.widgets_values)
-  )) {
-    if (kind === "prompt") localState.widgets_values = k2cfSanitizePromptValues(localState.widgets_values);
-    return localState;
-  }
-  return null;
+  const key = kind === "prompt" ? "k2cfPromptState" : "k2cfCanvasState";
+  const live = node?.properties?.[key];
+  if (Array.isArray(live?.widgets_values)) return live;
+  const configured = kind === "prompt" ? node?.__k2cfConfiguredPromptState : node?.__k2cfConfiguredCanvasState;
+  return Array.isArray(configured?.widgets_values) ? configured : null;
 }
 
 function k2cfWidgetValues(node, widgetNames) {
   return widgetNames.map((name) => {
     const w = widget(node, name);
+    if (!w && name.endsWith("_focus")) return "Auto";
     return w?.value === undefined || w?.value === null ? "" : w.value;
   });
 }
@@ -466,13 +449,12 @@ function k2cfLooksLikePromptUiState(value) {
 }
 
 function k2cfDefaultTextHeightForKey(key) {
-  return 125;
+  return BOX_PROMPT_HEIGHTS[String(key).replace(/_prompt$/, "")] || 125;
 }
 
 function k2cfMaxPromptTextHeightForKey(key) {
-  // Guard against ComfyUI tab/app restore reflow saving a huge textarea height.
-  // Keep the prompt node usable and prevent SCENE from pushing color slots off-screen.
-  return 360;
+  // Only resize-grip gestures are recorded; large deliberate edits must survive.
+  return 10000;
 }
 
 function k2cfPromptTextHeightInRange(key, h) {
@@ -582,7 +564,7 @@ function k2cfReadNodeSizeState(node, kind) {
   const prop = node?.properties?.[k2cfNodeSizeProp(kind)];
   const configuredProp = kind === "prompt" ? node?.__k2cfConfiguredPromptNodeSize : node?.__k2cfConfiguredCanvasNodeSize;
   const states = [prop, configuredProp].filter((state) => k2cfNormalizeNodeSize(state?.size));
-  if (states.length) return k2cfPickLatestState(states);
+  if (states.length) return k2cfFirstSavedState(states);
   const local = k2cfReadLocalState(node, `${kind}_node_size`);
   return k2cfNormalizeNodeSize(local?.size) ? local : null;
 }
@@ -841,38 +823,6 @@ function installNodePersistenceHooks(node, syncFn, widgetNames, tag) {
 
   const kind = tag.startsWith("k2cfPrompt") ? "prompt" : ("canvas");
 
-  const snapshot = () => {
-    try { node.__k2cfPromptUiSnapshot?.(); } catch (_) {}
-    try { node.__k2cfNodeSizeSnapshot?.(); } catch (_) {}
-    const previous = k2cfBestSavedState(node, kind);
-    syncFn?.(false);
-    const currentValues = k2cfWidgetValues(node, widgetNames);
-    const values = kind === "prompt"
-      ? (node.__k2cfAllowDefaultOverwrite
-        ? k2cfSanitizePromptValues(currentValues)
-        : k2cfSanitizePromptValues(k2cfMergeWithPrevious(widgetNames, currentValues, previous?.widgets_values)))
-      : node.__k2cfAllowDefaultOverwrite
-        ? currentValues
-        : k2cfMergeWithPrevious(widgetNames, currentValues, previous?.widgets_values);
-    if (kind !== "prompt" && !node.__k2cfAllowDefaultOverwrite && !k2cfHasMeaningfulState(values) && previous) {
-      applyConfiguredValuesToWidgets(node, widgetNames, previous.widgets_values);
-      node.properties = node.properties || {};
-      if (kind === "prompt") node.properties.k2cfPromptState = previous;
-      ;
-      if (kind === "canvas") node.properties.k2cfCanvasState = previous;
-      k2cfWriteLocalState(node, kind, previous);
-      return previous.widgets_values.slice();
-    }
-    node.properties = node.properties || {};
-    const state = { version: "v15", widgets_values: values.slice(), saved_at: Date.now() };
-    ;
-    if (kind === "prompt") node.properties.k2cfPromptState = state;
-    ;
-    if (kind === "canvas") node.properties.k2cfCanvasState = state;
-    k2cfWriteLocalState(node, kind, state);
-    return values;
-  };
-
   // Serialization must be read-only. ComfyUI's ChangeTracker captures the live
   // graph before saving; mutating node.properties (especially saved_at) while
   // serialize() is running makes the live canvas immediately newer than the
@@ -891,9 +841,7 @@ function installNodePersistenceHooks(node, syncFn, widgetNames, tag) {
     const currentValues = k2cfWidgetValues(node, widgetNames);
 
     if (kind === "prompt") {
-      return node.__k2cfAllowDefaultOverwrite
-        ? k2cfSanitizePromptValues(currentValues)
-        : k2cfSanitizePromptValues(k2cfMergeWithPrevious(widgetNames, currentValues, previousValues));
+      return k2cfSanitizePromptValues(currentValues);
     }
     ;
     return node.__k2cfAllowDefaultOverwrite
@@ -905,6 +853,9 @@ function installNodePersistenceHooks(node, syncFn, widgetNames, tag) {
     const values = serializedValues();
     if (data) {
       data.widgets_values = values;
+      if (data.widgets_values_named) {
+        for (const [index, name] of widgetNames.entries()) data.widgets_values_named[name] = values[index];
+      }
       // Keep the properties already cloned by ComfyUI; live nested state may be reactive.
       const size = k2cfNormalizeNodeSize(node.size);
       if (size) data.size = size.slice();
@@ -919,38 +870,7 @@ function installNodePersistenceHooks(node, syncFn, widgetNames, tag) {
     return result;
   };
 
-  const appObj = window.comfyAPI?.app?.app || app;
-  const snapshotGraphNodes = () => {
-    try {
-      for (const n of appObj?.graph?._nodes || app?.graph?._nodes || []) {
-        if (n.type !== CANVAS_NODE && n.type !== PROMPT_NODE && n.comfyClass !== CANVAS_NODE && n.comfyClass !== PROMPT_NODE) continue;
-        n.__k2cfPromptUiSnapshot?.(false, false);
-        n.__k2cfNodeSizeSnapshot?.(false);
-        n.__k2cfCanvasSync?.(false);
-        n.__k2cfPromptSync?.(false);
-      }
-    } catch (_) {}
-  };
-  if (appObj && !window.__mossQueuePersistenceInstalledV19) {
-    const originalQueuePrompt = appObj.queuePrompt?.bind(appObj);
-    if (originalQueuePrompt) {
-      appObj.queuePrompt = function () {
-        snapshotGraphNodes();
-        return originalQueuePrompt(...arguments);
-      };
-      window.__mossQueuePersistenceInstalledV19 = true;
-    }
-  }
-  if (appObj && !window.__mossGraphToPromptPersistenceInstalledV19) {
-    const originalGraphToPrompt = appObj.graphToPrompt?.bind(appObj);
-    if (originalGraphToPrompt) {
-      appObj.graphToPrompt = function () {
-        snapshotGraphNodes();
-        return originalGraphToPrompt(...arguments);
-      };
-      window.__mossGraphToPromptPersistenceInstalledV19 = true;
-    }
-  }
+
 }
 
 function k2cfSnapshotAllPromptUi(markDirty = false, allowShrink = false) {
@@ -960,8 +880,6 @@ function k2cfSnapshotAllPromptUi(markDirty = false, allowShrink = false) {
     if (n.type !== CANVAS_NODE && n.type !== PROMPT_NODE && n.comfyClass !== CANVAS_NODE && n.comfyClass !== PROMPT_NODE) continue;
     try { n.__k2cfPromptUiSnapshot?.(markDirty, allowShrink); } catch (_) {}
     try { n.__k2cfNodeSizeSnapshot?.(markDirty); } catch (_) {}
-    try { n.__k2cfCanvasSync?.(false); } catch (_) {}
-    try { n.__k2cfPromptSync?.(false); } catch (_) {}
   }
 }
 
@@ -1043,7 +961,10 @@ const PROMPT_WIDGETS = [
   "red_angle", "blue_angle", "yellow_angle", "green_angle", "magenta_angle",
   "cyan_prompt", "cyan_type", "cyan_framing", "cyan_angle",
   "orange_prompt", "orange_type", "orange_framing", "orange_angle",
+  "red_focus", "blue_focus", "yellow_focus", "green_focus", "magenta_focus", "cyan_focus", "orange_focus",
 ];
+
+const PROMPT_TEXT_WIDGETS = ["scene", "background", ...SLOTS.map(([, , , name]) => name)];
 
 function k2cfIsLegacyRedTestResidue(values) {
   if (!Array.isArray(values) || values.length < 2) return false;
@@ -1057,6 +978,7 @@ function k2cfIsLegacyRedTestResidue(values) {
 function k2cfSanitizePromptValues(values) {
   if (!Array.isArray(values)) return values;
   const next = values.slice();
+  for (let i = 31; i < Math.min(next.length, 38); i++) next[i] = normalizeFocus(next[i]);
   if (k2cfIsLegacyRedTestResidue(next)) next[2] = "";
   if (typeof next[11] === "string" && next[11].trim().startsWith("{")) {
     try {
@@ -1098,12 +1020,12 @@ function stop(ev) {
 }
 
 function k2cfIsWheelInteractiveTarget(target) {
-  const el = target?.closest?.("input, textarea, select, button, option, [contenteditable='true'], .moss-k2cf-overlay, .moss-k2cf-screen");
+  const el = target?.closest?.("input, textarea, select, button, option, label, summary, [contenteditable='true'], .moss-card-options, .moss-k2cf-overlay, .moss-k2cf-screen");
   return !!el;
 }
 
 function k2cfIsPointerInteractiveTarget(target) {
-  const el = target?.closest?.("input, textarea, select, button, option, [contenteditable='true'], .moss-k2cf-overlay, .moss-k2cf-screen, .moss-k2cf-slot-head");
+  const el = target?.closest?.("input, textarea, select, button, option, label, summary, [contenteditable='true'], .moss-card-options, .moss-k2cf-overlay, .moss-k2cf-screen, .moss-k2cf-slot-head");
   return !!el;
 }
 
@@ -1235,6 +1157,7 @@ function k2cfAllowGraphPanOnEmptySpace(wrap) {
     k2cfForwardMouseEventToGraph("mousedown", ev, canvasEl);
 
     const forwardMove = (moveEv) => {
+      if (moveEv.target === canvasEl) return;
       moveEv.preventDefault();
       moveEv.stopPropagation();
       k2cfForwardMouseEventToGraph("mousemove", moveEv, canvasEl);
@@ -1242,9 +1165,9 @@ function k2cfAllowGraphPanOnEmptySpace(wrap) {
     const stopForwarding = (upEv) => {
       upEv.preventDefault();
       upEv.stopPropagation();
-      k2cfForwardMouseEventToGraph("mouseup", upEv, canvasEl);
       window.removeEventListener("mousemove", forwardMove, true);
       window.removeEventListener("mouseup", stopForwarding, true);
+      k2cfForwardMouseEventToGraph("mouseup", upEv, canvasEl);
     };
     window.addEventListener("mousemove", forwardMove, true);
     window.addEventListener("mouseup", stopForwarding, true);
@@ -1293,6 +1216,10 @@ function ensureStyle() {
     .moss-k2cf-rowline{display:flex;gap:5px;align-items:center;flex-wrap:wrap}
     .moss-k2cf-combo-stack{display:flex;flex-direction:column;gap:3px;align-items:stretch;min-width:0}
     .moss-k2cf-btn{background:#303030;color:#ddd;border:1px solid #555;border-radius:5px;padding:3px 8px;cursor:pointer;white-space:nowrap}.moss-k2cf-btn:hover{border-color:#aaa}.moss-k2cf-btn.primary{background:#167d86;border-color:#35d0c8;color:white}.moss-k2cf-btn:disabled{opacity:.35;cursor:not-allowed}
+    .moss-k2cf-btn.moss-canvas-reset{background:#663733;border-color:#b2766b;color:#ffe8df}.moss-k2cf-btn.moss-canvas-reset:hover{background:#7b423b;border-color:#d7a091}
+    .moss-k2cf-btn.moss-canvas-show{background:#304655;border-color:#708c9e;color:#e0edf5}.moss-k2cf-btn.moss-canvas-show[aria-pressed="false"]{background:#2b3038;border-color:#626d7a;color:#b9c2cc}
+    .moss-k2cf-btn.moss-canvas-draw{background:#304442;border-color:#6e8f88;color:#d6e9e2}.moss-k2cf-btn.moss-canvas-draw.primary{background:#375c53;border-color:#a1c8b8;color:#e4fff3}
+    .moss-canvas-reset:focus-visible,.moss-canvas-show:focus-visible,.moss-canvas-draw:focus-visible{outline:2px solid #e9ded3;outline-offset:2px}
     .moss-k2cf-sw{width:24px;height:24px;border-radius:5px;border:2px solid #666;cursor:pointer}.moss-k2cf-sw.active{border-color:#fff;box-shadow:inset 0 0 0 2px #111}
     .moss-k2cf-num{width:68px;background:#202020;color:#eee;border:1px solid #555;border-radius:5px;padding:3px 5px;text-align:right;box-sizing:border-box}
     .moss-k2cf-select,.moss-k2cf-combo{background:#202020;color:#eee;border:1px solid #555;border-radius:5px;padding:3px 5px;box-sizing:border-box;max-width:100%}.moss-k2cf-combo{width:82px}.moss-k2cf-select.user-preset{color:;border-color:}
@@ -1300,6 +1227,9 @@ function ensureStyle() {
     .moss-k2cf-size-label{display:flex;align-items:center;gap:6px}.moss-k2cf-external-badge{padding:1px 5px;border:1px solid #35d0c8;border-radius:999px;color:#35d0c8;font-size:9px;font-weight:700;text-transform:uppercase}.moss-k2cf-external-badge[hidden],.moss-k2cf-override-status[hidden]{display:none}.moss-k2cf-num.external-size{border-color:#35d0c8;box-shadow:0 0 0 1px rgba(53,208,200,.25)}.moss-k2cf-override-status{margin-top:5px;color:#35d0c8;font-size:10.5px;line-height:1.35}.moss-k2cf-override-note{color:#aaa}
     .moss-k2cf-help{display:none;color:#aaa;font-size:10.5px;margin-top:3px}
     .moss-k2cf-panel select{max-width:100%}.moss-k2cf-help .user{color:}
+    .moss-k2cf-prompt-wrap :is(button,select,input,textarea,summary){font-family:inherit}
+    .moss-k2cf-prompt-wrap :is(button,select,input){box-sizing:border-box;border-radius:5px}
+    .moss-k2cf-slot-side :is(button,select,input){height:22px;min-height:22px;font:inherit}
     .moss-k2cf-prompt-wrap{display:flex;flex-direction:column;gap:8px;min-height:0;overflow:auto}
     .moss-k2cf-prompt-top{display:flex;gap:8px;align-items:center;justify-content:space-between;flex-wrap:nowrap}
     .moss-k2cf-language-select{width:72px;min-width:72px}
@@ -1317,8 +1247,44 @@ function ensureStyle() {
     .moss-k2cf-dot{display:inline-block;width:11px;height:11px;border-radius:99px;margin-right:7px}
     .moss-k2cf-text{width:100%;min-height:125px;resize:vertical;background:#151515;color:#eee;border:1px solid #3f3f3f;border-radius:5px;padding:8px;box-sizing:border-box;font:12px monospace}
     .moss-k2cf-scene .moss-k2cf-text{min-height:125px}
-    .moss-k2cf-slot-body{display:grid;grid-template-columns:1fr 132px;gap:8px;align-items:start}
-    .moss-k2cf-slot-side{display:flex;flex-direction:column;gap:7px;align-items:stretch}
+    .moss-k2cf-slot-body{display:grid;grid-template-columns:minmax(0,1fr) 132px;gap:8px;align-items:start;font:11px/14px sans-serif}
+    .moss-k2cf-slot-body>textarea{font:inherit;min-height:170px}
+    .moss-k2cf-slot-head>button{height:22px;min-width:24px;padding:0;line-height:20px}
+    .moss-k2cf-slot-side{display:flex;flex-direction:column;gap:6px;align-items:stretch;min-width:0;font:11px/14px sans-serif}
+    .moss-k2cf-slot-side>label,.moss-k2cf-slot-side>.moss-k2cf-presetbar{display:flex;flex-direction:column;align-items:stretch;gap:2px;min-width:0;height:38px;margin:0}
+    .moss-k2cf-slot-side label{font:inherit;color:#ddd;height:14px;margin:0}
+    .moss-k2cf-slot-side>label{height:38px}
+    .moss-k2cf-slot-side select,.moss-k2cf-slot-side input,.moss-k2cf-slot-side>button{width:100%;max-width:none;min-width:0;box-sizing:border-box}
+    .moss-k2cf-slot-side>button{white-space:nowrap;text-align:center}
+    .moss-k2cf-slot-side input{text-align:left;cursor:text}
+    .moss-box-prompt-bar>.moss-k2cf-help:not([hidden]){display:block;color:#e2c58a}
+    .moss-dialogue-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;margin-top:6px;min-width:0}
+    .moss-dialogue-grid>label{display:flex;flex-direction:column;gap:2px;min-width:0;font-size:11px}
+    .moss-dialogue-grid select,.moss-dialogue-grid input{width:100%;min-width:0;max-width:none;box-sizing:border-box;text-align:left}
+    .moss-dialogue-grid input[type=color]{height:22px;padding:1px}
+    .moss-dialogue-color{display:flex;gap:4px;min-width:0}.moss-dialogue-color input{flex:1;min-width:0}.moss-dialogue-color input[type=color]{flex:0 0 28px;width:28px}
+    .moss-box-prompt-bar{min-height:22px}
+    .moss-shared-defaults.standalone>summary{display:none}
+    .moss-shared-defaults>.moss-k2cf-slot-card+.moss-k2cf-slot-card{margin-top:8px}
+    .moss-card-menu{flex:0 0 24px;height:22px;padding:0;margin:0 4px;font:11px sans-serif}
+    .moss-card-options{position:fixed;inset:auto;margin:0;padding:8px;width:210px;max-width:calc(100vw - 8px);border:1px solid #666;border-radius:5px;background:#222;color:#ddd;font:11px/14px sans-serif;box-sizing:border-box}
+    .moss-card-options>label{display:flex;flex-direction:column;gap:2px;margin-bottom:6px}
+    .moss-card-options input,.moss-card-options select,.moss-card-options button{font:inherit;box-sizing:border-box;height:22px}
+    .moss-card-options input{width:100%;text-align:left}
+    .moss-card-options>button{width:100%;white-space:nowrap}
+    .moss-shared-defaults{margin-top:10px;border-top:1px solid #555;padding-top:6px}.moss-shared-defaults>summary{cursor:pointer;color:#bbb;margin-bottom:6px}
+    .moss-shared-defaults.standalone{margin:0;padding:0;border:0}
+    .moss-dialogue-details{margin-top:7px}.moss-dialogue-details>summary{cursor:pointer;color:#b8cde4}
+    .moss-emoji-dialog{color:#eee;background:#202a31;border:1px solid #6e8a96;border-radius:8px;width:min(460px,94vw);max-height:85vh;padding:10px;font:13px sans-serif}
+    .moss-emoji-dialog::backdrop{background:#0006}
+    .moss-emoji-dialog .emoji-head{display:flex;justify-content:space-between;align-items:center}
+    .moss-emoji-dialog .emoji-tabs{display:flex;gap:4px;flex-wrap:wrap;margin:7px 0}
+    .moss-emoji-dialog button{color:#eee;background:#303b43;border:1px solid #637581;border-radius:4px;cursor:pointer}
+    .moss-emoji-dialog .emoji-tabs button{font-size:11px}
+    .moss-emoji-dialog [aria-pressed=true]{border-color:#6dd8ca;background:#205a52}
+    .moss-emoji-dialog>input{width:100%;box-sizing:border-box;padding:5px;margin-bottom:7px;color:#eee;background:#152027}
+    .moss-emoji-dialog .emoji-grid{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:3px;max-height:48vh;overflow:auto}
+    .moss-emoji-dialog .emoji-grid button{font:26px/1.25 'Segoe UI Emoji','Apple Color Emoji',sans-serif;min-height:38px;padding:2px;background:transparent}
     .moss-k2cf-type{width:92px;max-width:92px;height:28px;background:#202020;color:#ddd;border:1px solid #555;border-radius:5px;padding:3px 6px;font-size:12px;box-sizing:border-box}.moss-k2cf-framing{width:170px;max-width:170px;height:28px;background:#202020;color:#ddd;border:1px solid #555;border-radius:5px;padding:3px 6px;font-size:12px;box-sizing:border-box}
     .moss-k2cf-iconbtn{background:#242424;color:#ddd;border:1px solid #555;border-radius:5px;width:26px;height:24px;cursor:pointer}.moss-k2cf-iconbtn:hover{border-color:#aaa}
     
@@ -1408,8 +1374,6 @@ function setupCanvasNode(node) {
   let isHydrating = false;
   node.__k2cfApplyConfiguredValues = (values) => applyConfiguredValuesToWidgets(node, CANVAS_WIDGETS, values);
   applyConfiguredValuesToWidgets(node, CANVAS_WIDGETS, configuredValues);
-  const savedCanvasState = k2cfBestSavedState(node, "canvas");
-  if (savedCanvasState) applyConfiguredValuesToWidgets(node, CANVAS_WIDGETS, savedCanvasState.widgets_values);
 
   const state = { activeSlot: "red", boxes: [], selectedId: null, selectedIds: [], drawing: null, moving: null, resizing: null, hideBoxes: false, drawMode: false, layoutError: null };
   const externalPreviewSize = { width: null, height: null };
@@ -1486,7 +1450,7 @@ function setupCanvasNode(node) {
       hideBoxes: state.hideBoxes,
       drawMode: state.drawMode
     }));
-    const rawValues = CANVAS_WIDGETS.map((n) => widgets[n]?.value ?? "");
+    const rawValues = CANVAS_WIDGETS.map((n) => widgets[n]?.value ?? (n.endsWith("_focus") ? "Auto" : ""));
     const values = state.layoutError || allowDefaultOverwrite ? rawValues : k2cfMergeWithPrevious(CANVAS_WIDGETS, rawValues, previous?.widgets_values);
     node.widgets_values = values.slice();
     applyConfiguredValuesToWidgets(node, CANVAS_WIDGETS, node.widgets_values);
@@ -1504,8 +1468,7 @@ function setupCanvasNode(node) {
     node.properties = node.properties || {};
     node.properties.k2cfCanvasState = {
       version: "v27",
-      widgets_values: node.widgets_values.slice(),
-      saved_at: Date.now()
+      widgets_values: node.widgets_values.slice()
     };
     k2cfWriteLocalState(node, "canvas", node.properties.k2cfCanvasState);
     node.__k2cfConfiguredWidgetValues = null;
@@ -1517,6 +1480,7 @@ function setupCanvasNode(node) {
     }
     try { app.graph?.setDirtyCanvas?.(true, true); } catch (_) {}
     notifyBoxEdit(node);
+    app.extensionManager?.workflow?.activeWorkflow?.changeTracker?.captureCanvasState();
   }
 
   function restoreCanvasLayout() {
@@ -1546,6 +1510,9 @@ function setupCanvasNode(node) {
   tools.className = "moss-k2cf-tools";
   const showBtn = button("◉ Show Boxes", "Show or hide all D-boxes");
   const drawBtn = button("▭ Draw Box", "Draw D-box");
+  showBtn.classList.add("moss-canvas-show");
+  showBtn.setAttribute("aria-pressed", String(!state.hideBoxes));
+  drawBtn.classList.add("moss-canvas-draw");
   const undoBtn = button("↶", "Undo Canvas edit (Ctrl/Cmd+Z)");
   const redoBtn = button("↷", "Redo Canvas edit (Ctrl/Cmd+Shift+Z or Ctrl+Y)");
   undoBtn.setAttribute("aria-label", "Undo Canvas edit");
@@ -1554,9 +1521,11 @@ function setupCanvasNode(node) {
   redoBtn.addEventListener("click", () => restoreHistory("redo"));
   drawBtn.addEventListener("click", () => { state.drawMode = !state.drawMode; drawBtn.classList.toggle("primary", state.drawMode); sync(); });
   const resetCanvasBtn = button("Reset Canvas", "Reset D-boxes, latent size, guide, and camera settings. Prompts are not changed.");
+  resetCanvasBtn.classList.add("moss-canvas-reset");
   function applyCanvasLabels() {
     const lang = resolveLang(controls.ui_language?.value || "Auto");
     showBtn.textContent = state.hideBoxes ? tr(lang, "hideBoxes") : tr(lang, "showBoxes");
+    showBtn.setAttribute("aria-pressed", String(!state.hideBoxes));
     drawBtn.textContent = tr(lang, "drawBox");
     resetCanvasBtn.textContent = tr(lang, "resetCanvas");
     const headers = wrap.querySelectorAll("h4");
@@ -1583,6 +1552,7 @@ function setupCanvasNode(node) {
   }
   showBtn.addEventListener("click", () => {
     state.hideBoxes = !state.hideBoxes;
+    showBtn.setAttribute("aria-pressed", String(!state.hideBoxes));
     showBtn.textContent = state.hideBoxes ? tr(resolveLang(controls.ui_language?.value || "Auto"), "hideBoxes") : tr(resolveLang(controls.ui_language?.value || "Auto"), "showBoxes");
     drawOverlay();
     sync();
@@ -1659,16 +1629,17 @@ function setupCanvasNode(node) {
   bindHelp(langSelect, "ui_language");
   bindHelp(gridTop, "grid_mode");
   bindHelp(snapBox, "snap"); bindHelp(snapToggle, "snap");
-  toolbar.append(tools, gridBox, snapBox, languageBox);
+  toolbar.append(tools, gridBox);
   gridTop.addEventListener("change", () => { updateGuide(); sync(); });
   langSelect.addEventListener("change", () => { applyCanvasLabels(); sync(); });
   wrap.appendChild(toolbar);
   // DOM-only controls: keep the saved widget order and layout schema unchanged.
   const precisionBar = document.createElement("div");
   precisionBar.className = "moss-k2cf-rowline";
-  precisionBar.style.cssText = "display:flex;visibility:hidden;flex-wrap:wrap;gap:6px;padding:3px 6px";
+  precisionBar.style.cssText = "display:flex;flex-wrap:wrap;gap:6px;padding:3px 6px";
   precisionBar.setAttribute("aria-label", "Selected BBOX geometry");
   const precisionInputs = {};
+  const precisionFields = [];
   for (const [key, label] of [["x", "X"], ["y", "Y"], ["width", "W"], ["height", "H"]]) {
     const field = document.createElement("label");
     field.style.cssText = "display:flex;align-items:center;gap:3px";
@@ -1703,7 +1674,7 @@ function setupCanvasNode(node) {
       if (ev.key === "Enter") { input.blur(); overlay.focus({preventScroll:true}); ev.preventDefault(); }
       if (ev.key === "Escape") { refreshPrecision(true); input.blur(); overlay.focus({preventScroll:true}); ev.preventDefault(); }
     });
-    field.append(input); precisionBar.append(field);
+    field.append(input); precisionBar.append(field); precisionFields.push(field);
   }
   const lockBtn = button("Lock", "Lock selected boxes");
   lockBtn.style.cssText = "width:86px;height:23px;line-height:17px;box-sizing:border-box;overflow:hidden;padding:2px 5px";
@@ -1738,7 +1709,9 @@ function setupCanvasNode(node) {
     for (const b of arranged) Object.assign(state.boxes.find(target => target.id === b.id),b);
     writeBoxes();
   });
-  precisionBar.append(arrangeSelect);
+  snapBox.style.flexWrap = "nowrap";
+  languageBox.style.cssText = "margin-left:auto;flex-wrap:nowrap;white-space:nowrap";
+  precisionBar.append(arrangeSelect, languageBox);
   wrap.appendChild(precisionBar);
   function refreshPrecision(force = false) {
     const selected = selectedBoxes();
@@ -1751,13 +1724,15 @@ function setupCanvasNode(node) {
     }
     const box = state.boxes.find(b => b.id === state.selectedId);
     const visible = box && !state.layoutError && !state.hideBoxes;
-    // Keep the row's space so selection never changes the Canvas geometry.
-    precisionBar.style.visibility = visible ? "visible" : "hidden";
-    if (!visible) return;
-    const allLocked = selectedBoxes().every(b => b.locked === true);
+    // Only geometry fields depend on selection; Snap and language stay usable.
+    // Visibility keeps the reserved space and Canvas geometry unchanged.
+    for (const field of precisionFields) field.style.visibility = visible ? "visible" : "hidden";
+    lockBtn.disabled = !visible || !!pointerStart;
+    const allLocked = !!visible && selected.every(b => b.locked === true);
     lockBtn.textContent = resolveLang(controls.ui_language?.value || "Auto") === "ja"
       ? (allLocked ? "🔓 解除" : "🔒 ロック") : (allLocked ? "🔓 Unlock" : "🔒 Lock");
     lockBtn.setAttribute("aria-pressed", String(allLocked));
+    if (!visible) return;
     const [x,y,x2,y2] = normBox(box);
     for (const [key,value] of Object.entries({x,y,width:x2-x,height:y2-y})) {
       precisionInputs[key].disabled = box.locked === true;
@@ -2317,6 +2292,7 @@ function setupCanvasNode(node) {
     canFit: () => !state.layoutError && !pointerStart && !linkedInputInfo("width_override") && !linkedInputInfo("height_override"),
     language: () => resolveLang(controls.ui_language?.value || "Auto"),
   });
+  reference.element.append(snapBox);
   wrap.insertBefore(reference.element, precisionBar);
   const oldExecuted = node.onExecuted;
   node.onExecuted = function(message) {
@@ -2393,27 +2369,37 @@ function setupCanvasNode(node) {
     refreshPrecision();
     overlayCtx.clearRect(0, 0, overlay.width, overlay.height);
     if (state.hideBoxes) return;
-    for (const b of state.boxes) drawBox(b, state.selectedIds.includes(b.id));
+    for (const b of state.boxes) drawBox(b);
+    for (const b of selectedBoxes()) drawSelection(b);
     if (state.drawing) drawBox(state.drawing, true);
   }
   function drawBox(b, selected=false) {
     const [x1,y1,x2,y2] = normBox(b), color = colorFor(b.slot);
     overlayCtx.save();
-    overlayCtx.globalAlpha = selected ? 0.23 : 0.14; overlayCtx.fillStyle = color; overlayCtx.fillRect(x1,y1,x2-x1,y2-y1);
-    overlayCtx.globalAlpha = 1; overlayCtx.lineWidth = selected ? 4 : 3; overlayCtx.strokeStyle = selected ? "#fff" : color; overlayCtx.strokeRect(x1,y1,x2-x1,y2-y1);
-    const label = `${state.boxes.length > 7 || b.promptData ? '#' + (state.boxes.indexOf(b) + 1) + ' ' : ''}${String(b.slot||'').toUpperCase()}`;
+    overlayCtx.globalAlpha = 0.14; overlayCtx.fillStyle = color; overlayCtx.fillRect(x1,y1,x2-x1,y2-y1);
+    overlayCtx.globalAlpha = 1; overlayCtx.lineWidth = 3; overlayCtx.strokeStyle = color; overlayCtx.strokeRect(x1,y1,x2-x1,y2-y1);
+    const name = b.promptData?.name;
+    const label = `${name && !/^box_\d+_\d+$/.test(name) ? name + ' · ' : ''}${String(b.slot||'').toUpperCase()}`;
     overlayCtx.fillStyle = color; overlayCtx.fillRect(x1, Math.max(0,y1-28), Math.max(76,label.length*12), 28);
     overlayCtx.fillStyle = "#fff"; overlayCtx.font = "bold 18px sans-serif"; overlayCtx.fillText(label, x1+8, Math.max(18,y1-8));
     overlayCtx.fillStyle = color; overlayCtx.beginPath(); overlayCtx.arc(x2, y1, 18, 0, Math.PI*2); overlayCtx.fill();
     overlayCtx.fillStyle = "#fff"; overlayCtx.font = "bold 24px sans-serif"; overlayCtx.fillText(b.locked === true ? "🔒" : "×", x2-7, y1+8);
     overlayCtx.restore();
+    if (selected) drawSelection(b);
+  }
+  function drawSelection(b) {
+    const [x1,y1,x2,y2] = normBox(b);
+    overlayCtx.save();overlayCtx.globalAlpha=1;overlayCtx.lineWidth=2;overlayCtx.strokeStyle="#fff";
+    overlayCtx.strokeRect(x1-3,y1-3,x2-x1+6,y2-y1+6);overlayCtx.restore();
   }
   function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
-  function point(ev) {
+  function point(ev, clampToFrame = true) {
     const r = overlay.getBoundingClientRect();
+    const p = { x: (ev.clientX-r.left)*overlay.width/Math.max(r.width,1),
+                y: (ev.clientY-r.top)*overlay.height/Math.max(r.height,1) };
+    if (!clampToFrame) return p;
     const f = frameBounds();
-    return { x: clamp((ev.clientX-r.left)*overlay.width/Math.max(r.width,1), f.minX, f.maxX),
-             y: clamp((ev.clientY-r.top)*overlay.height/Math.max(r.height,1), f.minY, f.maxY) };
+    return { x: clamp(p.x, f.minX, f.maxX), y: clamp(p.y, f.minY, f.maxY) };
   }
   function frameBounds() {
     const [w, h] = currentSize();
@@ -2555,6 +2541,11 @@ function setupCanvasNode(node) {
     if (!state.drawMode) selectBoxes([]);
     state.drawing={id:newBoxId(),slot:state.activeSlot,x1:p.x,y1:p.y,x2:p.x,y2:p.y};
   });
+  const selectionMenu = mountBoxSelectionMenu(overlay, {
+    boxes: () => state.layoutError || state.hideBoxes || pointerStart ? [] : state.boxes,
+    point: event => point(event, false), color: colorFor, language: () => resolveLang(controls.ui_language?.value || "Auto"),
+    select: id => { selectBoxes([id]); drawOverlay(); },
+  });
   overlay.addEventListener("pointermove", (ev)=>{
     const p=point(ev);
     if(altDrag && !altDrag.created){
@@ -2635,8 +2626,6 @@ function setupCanvasNode(node) {
     altDrag = null;
     state.drawing = state.moving = state.resizing = null;
     selectBoxes([]);
-    const savedState = k2cfBestSavedState(node, "canvas");
-    if (savedState) applyConfiguredValuesToWidgets(node, CANVAS_WIDGETS, savedState.widgets_values);
     try {
       width.value = String(widgets.width?.value || DEFAULT_WIDTH);
       height.value = String(widgets.height?.value || DEFAULT_HEIGHT);
@@ -2698,7 +2687,7 @@ function setupCanvasNode(node) {
     read: () => ({boxes: structuredClone(state.boxes), selectedId: state.selectedId, canUndo: history.canUndo, canRedo: history.canRedo}),
     select: id => { if (!state.layoutError && state.boxes.some(b => b.id === id)) { selectBoxes([id]); drawOverlay(); refreshPrecision(); } },
     update: (id, value) => {
-      if (state.layoutError || pointerStart) return;
+      if (state.layoutError) return;
       const box = state.boxes.find(b => b.id === id);
       if (!box) return;
       if (value == null) delete box.promptData;
@@ -2742,6 +2731,7 @@ function setupCanvasNode(node) {
   const oldResize=node.onResize; node.onResize=function(){ const r = oldResize?.apply(this,arguments); scheduleCanvasRefresh(false); return r; };
   const oldRemoved=node.onRemoved; node.onRemoved=function(){
     delete node.__mossBoxEditor;
+    selectionMenu.dispose();
     notifyBoxEdit(node);
     reference.dispose();
     window.removeEventListener("keydown", onCanvasKeyDown, true);
@@ -2781,10 +2771,10 @@ function setupPromptNode(node) {
   let isHydrating = false;
   node.__k2cfApplyConfiguredValues = (values) => applyConfiguredValuesToWidgets(node, PROMPT_WIDGETS, values);
   applyConfiguredValuesToWidgets(node, PROMPT_WIDGETS, configuredValues);
-  const savedPromptState = k2cfBestSavedState(node, "prompt");
-  if (savedPromptState) applyConfiguredValuesToWidgets(node, PROMPT_WIDGETS, savedPromptState.widgets_values);
 
   const controls = {};
+  const textHeightDisposers = [];
+  const focusReady = SLOTS.every(([slot]) => widgets[`${slot}_focus`]);
   function setWidget(name, value) {
     const w = widgets[name];
     if (!w) return;
@@ -2796,47 +2786,46 @@ function setupPromptNode(node) {
   function sync(allowDefaultOverwrite = true) {
     if (isHydrating) return;
     try { captureCurrentTextHeights(false); } catch (_) {}
-    const previous = k2cfBestSavedState(node, "prompt");
     node.__k2cfSkipLocalPromptState = false;
     node.__k2cfAllowDefaultOverwrite = allowDefaultOverwrite;
     for (const name of PROMPT_WIDGETS) if (controls[name]) setWidget(name, controls[name].value ?? "");
-    const rawValues = k2cfSanitizePromptValues(PROMPT_WIDGETS.map((n) => widgets[n]?.value ?? ""));
-    const values = allowDefaultOverwrite ? rawValues : k2cfSanitizePromptValues(k2cfMergeWithPrevious(PROMPT_WIDGETS, rawValues, previous?.widgets_values));
+    savePromptUiState(false);
+    const rawValues = k2cfSanitizePromptValues(PROMPT_WIDGETS.map((n) => widgets[n]?.value ?? (n.endsWith("_focus") ? "Auto" : "")));
+    const values = rawValues;
     node.widgets_values = values.slice();
     applyConfiguredValuesToWidgets(node, PROMPT_WIDGETS, node.widgets_values);
     node.properties = node.properties || {};
     node.properties.k2cfPromptState = {
       version: "v27",
-      widgets_values: node.widgets_values.slice(),
-      saved_at: Date.now()
+      widgets_values: node.widgets_values.slice()
     };
     k2cfWriteLocalState(node, "prompt", node.properties.k2cfPromptState);
     node.__k2cfConfiguredWidgetValues = null;
     try { app.graph?.setDirtyCanvas?.(true, true); } catch (_) {}
     notifyBoxEdit(node);
+    app.extensionManager?.workflow?.activeWorkflow?.changeTracker?.captureCanvasState();
   }
 
   const defaultPromptUiState = () => ({
     version: "prompt_ui_element_v1",
     heightCaptureMode: K2CF_PROMPT_HEIGHT_CAPTURE_MODE,
-    textHeights: Object.fromEntries(SLOTS.map(([, , , name]) => [name, 125])),
+    textHeights: Object.fromEntries(SLOTS.map(([, , , name]) => [name, k2cfDefaultTextHeightForKey(name)])),
     textHeightManual: Object.fromEntries(SLOTS.map(([, , , name]) => [name, true])),
     slotOpen: { red: true, blue: true, yellow: false, green: false, magenta: false, cyan: false, orange: false },
     scenePreset: "",
     slotPreset: {},
     slotValues: {},
-    saved_at: Date.now(),
   });
   const promptUiWidgetState = k2cfReadJsonObject(widgets.prompt_ui_data?.value);
   const workflowPromptUiCandidates = [
+    promptUiWidgetState,
     node.properties?.k2cfPromptUiState,
-    node.__k2cfConfiguredPromptUiState,
-    promptUiWidgetState
+    node.__k2cfConfiguredPromptUiState
   ].filter((state) => k2cfPromptUiHasMeaningfulState(state));
   const localPromptUiState = k2cfReadLocalState(node, "prompt_ui");
   const promptUiCandidates = workflowPromptUiCandidates.length ? workflowPromptUiCandidates
     : [localPromptUiState].filter((state) => k2cfPromptUiHasMeaningfulState(state));
-  const storedPromptUiState = k2cfPickLatestState(promptUiCandidates) || {};
+  const storedPromptUiState = k2cfFirstSavedState(promptUiCandidates) || {};
   const promptUiState = defaultPromptUiState();
   Object.assign(promptUiState, storedPromptUiState);
   const storedHeightCaptureMode = storedPromptUiState.heightCaptureMode || "";
@@ -2847,25 +2836,27 @@ function setupPromptNode(node) {
   promptUiState.slotPreset = Object.assign({}, storedPromptUiState.slotPreset || {});
   promptUiState.slotValues = Object.assign({}, storedPromptUiState.slotValues || {});
   const textStyles = {};
+  const cardOptions = [];
+  const beforeTextRemoved=node.onRemoved;
+  node.onRemoved=function(){for(const options of cardOptions)options.dispose();for(const style of Object.values(textStyles))style.dispose();return beforeTextRemoved?.apply(this,arguments);};
   function capturePromptSlotValues() {
     promptUiState.slotValues = promptUiState.slotValues || {};
     for (const [slot, label, color, promptName, typeName, framingName, angleName] of SLOTS) {
+      const focus = normalizeFocus(controls[`${slot}_focus`]?.value ?? widgets[`${slot}_focus`]?.value);
       promptUiState.slotValues[slot] = {
         type: controls[typeName]?.value || widgets[typeName]?.value || "obj",
         framing: controls[framingName]?.value || widgets[framingName]?.value || "Auto",
         angle: controls[angleName]?.value || widgets[angleName]?.value || "Auto",
+        focus,
         textStyle: textStyles[slot]?.get() || promptUiState.slotValues[slot]?.textStyle || {mode:"common"},
       };
     }
   }
   function selectValueWithStored(widgetValue, storedValue, fallback) {
-    const w = String(widgetValue || fallback);
-    const s = String(storedValue || fallback);
-    return w !== fallback ? w : s;
+    return String(widgetValue ?? storedValue ?? fallback);
   }
   function savePromptUiState(markDirty = true) {
     capturePromptSlotValues();
-    promptUiState.saved_at = Date.now();
     node.properties = node.properties || {};
     node.properties.k2cfPromptUiState = {
       version: "prompt_ui_element_v1",
@@ -2877,14 +2868,14 @@ function setupPromptNode(node) {
       slotPreset: Object.assign({}, promptUiState.slotPreset),
       slotValues: Object.assign({}, promptUiState.slotValues || {}),
       boxCards: promptUiState.boxCards ? structuredClone(promptUiState.boxCards) : undefined,
-      saved_at: promptUiState.saved_at,
     };
     const serializedPromptUiState = JSON.stringify(node.properties.k2cfPromptUiState);
     setWidget("prompt_ui_data", serializedPromptUiState);
-    node.widgets_values = k2cfSanitizePromptValues(PROMPT_WIDGETS.map((n) => widgets[n]?.value ?? ""));
+    node.widgets_values = k2cfSanitizePromptValues(PROMPT_WIDGETS.map((n) => widgets[n]?.value ?? (n.endsWith("_focus") ? "Auto" : "")));
     k2cfWriteLocalState(node, "prompt_ui", node.properties.k2cfPromptUiState);
     if (markDirty) {
       try { app.graph?.setDirtyCanvas?.(true, true); } catch (_) {}
+      app.extensionManager?.workflow?.activeWorkflow?.changeTracker?.captureCanvasState();
     }
   }
   function mergePromptUiState(state) {
@@ -2917,17 +2908,16 @@ function setupPromptNode(node) {
   }
   function refreshPromptUiState() {
     const states = [
+      k2cfReadJsonObject(widgets.prompt_ui_data?.value),
       node.properties?.k2cfPromptUiState,
-      node.__k2cfConfiguredPromptUiState,
-      k2cfReadJsonObject(widgets.prompt_ui_data?.value)
+      node.__k2cfConfiguredPromptUiState
     ].filter((state) => k2cfPromptUiHasMeaningfulState(state));
     if (!states.length) {
       const local = k2cfReadLocalState(node, "prompt_ui");
       if (k2cfPromptUiHasMeaningfulState(local)) states.push(local);
     }
     if (!states.length) return;
-    states.sort((a, b) => Number(a.saved_at || 0) - Number(b.saved_at || 0));
-    for (const state of states) mergePromptUiState(state);
+    mergePromptUiState(states[0]);
   }
   function readPresetList(key) {
     try {
@@ -2969,6 +2959,7 @@ function setupPromptNode(node) {
   }
 
   function applySavedTextHeight(key, el) {
+    if (el.__k2cfResizingTextHeight) return;
     const stored = Math.round(Number(promptUiState.textHeights?.[key] || 0) || 0);
     const manual = Boolean(promptUiState.textHeightManual?.[key]);
     const h = manual && k2cfPromptTextHeightInRange(key, stored) ? stored : k2cfDefaultTextHeightForKey(key);
@@ -2979,102 +2970,47 @@ function setupPromptNode(node) {
   }
 
   function applyAllSavedTextHeights() {
-    applySavedTextHeight("scene", sceneText);
-    applySavedTextHeight("background", backgroundText);
-    for (const [, , , promptName] of SLOTS) {
-      if (controls[promptName]) applySavedTextHeight(promptName, controls[promptName]);
-    }
-  }
-
-  function scheduleApplyAllSavedTextHeights() {
-    applyAllSavedTextHeights();
-    try { requestAnimationFrame(() => applyAllSavedTextHeights()); } catch (_) {}
-    try { requestAnimationFrame(() => requestAnimationFrame(() => applyAllSavedTextHeights())); } catch (_) {}
-    setTimeout(() => applyAllSavedTextHeights(), 80);
-    setTimeout(() => applyAllSavedTextHeights(), 240);
+    for (const name of PROMPT_TEXT_WIDGETS) if (controls[name]) applySavedTextHeight(name, controls[name]);
   }
 
   function bindTextHeight(key, el) {
     applySavedTextHeight(key, el);
-    let heightTimer = null;
-    let isResizeGripDrag = false;
-    let lastPointerAt = 0;
-
-    const eventPoint = (ev) => {
-      const t = ev?.touches?.[0] || ev?.changedTouches?.[0] || ev;
-      return {
-        x: Number(t?.clientX || 0),
-        y: Number(t?.clientY || 0),
-      };
+    let resizing = false;
+    const startResize = event => {
+      const point = event.touches?.[0] || event;
+      const rect = el.getBoundingClientRect();
+      if (!Number.isFinite(point.clientX) || !Number.isFinite(point.clientY)) return;
+      if (point.clientX < rect.right - 28 || point.clientX > rect.right + 8 ||
+          point.clientY < rect.bottom - 28 || point.clientY > rect.bottom + 8) return;
+      resizing = true;
+      el.__k2cfResizingTextHeight = true;
     };
-
-    const isResizeGripEvent = (ev) => {
-      try {
-        const rect = el.getBoundingClientRect();
-        const p = eventPoint(ev);
-        if (!rect || !p.x || !p.y) return false;
-        // Native textarea resize handle is bottom-right in ComfyUI/Chromium.
-        // Only this area is allowed to create persistent manual height.
-        return p.x >= rect.right - 28 && p.x <= rect.right + 8 &&
-               p.y >= rect.bottom - 28 && p.y <= rect.bottom + 8;
-      } catch (_) {
-        return false;
-      }
+    const stopResize = () => {
+      if (!resizing) return;
+      saveObservedTextHeight(key, el, true, true);
+      resizing = false;
+      el.__k2cfResizingTextHeight = false;
     };
-
-    const canShrinkNow = () => Boolean(isResizeGripDrag) && (Date.now() - lastPointerAt < 3500);
-
-    const saveHeight = (force = false, allowShrink = false, manual = false) => {
-      if (!force && !isResizeGripDrag) return;
-      saveObservedTextHeight(key, el, allowShrink || canShrinkNow(), Boolean(manual && isResizeGripDrag));
-    };
-
-    const startWatchingHeight = (ev) => {
-      if (!isResizeGripEvent(ev)) return;
-      isResizeGripDrag = true;
-      lastPointerAt = Date.now();
-      saveHeight(true, canShrinkNow(), true);
-      if (heightTimer) window.clearInterval(heightTimer);
-      heightTimer = window.setInterval(() => saveHeight(true, canShrinkNow(), true), 120);
-    };
-
-    const stopWatchingHeight = () => {
-      if (!isResizeGripDrag) return;
-      if (heightTimer) {
-        window.clearInterval(heightTimer);
-        heightTimer = null;
-      }
-      setTimeout(() => saveHeight(true, canShrinkNow(), true), 0);
-      setTimeout(() => {
-        saveHeight(true, canShrinkNow(), true);
-        isResizeGripDrag = false;
-      }, 160);
-    };
-
-    if (window.MutationObserver) {
-      const mo = new MutationObserver(() => {
-        if (isResizeGripDrag) saveHeight(false, false, true);
-      });
-      mo.observe(el, { attributes: true, attributeFilter: ["style"] });
-    }
-
-    el.addEventListener("pointerdown", startWatchingHeight);
-    el.addEventListener("mousedown", startWatchingHeight);
-    el.addEventListener("touchstart", startWatchingHeight, { passive: true });
-
-    // Text edits must not persist visual height. Text value sync is handled separately.
-    el.addEventListener("input", () => {});
-    el.addEventListener("change", () => {});
-    el.addEventListener("keyup", () => {});
-    el.addEventListener("blur", () => {});
-
-    window.addEventListener("pointerup", stopWatchingHeight);
-    window.addEventListener("mouseup", stopWatchingHeight);
-    window.addEventListener("touchend", stopWatchingHeight);
+    const stopWhenHidden = () => { if (document.hidden) stopResize(); };
+    for (const event of ["pointerdown", "mousedown", "touchstart"]) el.addEventListener(event, startResize);
+    const endEvents = ["pointerup", "mouseup", "touchend", "blur", "pagehide", "pointercancel", "touchcancel"];
+    for (const event of endEvents) window.addEventListener(event, stopResize);
+    document.addEventListener("visibilitychange", stopWhenHidden);
+    textHeightDisposers.push(() => {
+      resizing = false;
+      el.__k2cfResizingTextHeight = false;
+      for (const event of ["pointerdown", "mousedown", "touchstart"]) el.removeEventListener(event, startResize);
+      for (const event of endEvents) window.removeEventListener(event, stopResize);
+      document.removeEventListener("visibilitychange", stopWhenHidden);
+    });
   }
 
   const wrap = document.createElement("div");
   wrap.className = "moss-k2cf-prompt-wrap";
+  const focusRestartNote = document.createElement("div");
+  focusRestartNote.className = "moss-k2cf-note";
+  focusRestartNote.hidden = focusReady;
+  wrap.append(focusRestartNote);
   k2cfAllowWheelZoomOnEmptySpace(wrap);
   k2cfAllowGraphPanOnEmptySpace(wrap);
   const promptLangBar = document.createElement("div");
@@ -3099,28 +3035,24 @@ function setupPromptNode(node) {
   sceneLabel.textContent = tr(resolveLang(promptLangSelect.value), "scene");
   const sceneText = document.createElement("textarea");
   sceneText.className = "moss-k2cf-text";
+  sceneText.dataset.jpAssistFormat = "prompt";
   sceneText.placeholder = tr(resolveLang(promptLangSelect.value), "scenePlaceholder");
   sceneText.value = widgets.scene?.value || "";
   bindHelp(sceneText, "scene");
   controls.scene = sceneText;
   k2cfAttachPyssssAutocomplete(sceneText);
 
+  const backgroundLabel = document.createElement("label");
+  backgroundLabel.textContent = tr(resolveLang(promptLangSelect.value), "background");
   const backgroundText = document.createElement("textarea");
+  backgroundText.setAttribute("aria-label", "Background prompt");
+  backgroundText.dataset.jpAssistFormat = "prompt";
   backgroundText.className = "moss-k2cf-text";
   backgroundText.placeholder = tr(resolveLang(promptLangSelect.value), "backgroundPlaceholder");
   backgroundText.value = widgets.background?.value || "";
   bindHelp(backgroundText, "background");
   controls.background = backgroundText;
   k2cfAttachPyssssAutocomplete(backgroundText);
-  sceneText.addEventListener("input", sync);
-  backgroundText.addEventListener("input", sync);
-  sceneText.addEventListener("change", sync);
-  sceneText.addEventListener("blur", sync);
-  sceneText.addEventListener("compositionend", sync);
-  sceneText.addEventListener("change", sync);
-  sceneText.addEventListener("blur", sync);
-  sceneText.addEventListener("compositionend", sync);
-  bindTextHeight("scene", sceneText);
   const scenePresetBar = document.createElement("div");
   scenePresetBar.className = "moss-k2cf-presetbar";
   const scenePresetLabel = document.createElement("label");
@@ -3136,7 +3068,7 @@ function setupPromptNode(node) {
   scenePresetBar.append(scenePresetLabel, scenePresetSelect, sceneSave, sceneLoad, sceneDelete);
   promptLangBar.append(promptLangGroup, scenePresetBar);
   wrap.appendChild(promptLangBar);
-  scene.append(sceneLabel, sceneText);
+  scene.append(sceneLabel, sceneText, backgroundLabel, backgroundText);
   wrap.appendChild(scene);
   const promptCards = [];
   const promptPresetSelects = [];
@@ -3169,17 +3101,21 @@ function setupPromptNode(node) {
       if (item.framingSelect) item.framingSelect.title = tr(lang, "framingHelp");
       if (item.framingLabel) item.framingLabel.textContent = tr(lang, "framing");
       if (item.framingLabel) item.framingLabel.title = tr(lang, "framingHelp");
-      if (item.angleSelect) item.angleSelect.title = tr(lang, "angleHelp");
+      if (item.angleSelect) { item.angleSelect.title = tr(lang, "angleHelp"); localizeCameraSelect(item.angleSelect, lang); }
+      focusRestartNote.textContent = lang === "ja" ? "新Angle／Focusを使うにはComfyUIを再起動し、ブラウザーを更新してください。" : "Restart ComfyUI and reload the browser to enable the new Angle / Focus settings.";
+      if (item.focusSelect) localizeCameraSelect(item.focusSelect, lang);
+      if (item.focusLabel) item.focusLabel.textContent=lang==="ja"?"フォーカス":"Focus";
+      if (item.focusRow) item.focusRow.style.display = "";
       if (item.angleLabel) item.angleLabel.textContent = tr(lang, "angle");
       if (item.angleLabel) item.angleLabel.title = tr(lang, "angleHelp");
-      item.ta.placeholder = tr(lang, "enterPrompt").replace("{label}", item.label);
+      item.ta.placeholder = lang==="ja"?"プロンプト":"Prompt";
       if (item.del) item.del.title = tr(lang, "clearPrompt");
       if (item.presetLabel) item.presetLabel.textContent = tr(lang, "promptPreset");
       if (item.save) item.save.textContent = tr(lang, "save");
       if (item.load) item.load.textContent = tr(lang, "loadPreset");
       if (item.deletePreset) item.deletePreset.textContent = tr(lang, "deletePreset");
       if (item.applyOpen) item.applyOpen();
-      item.textStyle?.refresh();
+      item.refreshFields?.();item.textStyle?.refresh();
     }
   }
   promptLangSelect.addEventListener("change", () => {
@@ -3256,22 +3192,28 @@ function setupPromptNode(node) {
     if (!widgets[promptName]) continue;
     const card = document.createElement("div");
     card.className = "moss-k2cf-slot-card";
+    card.style.borderLeft = `3px solid ${color}`;
     const head = document.createElement("div");
     head.className = "moss-k2cf-slot-head";
+    head.style.gap = "6px";
     head.title = tr(resolveLang(promptLangSelect.value), "slotHeaderHelp").replace("{label}", label);
     const left = document.createElement("div");
     left.className = "moss-k2cf-slot-head-left";
+    left.style.flex = "1";left.style.minWidth = "0";
     left.innerHTML = `<span class="moss-k2cf-dot" style="background:${color}"></span>${label}`;
-    const foldMark = document.createElement("span");
-    foldMark.className = "moss-k2cf-foldmark";
-    left.appendChild(foldMark);
-    head.append(left);
+    const foldMark = document.createElement("button");
+    foldMark.type = "button";
+    foldMark.className = "moss-k2cf-btn moss-k2cf-foldmark";
+    foldMark.style.color = color;
+    foldMark.setAttribute("aria-label", `Expand/collapse ${label}`);
+    bindHelp(foldMark, "fold");
+    head.append(left, foldMark);
 
     const body = document.createElement("div");
     body.className = "moss-k2cf-slot-body";
     const ta = document.createElement("textarea");
     ta.className = "moss-k2cf-text";
-    ta.placeholder = tr(resolveLang(promptLangSelect.value), "enterPrompt").replace("{label}", label);
+    ta.placeholder = resolveLang(promptLangSelect.value)==="ja"?"プロンプト":"Prompt";
     ta.title = tr(resolveLang(promptLangSelect.value), "slotPromptHelp");
     ta.value = widgets[promptName]?.value || "";
     controls[promptName] = ta;
@@ -3292,16 +3234,29 @@ function setupPromptNode(node) {
     angleSelect.className = "moss-k2cf-framing";
     angleSelect.title = tr(resolveLang(promptLangSelect.value), "angleHelp");
     for (const value of ANGLE_OPTIONS) angleSelect.appendChild(option(value, value));
+    if (!focusReady) for (const op of angleSelect.options) if (ANGLE_OPTIONS.indexOf(op.value) >= 24) op.disabled = true;
     angleSelect.value = widgets[angleName]?.value || "Auto";
     controls[angleName] = angleSelect;
-    ta.addEventListener("input", sync);
-    ta.addEventListener("change", sync);
-    ta.addEventListener("blur", sync);
-    ta.addEventListener("compositionend", sync);
-    bindTextHeight(promptName, ta);
-    typeSelect.addEventListener("change", () => { textStyles[slot]?.refresh(); sync(); savePromptUiState(); });
-    framingSelect.addEventListener("change", () => { sync(); savePromptUiState(); });
-    angleSelect.addEventListener("change", () => { sync(); savePromptUiState(); });
+    const focusSelect = document.createElement("select");
+    focusSelect.className = "moss-k2cf-framing";
+    focusSelect.disabled = !focusReady;
+    focusSelect.setAttribute("aria-label", `${slot} Focus`);
+    for (const value of FOCUS_OPTIONS) focusSelect.appendChild(option(value, value));
+    focusSelect.value = normalizeFocus(widgets[`${slot}_focus`]?.value);
+    controls[`${slot}_focus`] = focusSelect;
+    const focusRow = document.createElement("div"), focusLabel = document.createElement("label");
+    focusRow.className = "moss-k2cf-presetbar";
+    focusLabel.textContent = "Focus";
+    focusRow.append(focusLabel, focusSelect);
+    bindHelp(focusSelect, "focus"); bindHelp(focusLabel, "focus");
+    for (const eventName of ["input", "change"]) focusSelect.addEventListener(eventName, () => { normalizeFocus(focusSelect.value); sync(); });
+    function refreshFields() {
+      const text=typeSelect.value==='text';
+      framingSelect.disabled=text;angleSelect.disabled=text;focusSelect.disabled=!focusReady||text;
+    }
+    for (const eventName of ["input", "change"]) typeSelect.addEventListener(eventName, () => { refreshFields();textStyles[slot]?.refresh();sync(); });
+    for (const eventName of ["input", "change"]) framingSelect.addEventListener(eventName, () => { sync(); });
+    for (const eventName of ["input", "change"]) angleSelect.addEventListener(eventName, () => { sync(); });
     const presetRow = document.createElement("div");
     presetRow.className = "moss-k2cf-presetbar";
     const promptPresetSelect = document.createElement("select");
@@ -3344,12 +3299,13 @@ function setupPromptNode(node) {
     typeRow.append(typeLabel, typeSelect);
     framingRow.append(framingLabel, framingSelect);
     angleRow.append(angleLabel, angleSelect);
-    side.append(typeRow, framingRow, angleRow);
+    side.append(typeRow, framingRow, angleRow, focusRow);
     body.append(ta, side);
     const textStyle = mountTextStyle(slot, {
+      prompt: ta,
       type: () => typeSelect.value,
       language: () => resolveLang(promptLangSelect.value),
-      changed: () => { savePromptUiState(); sync(); },
+      changed: sync,
     });
     textStyles[slot] = textStyle;
     textStyle.set(promptUiState.slotValues[slot]?.textStyle);
@@ -3359,11 +3315,21 @@ function setupPromptNode(node) {
       const open = promptUiState.slotOpen[slot] !== false;
       card.classList.toggle("collapsed", !open);
       foldMark.textContent = open ? "▼" : "▶";
+      foldMark.setAttribute("aria-expanded", String(open));
     }
-    head.addEventListener("click", (ev) => {
+    foldMark.addEventListener("click", (ev) => {
+      ev.stopPropagation();
       promptUiState.slotOpen[slot] = !(promptUiState.slotOpen[slot] !== false);
       applyOpen();
       savePromptUiState();
+    });
+    head.tabIndex = 0;
+    head.setAttribute("role", "button");
+    head.addEventListener("click", () => boxPrompts.selectColor(slot));
+    head.addEventListener("keydown", event => {
+      if (event.target === head && (event.key === "Enter" || event.key === " ")) {
+        event.preventDefault();boxPrompts.selectColor(slot);
+      }
     });
     promptPresetSelect.addEventListener("change", () => {
       promptUiState.slotPreset[slot] = selectedPresetValue(promptPresetSelect);
@@ -3375,7 +3341,7 @@ function setupPromptNode(node) {
       if (!name) return;
       const presets = readPresetList(PROMPT_SLOT_PRESET_KEY).filter((p) => p.name !== name);
       const height = promptUiState.textHeights[promptName] || k2cfElementPixelHeight(ta);
-      presets.push({ name, text: ta.value || "", height });
+      presets.push({ name, text: ta.value || "", height, focus: normalizeFocus(focusSelect.value) });
       writePresetList(PROMPT_SLOT_PRESET_KEY, presets);
       promptUiState.slotPreset[slot] = name;
       promptUiState.textHeights[promptName] = height;
@@ -3387,14 +3353,15 @@ function setupPromptNode(node) {
       const selected = selectedPresetValue(promptPresetSelect);
       const preset = readPresetList(PROMPT_SLOT_PRESET_KEY).find((p) => p.name === selected);
       if (!preset) return;
+      const nextFocus = presetFocus(preset, focusSelect.value);
       ta.value = preset.text || "";
+      focusSelect.value = nextFocus;
       if (Number(preset.height) >= 45) {
         promptUiState.textHeights[promptName] = Number(preset.height);
         promptUiState.textHeightManual[promptName] = true;
         applySavedTextHeight(promptName, ta);
       }
       sync();
-      savePromptUiState();
     });
     promptDelete.addEventListener("click", () => {
       const selected = selectedPresetValue(promptPresetSelect);
@@ -3415,7 +3382,7 @@ function setupPromptNode(node) {
       ta,
       typeSelect,
       framingSelect,
-      angleSelect,
+      angleSelect, focusSelect, focusRow, focusLabel, refreshFields,
       typeLabel,
       framingLabel,
       angleLabel,
@@ -3424,7 +3391,14 @@ function setupPromptNode(node) {
       applyOpen,
     });
     card.append(head, body);
+    const options=mountCardOptions(card,head,slot);options.popup.append(presetRow,presetButtons);cardOptions.push(options);
     wrap.appendChild(card);
+  }
+  for (const name of PROMPT_TEXT_WIDGETS) {
+    const field = controls[name];
+    if (!field) continue;
+    for (const event of ["input", "change", "blur", "compositionend"]) field.addEventListener(event, sync);
+    bindTextHeight(name, field);
   }
   refreshPromptSlotPresets();
 
@@ -3434,21 +3408,17 @@ function setupPromptNode(node) {
       if (!el) return;
       if (recordTextHeight(key, k2cfElementPixelHeight(el), allowShrink, allowShrink)) changed = true;
     };
-    capture("scene", sceneText);
-    for (const [, , , promptName] of SLOTS) capture(promptName, controls[promptName]);
+    for (const name of PROMPT_TEXT_WIDGETS) capture(name, controls[name]);
     if (changed) savePromptUiState(markDirty);
   }
 
   function hydratePromptFromWidgets() {
     isHydrating = true;
     refreshPromptUiState();
-    const savedState = k2cfBestSavedState(node, "prompt");
-    if (savedState) applyConfiguredValuesToWidgets(node, PROMPT_WIDGETS, savedState.widgets_values);
     try {
-      sceneText.value = widgets.scene?.value || "";
+      for (const name of PROMPT_TEXT_WIDGETS) if (controls[name]) controls[name].value = widgets[name]?.value ?? "";
       for (const [slot, label, color, promptName, typeName, framingName, angleName] of SLOTS) {
         const stored = promptUiState.slotValues?.[slot] || {};
-        if (controls[promptName]) controls[promptName].value = widgets[promptName]?.value || "";
         const nextType = selectValueWithStored(widgets[typeName]?.value, stored.type, "obj");
         const extra = slot === "cyan" || slot === "orange";
         const nextFraming = extra ? widgets[framingName]?.value || "Auto"
@@ -3458,6 +3428,9 @@ function setupPromptNode(node) {
         if (controls[typeName]) controls[typeName].value = nextType;
         if (controls[framingName]) controls[framingName].value = nextFraming;
         if (controls[angleName]) controls[angleName].value = nextAngle;
+        const nextFocus = normalizeFocus(widgets[`${slot}_focus`]?.value);
+        if (controls[`${slot}_focus`]) controls[`${slot}_focus`].value = nextFocus;
+        setWidget(`${slot}_focus`, nextFocus);
         const savedStyle = k2cfReadJsonObject(widgets.prompt_ui_data?.value)?.slotValues?.[slot]?.textStyle;
         textStyles[slot]?.set(savedStyle);
         setWidget(typeName, nextType);
@@ -3465,7 +3438,7 @@ function setupPromptNode(node) {
         setWidget(angleName, nextAngle);
       }
       applyPromptLabels();
-      scheduleApplyAllSavedTextHeights();
+      applyAllSavedTextHeights();
       boxPrompts.restore();
     } finally {
       isHydrating = false;
@@ -3476,12 +3449,15 @@ function setupPromptNode(node) {
   node.__k2cfPromptUiSnapshot = (markDirty = false, allowShrink = false) => captureCurrentTextHeights(markDirty, allowShrink);
   node.__k2cfHydrateFromWidgets = hydratePromptFromWidgets;
   const boxPrompts = mountBoxPrompts(node, wrap, {
+    cameraReady: focusReady,
     language: () => resolveLang(promptLangSelect.value), framing: FRAMING_OPTIONS, angles: ANGLE_OPTIONS,
     uiState: () => promptUiState.boxCards,
+    slotColor: slot => SLOTS.find(item => item[0] === slot)?.[2] || "#888",
     saveUiState: value => { promptUiState.boxCards = value; savePromptUiState(); },
     defaults: slot => ({
       prompt: widgets[`${slot}_prompt`]?.value || "", type: widgets[`${slot}_type`]?.value || "object",
       framing: widgets[`${slot}_framing`]?.value || "Auto", angle: widgets[`${slot}_angle`]?.value || "Auto",
+      focus: normalizeFocus(widgets[`${slot}_focus`]?.value),
       textStyle: textStyles[slot]?.get(),
     }),
   });
@@ -3490,12 +3466,34 @@ function setupPromptNode(node) {
     boxPrompts.restore(value);
   };
 
+  const resumePromptUi = () => {
+    if (document.hidden || k2cfLikelyManualNodeResize(node)) return;
+    applyPromptLabels();
+    applyAllSavedTextHeights();
+    boxPrompts.refresh();
+    k2cfScheduleNodeSizeRestore(node, "prompt", K2CF_PROMPT_DEFAULT_SIZE);
+  };
+  document.addEventListener("visibilitychange", resumePromptUi);
+  window.addEventListener("focus", resumePromptUi);
+  window.addEventListener("pageshow", resumePromptUi);
+  const promptResizeObserver = typeof ResizeObserver === "function" ? new ResizeObserver(resumePromptUi) : null;
+  promptResizeObserver?.observe(wrap);
+  const oldRemoved = node.onRemoved;
+  node.onRemoved = function () {
+    document.removeEventListener("visibilitychange", resumePromptUi);
+    window.removeEventListener("focus", resumePromptUi);
+    window.removeEventListener("pageshow", resumePromptUi);
+    promptResizeObserver?.disconnect();
+    for (const dispose of textHeightDisposers) dispose();
+    return oldRemoved?.apply(this, arguments);
+  };
+
   node.addDOMWidget("krea2_prompt_ui", "Krea2PromptUI", wrap, {
     serialize:false,
     hideOnZoom:false,
     hideInPanel:true,
     getMinHeight:()=>160,
-    afterResize:()=>{ captureCurrentTextHeights(false, false); scheduleApplyAllSavedTextHeights(); },
+    afterResize:()=>{ captureCurrentTextHeights(false, false); applyAllSavedTextHeights(); },
   });
   k2cfMaybeUpgradeLegacyBugNodeSize(node, "prompt", K2CF_PROMPT_DEFAULT_SIZE);
   k2cfInstallNodeSizePersistence(node, "prompt", K2CF_PROMPT_DEFAULT_SIZE);
@@ -3553,9 +3551,8 @@ function installControls(nodeType, nodeData) {
         this.__k2cfRestoreBoxCards?.(savedUi?.boxCards ?? this.__k2cfConfiguredPromptUiState?.boxCards ?? null);
       }
       if (this.__k2cfHydrateFromWidgets) {
-        // Restore boxes before linked-size preview callbacks can write the empty initial state.
-        if (nodeData.name === CANVAS_NODE) this.__k2cfHydrateFromWidgets();
-        else requestAnimationFrame(() => this.__k2cfHydrateFromWidgets?.());
+        // Configure must finish restoring the controls before blur/change can save them.
+        this.__k2cfHydrateFromWidgets();
       }
       if (this.__k2cfNodeSizeKind) {
         const kind = this.__k2cfNodeSizeKind;

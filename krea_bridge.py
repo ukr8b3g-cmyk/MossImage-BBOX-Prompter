@@ -63,10 +63,13 @@ def build_from_krea(framing_data, prompt_ui_data, auto_position_hint=False,
     state["prompt"] = "\n".join(part for part in summary if part)
     state["settings"]["auto_position"] = auto_position_hint
     metadata = {}
+    boxed_slots = {box.get("slot") for box in framing.get("layout", {}).get("boxes", [])}
+    position_texts = {}
     for slot in SLOTS:
         data = prompts.get("slots", {}).get(slot, {})
         kind = element_type(data.get("type", "object"))
         content = controls._clean(data.get("prompt", ""))
+        focus = controls._normalize_focus(data.get("focus", "Auto"))
         if kind == "text":
             if text_mode == "literal":
                 text = data.get("literal_text", data.get("prompt", ""))
@@ -81,6 +84,8 @@ def build_from_krea(framing_data, prompt_ui_data, auto_position_hint=False,
             text = ""
             caption = controls._append_framing_hint(content, data.get("framing", "Auto"))
             caption = controls._append_angle_hint(caption, data.get("angle", "Auto"))
+            if content or slot in boxed_slots:
+                caption = controls._append_focus_hint(caption, focus)
         # Do not invent descriptions for empty, unused color cards.
         state["slots"][slot] = caption if content or kind != "text" else ""
         metadata[slot] = (kind, text)
@@ -96,6 +101,7 @@ def build_from_krea(framing_data, prompt_ui_data, auto_position_hint=False,
             if not isinstance(individual, dict) or not isinstance(individual.get("prompt"), str):
                 raise ValueError("Box promptData must contain a prompt string")
             kind = element_type(individual.get("type", "object"))
+            focus = controls._normalize_focus(individual.get("focus", "Auto"))
             content = individual["prompt"]
             if kind == "text":
                 if text_mode == "literal":
@@ -108,7 +114,13 @@ def build_from_krea(framing_data, prompt_ui_data, auto_position_hint=False,
                 text = ""
                 caption = controls._append_framing_hint(controls._clean(content), individual.get("framing", "Auto"))
                 caption = controls._append_angle_hint(caption, individual.get("angle", "Auto"))
+                caption = controls._append_focus_hint(caption, focus)
             box.update(label=kind, text=text, caption=caption)
+            data = individual
+        else:
+            data = prompts.get("slots", {}).get(slot, {})
+        if data.get("angle") in controls.NEW_ANGLES or data.get("focus", "Auto") != "Auto":
+            position_texts[str(index)] = data.get("prompt", "")
         state["boxes"].append(box)
     used = {box["slot"] for box in state["boxes"]}
     caption_output = output_mode == "caption" or (output_mode == "auto" and not state["boxes"])
@@ -117,7 +129,7 @@ def build_from_krea(framing_data, prompt_ui_data, auto_position_hint=False,
             if slot not in used and kind == "text" and text:
                 caption = state["slots"][slot]
                 state["slots"][slot] = caption + ('\n' if caption else '') + '"' + text + '"'
-    result = build_prompt(state, output_mode)
+    result = build_prompt(state, output_mode, position_texts=position_texts)
     if text_mode == "literal" and not caption_output:
         for slot, (kind, text) in metadata.items():
             if slot not in used and kind == "text" and text:

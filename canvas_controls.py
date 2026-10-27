@@ -70,6 +70,9 @@ ANGLE_OPTIONS = (
     "Worm view",
     "Bird view",
     "Foreground frame",
+    "Rear 3/4 right",
+    "Rear 3/4 left",
+    "Voyeur low angle",
 )
 
 
@@ -98,7 +101,38 @@ ANGLE_DESC_MAP = {
     "Worm view": "worm's-eye view, extreme low angle, camera near the ground looking upward",
     "Bird view": "bird's-eye view, high elevated viewpoint, looking down from above",
     "Foreground frame": "framed through foreground, foreground objects partially framing the subject, added depth and presence",
+    "Rear 3/4 right": "three-quarter rear view from the right, the subject's back and right side visible",
+    "Rear 3/4 left": "three-quarter rear view from the left, the subject's back and left side visible",
+    "Voyeur low angle": "voyeur, from a low angle, viewed from a low and partly concealed vantage point",
 }
+
+NEW_ANGLES = ("Rear 3/4 right", "Rear 3/4 left", "Voyeur low angle")
+FOCUS_DESC_MAP = {
+    "Auto": "", "Face": "visual emphasis on the subject's face",
+    "Eyes": "visual emphasis on the subject's eyes and eye expression",
+    "Mouth": "visual emphasis on the subject's mouth",
+    "Hands": "visual emphasis on the subject's hands and fingers",
+    "Feet": "visual emphasis on the subject's feet",
+    "Upper torso": "visual emphasis on the subject's shoulders and upper torso",
+    "Back": "visual emphasis on the subject's back and shoulder line",
+    "Clothing details": "visual emphasis on clothing construction and decorative details",
+    "Accessories": "visual emphasis on the subject's accessories",
+    "Object detail": "visual emphasis on the object's distinctive small details",
+    "Breasts": "visual emphasis on the subject's breasts",
+    "Crotch": "visual emphasis on the subject's crotch",
+}
+FOCUS_OPTIONS = tuple(FOCUS_DESC_MAP)
+
+
+def _normalize_focus(value="Auto"):
+    if not isinstance(value, str) or value not in FOCUS_OPTIONS:
+        raise ValueError(f"Invalid MOSS Focus: {value!r}")
+    return value
+
+
+def _append_focus_hint(desc, focus="Auto"):
+    hint = FOCUS_DESC_MAP[_normalize_focus(focus)]
+    return f"{desc}, {hint}" if desc and hint else desc or hint
 
 
 EMPTY_LAYOUT_DATA = '{"boxes":[]}'

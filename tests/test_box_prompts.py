@@ -49,6 +49,25 @@ class BoxPromptTests(unittest.TestCase):
         self.assertEqual(items[8]["caption"], "Old red")
         self.assertEqual(items[7]["caption"], "Independent item 7")
 
+    def test_speech_helper_appearance_exports_separately_from_exact_dialogue(self):
+        literal = '  「こんにちは、世界！」\nReally, yes? | exact  '
+        appearance = ("White speech bubble with a black outline, containing spoken dialogue.\n"
+                      "Vertical lettering, glyphs from top to bottom and columns from right to left.\n"
+                      "The bubble's tail points toward the mouth of the woman on the left.\n\nKeep gold border.")
+        boxes = self.boxes()[:2]
+        boxes[0]["promptData"] = {"type": "character", "prompt": "Woman speaking, mouth slightly open."}
+        boxes[1]["promptData"] = {"type": "text", "prompt": literal, "textStyle": {
+            "mode": "individual", "font": "serif", "weight": "bold", "color": "gold", "extra": appearance}}
+        for mode in ("auto", "layout_json", "caption", "hybrid"):
+            result = bridge.build_from_krea(*self.payload(boxes), text_mode="literal", output_mode=mode)
+            items = json.loads(result["moss_json"])["items"]
+            self.assertEqual(items[0]["label"], "character")
+            self.assertEqual(items[1]["label"], "text")
+            self.assertEqual(items[1]["text"], literal)
+            self.assertIn(appearance, items[1]["caption"])
+            self.assertIn("lettering color: gold", items[1]["caption"])
+            self.assertNotIn("speech bubble", items[1]["text"])
+
     def test_invalid_override_fails_instead_of_falling_back(self):
         for value in (None, [], {"prompt": 1}, {"prompt": "ok", "type": "invalid"}):
             boxes = self.boxes()

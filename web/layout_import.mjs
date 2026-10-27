@@ -1,3 +1,4 @@
+import {normalizeFocus, NEW_ANGLES} from './camera_options.mjs?v=20261027-simple4';
 const slots = ['red','blue','yellow','green','magenta','cyan','orange'];
 const colors = ['#ff4444','#4488ff','#ffdd22','#55bb55','#cc44bb','#00c8d7','#ff9500'];
 const fail = code => { throw new Error(code); };
@@ -10,6 +11,7 @@ function promptData(value) {
     result[key]=value[key];
   }
   if(result.type && !['character','object','text','obj'].includes(result.type))fail('prompt');
+  if('focus' in value){const focus=normalizeFocus(value.focus);if(focus!=='Auto')result.focus=focus;}
   if('textStyle' in value){
     if(!object(value.textStyle))fail('prompt');
     result.textStyle={};
@@ -31,6 +33,7 @@ export function exportLayout({boxes,width,height},contents='placement') {
     }
     return copy;
   })};
+  if(data.boxes.some(b=>b.promptData && (b.promptData.focus || NEW_ANGLES.includes(b.promptData.angle))))data.version=2;
   parseLayoutImport(JSON.stringify(data));
   return data;
 }
@@ -39,7 +42,7 @@ export function parseLayoutImport(raw) {
   try { data = JSON.parse(raw); } catch { fail('json'); }
   if (!data || Array.isArray(data) || typeof data !== 'object') fail('format');
   const native=data.format==='moss_bbox_layout';
-  if(native && (data.version!==1 || !['placement','editable'].includes(data.contents)))fail('format');
+  if(native && (![1,2].includes(data.version) || !['placement','editable'].includes(data.contents)))fail('format');
   if(native && ![data.width,data.height].every(v=>Number.isFinite(v)&&v>0))fail('size');
   const editable=native && data.contents==='editable';
   const official = Array.isArray(data.items);
@@ -60,7 +63,7 @@ export function parseLayoutImport(raw) {
       ids.add(b.id);item.id=b.id;
       if('locked' in b && typeof b.locked!=='boolean')fail('format');
       item.locked=b.locked===true;
-      if('promptData' in b)item.promptData=promptData(b.promptData);
+      if('promptData' in b){item.promptData=promptData(b.promptData);if(data.version===1 && (item.promptData.focus || NEW_ANGLES.includes(item.promptData.angle)))fail('version2');}
     }
     return item;
   });
@@ -93,6 +96,7 @@ export function openLayoutImport({ja,currentSize,getExisting,getExport,canResize
   const messages={json:t('Invalid JSON.','JSONの構文が不正です。'),format:t('Unsupported layout format or coordinates.','未対応の配置形式・座標形式です。'),empty:t('No boxes found.','読み込める枠がありません。'),coordinates:t('Coordinates must be finite numbers.','座標は有限の数値で指定してください。'),area:t('Boxes must have positive width and height.','幅・高さが正の枠を指定してください。'),size:t('Enter the original image width and height.','元画像の幅・高さを入力してください。'),locked:t('Unlock existing boxes before replacing or resizing.','置き換え・サイズ変更の前に既存枠のロックを解除してください。'),changed:t('Canvas changed. Check the preview again.','Canvasが変更されました。もう一度確認してください。')};
   messages.id=t('Box IDs must be nonempty, unique strings.','枠IDは重複のない空でない文字列にしてください。');
   messages.prompt=t('Invalid per-ID prompt or style data.','ID別の文章・スタイルの形式が不正です。');
+  messages.version2=t('Focus or new Angle settings require editable JSON v2. Export again with the updated node.','Focus・新Angleは再編集JSON v2が必要です。更新版で書き出し直してください。');
   const dialog=document.createElement('dialog');
   dialog.className='moss-layout-import';
   dialog.lang=ja?'ja':'en';
@@ -174,7 +178,7 @@ export function openLayoutImport({ja,currentSize,getExisting,getExport,canResize
     exportNote.textContent=exportContents.value==='editable'
       ?t('Saves box IDs, positions, colors, locks and individual prompt/style overrides. Boxes using color defaults still use the destination Prompter. Scene, color defaults, shared Export style, camera and reference images are not included; save the workflow for those.','枠ID・配置・色・ロック・ID別の文章とスタイルを保存します。色別設定を使用する枠は読み込み先のPrompterに従います。シーン・色別共通設定・Export共通スタイル・カメラ・参照画像は含まないため、それらはWorkflowで保存してください。')
       :t('Saves Canvas size, box positions and colors only. No IDs, prompts, styles or locks. Exporting does not change the Canvas or its history.','Canvasサイズ・配置・色だけを保存します。ID・文章・スタイル・ロックは含みません。書き出しではCanvasと履歴は変わりません。');
-    try{output.value=JSON.stringify(exportLayout(getExport(),exportContents.value),null,2);copy.disabled=download.disabled=false;exportStatus.textContent='';}
+    try{const data=exportLayout(getExport(),exportContents.value);output.value=JSON.stringify(data,null,2);copy.disabled=download.disabled=false;exportStatus.textContent=data.version===2?t('Editable JSON v2: use updated nodes to reopen.','再編集JSON v2：再読み込みには更新版のノードが必要です。'):'';}
     catch(error){output.value='';copy.disabled=download.disabled=true;exportStatus.textContent=messages[error.message]||error.message;}
   }
   exportContents.onchange=renderExport;

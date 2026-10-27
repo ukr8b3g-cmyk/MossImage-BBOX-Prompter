@@ -21,3 +21,8 @@ ComfyUI-Q `comfy_extras/nodes_moss_image.py` at
 `nodes_bounding_boxes.py` was also inspected for element/type conventions.
 Core source is not bundled or modified. Its GPL-3.0 license is in the ComfyUI
 checkout. This node uses an independent CPU-only builder and independent state.
+
+Dialogue usage/shape/structure choices and the offline Unicode emoji picker are
+adapted from the local MOSS Comic Layout implementation (2026-10-27), copyright
+2026 ukr8b3g-cmyk, MIT License. The port lives in `web/dialogue_options.mjs`,
+`web/speech_bubble.mjs` and `web/emoji_picker.mjs`; Comic files are not modified.

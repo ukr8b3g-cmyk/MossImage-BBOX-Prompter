@@ -121,7 +121,7 @@ def position_conflict(text, box, width, height):
     return _position_conflict(_position_terms(text), box, width, height)
 
 
-def build_prompt(value, output_mode="hybrid"):
+def build_prompt(value, output_mode="hybrid", *, position_texts=None):
     if output_mode not in OUTPUT_MODES:
         raise ValueError(f"Unknown MOSS output mode: {output_mode!r}")
     state = parse_state(value)
@@ -160,7 +160,8 @@ def build_prompt(value, output_mode="hybrid"):
                 parts.append(description)
         term_key = ("id", box["id"]) if "caption" in box else slot
         if term_key not in terms_by_slot:
-            terms_by_slot[term_key] = tuple(a or b for a, b in zip(scene_terms, _position_terms(caption)))
+            diagnostic_text = (position_texts or {}).get(box["id"], caption)
+            terms_by_slot[term_key] = tuple(a or b for a, b in zip(scene_terms, _position_terms(diagnostic_text)))
         if _position_conflict(terms_by_slot[term_key], box, width, height):
             warnings.append(f"Box {index + 1}: possible conflict with manual position words; original text kept.")
         if not caption.strip() and (box["label"] != "text" or not box["text"].strip()):

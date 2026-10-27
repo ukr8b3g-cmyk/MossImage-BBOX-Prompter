@@ -78,7 +78,7 @@ class PreviewTests(unittest.TestCase):
         self.assertEqual(cls.RETURN_TYPES, ("IMAGE",))
         self.assertTrue(cls.OUTPUT_NODE)
 
-    def test_both_existing_workflows_supply_unchanged_coordinates(self):
+    def test_bundled_workflows_supply_unchanged_coordinates(self):
         for path in (ROOT / "examples").glob("MOSS_BBOX_*.json"):
             workflow = json.loads(path.read_text(encoding="utf-8"))
             node = next(n for n in workflow["nodes"] if n["type"] == "MOSSSharedCanvas")
@@ -87,7 +87,10 @@ class PreviewTests(unittest.TestCase):
             framing = cls().execute(**values)[0]
             result = preview.preview_layout(framing)
             expected = json.loads(framing)
-            self.assertEqual((result["width"], result["height"]), (880, 1184))
+            dimensions = {"MOSS_BBOX_Standard.json": (880, 1184),
+                          "MOSS_BBOX_DMD.json": (880, 1184),
+                          "MOSS_BBOX_Template.json": (1024, 1344)}
+            self.assertEqual((result["width"], result["height"]), dimensions[path.name])
             for source, box in zip(expected["layout"]["boxes"], result["boxes"]):
                 self.assertEqual({k: box[k] for k in ("slot", "x1", "y1", "x2", "y2")},
                                  {k: source[k] for k in ("slot", "x1", "y1", "x2", "y2")})

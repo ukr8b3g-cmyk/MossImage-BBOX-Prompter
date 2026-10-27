@@ -320,8 +320,15 @@ class ExportOptionsTests(unittest.TestCase):
                         self.assertEqual(outputs[1][key], outputs[0][key])
                 continue
             ui = {node["type"]: node for node in workflow["nodes"]}
+            implementations = (previous, package)
+            if path.name == "MOSS_BBOX_Template.json":
+                # This example uses ID prompts introduced after the legacy reference.
+                baseline = os.environ.get("MOSS_FOCUS_BEFORE_ROOT")
+                if not baseline:
+                    continue
+                implementations = (load_package("moss_template_before", Path(baseline)), package)
             outputs = []
-            for implementation in (previous, package):
+            for implementation in implementations:
                 mapping = implementation.NODE_CLASS_MAPPINGS
                 if "MOSSFromKrea2" in ui:
                     node_types = ("MOSSSharedCanvas", "MOSSSharedPrompter") if "MOSSSharedCanvas" in ui else (

@@ -1,6 +1,7 @@
+import { normalizeFocus } from "./camera_options.mjs?v=20261027-simple4";
 import { app } from "../../scripts/app.js";
-import { installControls } from "./moss_controls.mjs";
-import { helpText } from "./help.mjs";
+import { installControls } from "./moss_controls.mjs?v=1.0.11";
+import { helpText } from "./help.mjs?v=1.0.11";
 
 const sharedTypes = new Set(["MOSSSharedCanvas", "MOSSSharedPrompter"]);
 const slots = ["red", "blue", "yellow", "green", "magenta", "cyan", "orange"];
@@ -12,12 +13,14 @@ const typeNames = new Set(slots.map(slot => `${slot}_type`));
 const mossTypes = [["character", "Character"], ["object", "Object"], ["text", "Text"]];
 const canonicalType = value => value === "obj" ? "object" : value;
 
-function hideDimensionInputLabels(node) {
-  for (const input of node.inputs || []) {
-    if (["width", "height", "width_override", "height_override"].includes(input.name)) {
-      input.label = "\u200b";
-      input.localized_name = "\u200b";
-    }
+function compactDimensionInputs(node) {
+  for (let index = (node.inputs?.length || 0) - 1; index >= 0; index--) {
+    const input = node.inputs[index];
+    if (!["width_override", "height_override"].includes(input.name)) continue;
+    // Keep connected legacy overrides; remove unused rows through LiteGraph so
+    // reference_image links move with their input instead of changing targets.
+    if (input.link == null) node.removeInput(index);
+    else input.label = input.localized_name = input.name === "width_override" ? "width" : "height";
   }
 }
 
@@ -29,19 +32,51 @@ function normalizeTypeValues(node, values) {
     if (Object.hasOwn(extraDefaults, widget.name) && normalized[index] === undefined)
       normalized[index] = extraDefaults[widget.name];
   });
+  const focuses = node.widgets.filter(w => w.name.endsWith("_focus"));
+  for (const widget of focuses) {
+    const index = node.widgets.indexOf(widget);
+    normalized[index] = normalizeFocus(Object.hasOwn(values, index) ? values[index] : undefined);
+  }
+  const uiIndex = node.widgets.findIndex(w => w.name === "prompt_ui_data");
+  if (typeof normalized[uiIndex] === "string") {
+    let ui;
+    try { ui = JSON.parse(normalized[uiIndex]); } catch (_) {}
+    if (ui?.slotValues && typeof ui.slotValues === "object") {
+      for (const widget of focuses) {
+        const slot = widget.name.replace("_focus", "");
+        ui.slotValues[slot] = {...ui.slotValues[slot], focus: normalized[node.widgets.indexOf(widget)]};
+      }
+      normalized[uiIndex] = JSON.stringify(ui);
+    }
+  }
   return normalized;
 }
 
-function normalizePromptConfig(node, info) {
+function normalizeWidgetConfig(node, info, isPrompt) {
   const properties = { ...info.properties };
-  if (properties.k2cfPromptState) {
-    properties.k2cfPromptState = { ...properties.k2cfPromptState,
-      widgets_values: normalizeTypeValues(node, properties.k2cfPromptState.widgets_values) };
-  } else if (Array.isArray(info.widgets_values)) {
-    properties.k2cfPromptState = { version: "widgets_values", saved_at: Date.now(),
-      widgets_values: normalizeTypeValues(node, info.widgets_values) };
+  const key = isPrompt ? "k2cfPromptState" : "k2cfCanvasState";
+  const values = isPrompt ? normalizeTypeValues(node, info.widgets_values) : info.widgets_values?.slice();
+  if (!isPrompt) {
+    const saved = values || properties[key]?.widgets_values;
+    const raw = saved?.[node.widgets.findIndex(w => w.name === "layout_data")];
+    let layout;
+    try { layout = JSON.parse(raw); } catch (_) {}
+    for (const box of Array.isArray(layout?.boxes) ? layout.boxes : []) if (box?.promptData && Object.hasOwn(box.promptData, "focus")) normalizeFocus(box.promptData.focus);
   }
-  return { ...info, properties, widgets_values: normalizeTypeValues(node, info.widgets_values) };
+  if (Array.isArray(values)) {
+    // Serialized widgets are the owning values; properties are a saved mirror.
+    properties[key] = { version: "widgets_values", saved_at: Date.now(), ...properties[key], widgets_values: values.slice() };
+  } else if (isPrompt && properties[key]) {
+    properties[key] = { ...properties[key], widgets_values: normalizeTypeValues(node, properties[key].widgets_values) };
+  }
+  if (isPrompt && properties.k2cfPromptUiState && Array.isArray(values || properties[key]?.widgets_values)) {
+    const saved = values || properties[key].widgets_values;
+    const ui = structuredClone(properties.k2cfPromptUiState);
+    ui.slotValues = {...ui.slotValues};
+    node.widgets.forEach((w,i) => { if(w.name.endsWith("_focus")) ui.slotValues[w.name.replace("_focus", "")] = {...ui.slotValues[w.name.replace("_focus", "")], focus: saved[i]}; });
+    properties.k2cfPromptUiState = ui;
+  }
+  return { ...info, properties, widgets_values: values };
 }
 
 function updateTypeHelp(root) {
@@ -116,6 +151,16 @@ function compactCanvasFooter(root) {
 app.registerExtension({
   name: "moss.bbox.shared-ui.v1",
   beforeRegisterNodeDef(nodeType, nodeData) {
+    if (nodeData.name === "MOSSFromKrea2") {
+      const created = nodeType.prototype.onNodeCreated;
+      nodeType.prototype.onNodeCreated = function () {
+        const result = created?.apply(this, arguments);
+        const style = this.widgets?.find(widget => widget.name === "text_style");
+        if (style) style.value = "";
+        return result;
+      };
+      return;
+    }
     if (!sharedTypes.has(nodeData.name)) return;
     installControls(nodeType, nodeData);
     const created = nodeType.prototype.onNodeCreated;
@@ -140,7 +185,7 @@ app.registerExtension({
       let result;
       try { result = created?.apply(this, arguments); }
       finally { this.addDOMWidget = addDOMWidget; }
-      if (!isPrompt) hideDimensionInputLabels(this);
+      if (!isPrompt) compactDimensionInputs(this);
       if (root) {
         const hydrate = this.__k2cfHydrateFromWidgets;
         this.__k2cfHydrateFromWidgets = function () {
@@ -153,13 +198,15 @@ app.registerExtension({
       return result;
     };
     nodeType.prototype.onConfigure = function (info) {
-      const infoToRestore = nodeData.name === "MOSSSharedPrompter" ? normalizePromptConfig(this, info) : info;
-      if (nodeData.name === "MOSSSharedPrompter" && infoToRestore.properties.k2cfPromptState) {
+      const isPrompt = nodeData.name === "MOSSSharedPrompter";
+      const infoToRestore = normalizeWidgetConfig(this, info, isPrompt);
+      const stateKey = isPrompt ? "k2cfPromptState" : "k2cfCanvasState";
+      if (infoToRestore.properties[stateKey]) {
         // Creation installs a default snapshot; replace it before the shared hydrator reads it.
-        this.properties = { ...this.properties, k2cfPromptState: infoToRestore.properties.k2cfPromptState };
+        this.properties = { ...this.properties, [stateKey]: infoToRestore.properties[stateKey] };
       }
       const result = configured?.call(this, infoToRestore);
-      if (nodeData.name === "MOSSSharedCanvas") hideDimensionInputLabels(this);
+      if (nodeData.name === "MOSSSharedCanvas") compactDimensionInputs(this);
       return result;
     };
   },

@@ -1,4 +1,4 @@
-import { bindHelp } from "./help.mjs";
+import { bindHelp } from "./help.mjs?v=1.0.11";
 
 export function containImage(width, height, imageWidth, imageHeight) {
   const scale = Math.min(width / imageWidth, height / imageHeight);

@@ -59,6 +59,7 @@ window.makeExternal=()=>{
 window.ready=true;
 </script>`;
 const server = createServer(async (request, response) => {
+  request.url = request.url.split("?")[0];
   try {
     let content;
     if (request.url === "/") content = fixture;
@@ -68,7 +69,10 @@ const server = createServer(async (request, response) => {
     else if (request.url === "/web/canvas_reference.mjs") content = await readFile(resolve(root, "web/canvas_reference.mjs"));
     else if (request.url === "/web/layout_import.mjs") content = await readFile(resolve(root, "web/layout_import.mjs"));
     else if (request.url === "/web/box_prompts.mjs") content = await readFile(resolve(root, "web/box_prompts.mjs"));
+    else if (request.url === "/web/box_selection.mjs") content = await readFile(resolve(root, "web/box_selection.mjs"));
+    else if (request.url === "/web/camera_options.mjs") content = await readFile(resolve(root, "web/camera_options.mjs"));
     else if (request.url === "/web/text_style.mjs") content = await readFile(resolve(root, "web/text_style.mjs"));
+    else if (request.url === "/web/speech_bubble.mjs") content = await readFile(resolve(root, "web/speech_bubble.mjs"));
     else if (request.url === "/web/moss_shared_ui.js") content = await readFile(resolve(root, "web/moss_shared_ui.js"));
     else if (["/web/help.mjs", "/web/moss_help.js"].includes(request.url)) content = await readFile(resolve(root, request.url.slice(1)));
     else if (request.url === "/scripts/app.js") content = "export const app=window.comfyAPI.app.app;";

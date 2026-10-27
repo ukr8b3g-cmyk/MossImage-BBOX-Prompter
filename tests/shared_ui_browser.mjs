@@ -26,12 +26,13 @@ await import('/web/moss_shared_ui.js');const {installControls}=await import('/we
 const colors=['red','blue','yellow','green','magenta'];
 const names=['scene','background',...colors.map(s=>s+'_prompt'),...colors.map(s=>s+'_type'),
 'prompt_ui_data',...colors.map(s=>s+'_framing'),...colors.map(s=>s+'_angle'),
-...['cyan','orange'].flatMap(s=>[s+'_prompt',s+'_type',s+'_framing',s+'_angle'])];
+...['cyan','orange'].flatMap(s=>[s+'_prompt',s+'_type',s+'_framing',s+'_angle']),
+...['red','blue','yellow','green','magenta','cyan','orange'].map(s=>s+'_focus')];
 let sequence=0;
 class Node {
  constructor(kind){this.type=kind;this.comfyClass=kind;this.id=++sequence;this.graph=graph;this.properties={};this.size=[540,990];
  this.widgets=names.map(name=>({name,value:name.endsWith('_type')?(kind==='MOSSSharedPrompter'?'object':'obj'):
- name.endsWith('_framing')||name.endsWith('_angle')?'Auto':'',options:{}}));
+ name.endsWith('_framing')||name.endsWith('_angle')||name.endsWith('_focus')?'Auto':'',options:{}}));
  this.host=document.createElement('section');this.host.className='host';document.querySelector('#nodes').append(this.host);
  graph._nodes.push(this);this.onNodeCreated();}
  addDOMWidget(name,type,element,options){this.host.append(element);const w={name,type,element,options};this.widgets.push(w);return w}
@@ -55,13 +56,14 @@ window.makeExternal=()=>{
 window.ready=true;
 </script>`;
 const server = createServer(async (request, response) => {
+  request.url = request.url.split("?")[0];
   try {
     let content;
     if (request.url === "/") content = fixture;
     else if (request.url === "/external-krea.js" && process.env.KREA2_UI_SOURCE) content = await readFile(process.env.KREA2_UI_SOURCE);
     else if (request.url === "/web/moss_controls.mjs") content = await readFile(resolve(root, "web/moss_controls.mjs"));
     else if (request.url === "/web/canvas_editing.mjs") content = await readFile(resolve(root, "web/canvas_editing.mjs"));
-    else if (["/web/canvas_reference.mjs","/web/text_style.mjs","/web/layout_import.mjs","/web/box_prompts.mjs"].includes(request.url)) content = await readFile(resolve(root, request.url.slice(1)));
+    else if (["/web/camera_options.mjs","/web/canvas_reference.mjs","/web/text_style.mjs","/web/dialogue_options.mjs","/web/emoji_picker.mjs","/web/speech_bubble.mjs","/web/layout_import.mjs","/web/box_prompts.mjs","/web/box_selection.mjs"].includes(request.url)) content = await readFile(resolve(root, request.url.slice(1)));
     else if (request.url === "/web/moss_shared_ui.js") content = await readFile(resolve(root, "web/moss_shared_ui.js"));
     else if (["/web/help.mjs", "/web/moss_help.js"].includes(request.url)) content = await readFile(resolve(root, request.url.slice(1)));
     else if (request.url === "/scripts/app.js") content = "export const app=window.comfyAPI.app.app;";
@@ -99,14 +101,29 @@ try {
   assert.deepEqual(await first.locator('.moss-k2cf-type').first().locator('option').evaluateAll(es=>es.map(e=>e.value)),['character','object','text']);
   await first.locator('.moss-k2cf-type').nth(0).selectOption('character');
   await first.locator('.moss-k2cf-type').nth(1).selectOption('object');
-  await first.locator('.moss-k2cf-slot-head').nth(2).click();
+  await first.locator('.moss-k2cf-foldmark').nth(2).click();
   await first.locator('.moss-k2cf-type').nth(2).selectOption('text');
-  await first.locator('.moss-k2cf-scene textarea').fill('MOSS 日本語 😀 {keep|原文}');
+  await first.locator('.moss-k2cf-scene textarea').first().fill('MOSS 日本語 😀 {keep|原文}');
+  const background=first.getByRole('textbox',{name:'Background prompt',exact:true});
+  assert.equal(await background.isVisible(),true);
+  for(const value of ['background A','background B','']){
+    await page.evaluate(value=>{const n=window.nodes.first,data=n.save();data.widgets_values[1]=value;n.configure(data);n.host.querySelector('.moss-k2cf-scene textarea').dispatchEvent(new Event('blur'));},value);
+    assert.equal(await background.inputValue(),value);
+    assert.equal((await page.evaluate(()=>window.nodes.first.save())).widgets_values[1],value);
+  }
   const literal='  text: "A | B"\n日本語 😀\n\nlast line  ';
   await first.locator('.moss-k2cf-slot-card').nth(2).locator('.moss-k2cf-slot-body > textarea').fill(literal);
   const saved=await page.evaluate(()=>window.nodes.first.save());
   assert.deepEqual(saved.widgets_values.slice(7,10),['character','object','text']);
   assert.equal(saved.widgets_values[4],literal);
+  const immediateRestore=await page.evaluate(data=>{
+    const node=window.nodes.first;
+    // Both a tab restore and Undo configure an existing DOM widget synchronously.
+    node.configure(data);
+    for(const field of node.host.querySelectorAll('textarea'))field.dispatchEvent(new Event('blur'));
+    return node.save();
+  },saved);
+  assert.deepEqual(immediateRestore.widgets_values,saved.widgets_values);
   await page.evaluate(data=>{window.nodes.copy=window.clone(data)},saved);
   await page.waitForFunction(()=>document.querySelectorAll('.host')[2]?.querySelectorAll('.moss-k2cf-type')[0]?.value==='character');
   assert.deepEqual(await page.locator('.host').nth(2).locator('.moss-k2cf-type').evaluateAll(es=>es.map(e=>e.value)),['character','object','text','object','object','object','object']);
@@ -124,14 +141,14 @@ try {
   assert.equal(untouched,0);
   // Text-only individual styles live inside the existing prompt_ui_data widget.
   const yellow=first.locator('.moss-k2cf-slot-card').nth(2);
-  if(await yellow.evaluate(el=>el.classList.contains('collapsed')))await yellow.locator('.moss-k2cf-slot-head').click();
+  if(await yellow.evaluate(el=>el.classList.contains('collapsed')))await yellow.locator('.moss-k2cf-foldmark').click();
   const style=first.locator('.moss-text-style[data-slot="yellow"]');
   const mode=style.getByRole('combobox',{name:'yellow text style mode',exact:true});
   assert.equal(await mode.inputValue(),'common');
   assert.equal(await style.getByRole('combobox',{name:'yellow text style font',exact:true}).isVisible(),false);
-  await mode.selectOption('individual');
+  await mode.selectOption('individual');await style.locator('details').evaluate(e=>e.open=true);
   const color=style.getByRole('textbox',{name:'yellow text style color',exact:true});
-  const palette=style.locator('input[type="color"]');
+  const palette=style.locator('input[aria-label="yellow text style palette"]');
   assert.equal(await color.inputValue(),'');
   assert.equal(JSON.parse((await page.evaluate(()=>window.nodes.first.save())).widgets_values[12]).slotValues.yellow.textStyle.color,'');
   const beforePalette=await style.boundingBox();
@@ -168,7 +185,7 @@ try {
   await popup.getByRole('button',{name:'#00ff00',exact:true}).click();assert.equal(await color.inputValue(),'#00ff00');
   await first.evaluate(el=>{el.style.transform='';el.style.overflow=''});
   await presets.click();await mode.selectOption('common');assert.equal(await popup.isVisible(),false);
-  await mode.selectOption('individual');
+  await mode.selectOption('individual');await style.locator('details').evaluate(e=>e.open=true);
   await palette.fill('#123456');await palette.dispatchEvent('input');await palette.dispatchEvent('change');
   assert.equal(await color.inputValue(),'#123456');
   assert.equal(JSON.parse((await page.evaluate(()=>window.nodes.first.save())).widgets_values[12]).slotValues.yellow.textStyle.color,'#123456');
@@ -190,14 +207,15 @@ try {
   assert.equal(JSON.parse(styled.widgets_values[12]).slotValues.red.textStyle.mode,'common');
   await page.evaluate(data=>{window.nodes.styled=window.clone(data)},styled);
   const styledHost=page.locator('.host').nth(4);
+  await styledHost.locator('.moss-text-style[data-slot="yellow"] details').evaluate(e=>e.open=true);
   assert.equal(await styledHost.getByRole('combobox',{name:'yellow text style font',exact:true}).inputValue(),'serif');
   assert.equal(await styledHost.getByRole('textbox',{name:'yellow text style color',exact:true}).inputValue(),'#FFD700');
-  assert.equal(await styledHost.locator('.moss-text-style[data-slot="yellow"] input[type="color"]').inputValue(),'#ffd700');
+  assert.equal(await styledHost.locator('.moss-text-style[data-slot="yellow"] input[aria-label="yellow text style palette"]').inputValue(),'#ffd700');
   await mode.selectOption('common');
-  assert.equal(await style.getByRole('textbox',{name:'yellow text style color',exact:true}).isVisible(),false);
-  assert.equal(await palette.isVisible(),false);
+  assert.equal(await style.getByRole('textbox',{name:'yellow text style color',exact:true}).isVisible(),true);
+  assert.equal(await palette.isVisible(),true);
   assert.equal(await styledHost.getByRole('combobox',{name:'yellow text style mode',exact:true}).inputValue(),'individual');
-  await mode.selectOption('individual');
+  await mode.selectOption('individual');await style.locator('details').evaluate(e=>e.open=true);
   await first.locator('.moss-k2cf-type').nth(2).selectOption('object');assert.equal(await style.isVisible(),false);
   await first.locator('.moss-k2cf-type').nth(2).selectOption('text');assert.equal(await mode.inputValue(),'individual');
   const tooltips=await page.evaluate(()=>{
@@ -224,11 +242,11 @@ try {
   await first.screenshot({path:resolve(artifacts,'text-style-isolated.jpg'),type:'jpeg',quality:85});
   // Extra colors append eight optional widgets, leaving all old indices intact.
   assert.equal(await first.locator('.moss-k2cf-slot-card').count(),7);
-  assert.equal(saved.widgets_values.length,31);
+  assert.equal(saved.widgets_values.length,38);
   const cyan=first.locator('.moss-k2cf-slot-card').nth(5),orange=first.locator('.moss-k2cf-slot-card').nth(6);
   assert.equal(await cyan.evaluate(el=>el.classList.contains('collapsed')),true);
   assert.equal(await orange.evaluate(el=>el.classList.contains('collapsed')),true);
-  await cyan.locator('.moss-k2cf-slot-head').click();await orange.locator('.moss-k2cf-slot-head').click();
+  await cyan.locator('.moss-k2cf-foldmark').click();await orange.locator('.moss-k2cf-foldmark').click();
   await cyan.locator('.moss-k2cf-slot-body > textarea').fill('Cyan character 日本語');
   await cyan.locator('.moss-k2cf-type').selectOption('character');
   await cyan.locator('select').nth(1).selectOption('Full body');
@@ -243,10 +261,10 @@ try {
   await orangeStyle.getByRole('button',{name:'orange text style presets',exact:true}).click();
   await orangeStyle.getByRole('button',{name:'#ff9900',exact:true}).click();
   const seven=await page.evaluate(()=>window.nodes.first.save());
-  assert.deepEqual(seven.widgets_values.slice(23),['Cyan character 日本語','character','Full body','Front view',orangeText,'text','Auto','Auto']);
+  assert.deepEqual(seven.widgets_values.slice(23,31),['Cyan character 日本語','character','Full body','Front view',orangeText,'text','Auto','Auto']);
   assert.equal(JSON.parse(seven.widgets_values[12]).slotValues.orange.textStyle.color,'#ff9900');
   await page.evaluate(data=>{window.nodes.seven=window.clone(data)},seven);
-  const sevenHost=page.locator('.host').nth(5);
+  const sevenHost=page.locator('.host').nth(5);await sevenHost.locator('.moss-text-style[data-slot="orange"] details').evaluate(e=>e.open=true);
   await page.waitForFunction(()=>window.nodes.seven.host.querySelector('[aria-label="orange text style font"]')?.value==='sans');
   assert.equal(await sevenHost.locator('.moss-k2cf-slot-card').nth(6).locator('.moss-k2cf-slot-body > textarea').inputValue(),orangeText);
   assert.equal(await sevenHost.getByRole('textbox',{name:'orange text style color',exact:true}).inputValue(),'#ff9900');
@@ -272,7 +290,7 @@ try {
   await page.evaluate(data=>window.nodes.first.configure(data),seven);
   await page.waitForFunction(()=>window.nodes.first.host.querySelector('[aria-label="orange text style font"]')?.value==='sans');
   await writeFile(resolve(artifacts,'seven-slots-browser-wire.json'),JSON.stringify({widgets_values:seven.widgets_values}));
-  for(const card of await first.locator('.moss-k2cf-slot-card').all())if(!(await card.evaluate(el=>el.classList.contains('collapsed'))))await card.locator('.moss-k2cf-slot-head').click();
+  for(const card of await first.locator('.moss-k2cf-slot-card').all())if(!(await card.evaluate(el=>el.classList.contains('collapsed'))))await card.locator('.moss-k2cf-foldmark').click();
   await first.screenshot({path:resolve(artifacts,'seven-slots-prompter.jpg'),type:'jpeg',quality:85});
   const results={standalone:!process.env.KREA2_UI_SOURCE,coexistence:!!process.env.KREA2_UI_SOURCE,unrelated_nodes_untouched:true,three_choices:true,latest_types_saved:true,clone_restores_types:true,literal_text_roundtrip:true,clone_isolation:true,legacy_obj_restores_object:true,raw_controls_unchanged:true,page_errors:errors};
   if(process.env.KREA2_UI_SOURCE){
@@ -309,10 +327,12 @@ try {
   });
   const idCards=first.locator('.moss-box-prompt-cards');await page.waitForFunction(()=>document.querySelectorAll('.host:first-child .moss-box-prompt-cards [data-box-id]').length===9);
   const eighth=idCards.locator('[data-box-id="id-7"]'),ninth=idCards.locator('[data-box-id="id-8"]');
+  assert.equal(await idCards.isVisible(),true);
   await eighth.locator('.moss-k2cf-slot-head').click();
+  await eighth.locator('.moss-k2cf-foldmark').click();
   assert.equal(await page.evaluate(()=>window.idCanvas.__mossBoxEditor.read().selectedId),'id-7');
   await eighth.getByRole('textbox',{name:'Box id-7 prompt',exact:true}).fill('Independent eighth');
-  await ninth.locator('.moss-k2cf-slot-head').click();
+  await ninth.locator('.moss-k2cf-foldmark').click();
   await ninth.getByRole('combobox',{name:'Box id-8 Type',exact:true}).selectOption('object');
   await ninth.getByRole('textbox',{name:'Box id-8 prompt',exact:true}).fill('  Ninth | "日本語"\ntext  ');
   await ninth.getByRole('combobox',{name:'Box id-8 Type',exact:true}).selectOption('text');
@@ -328,12 +348,13 @@ try {
   const canvas=page.locator('#id-canvas .moss-k2cf-overlay');await canvas.scrollIntoViewIfNeeded();
   const rect=await canvas.boundingBox();await page.mouse.click(rect.x+70/896*rect.width,rect.y+180/1184*rect.height);
   await page.waitForFunction(()=>window.idCanvas.__mossBoxEditor.read().selectedId==='id-0');
-  await page.waitForFunction(()=>!document.querySelector('[data-box-id="id-0"]').classList.contains('collapsed'));
+  assert.equal(await idCards.locator('[data-box-id="id-0"]').evaluate(el=>el.classList.contains('collapsed')),true);
+  await idCards.locator('[data-box-id="id-0"] .moss-k2cf-foldmark').click();
   assert.equal(await idCards.getByRole('textbox',{name:'Box id-0 prompt',exact:true}).inputValue(),await first.locator('.moss-k2cf-slot-card').first().locator('.moss-k2cf-slot-body > textarea').inputValue());
-  await first.getByRole('button',{name:'Color defaults',exact:true}).click();
-  await first.getByRole('button',{name:'ID cards (9)',exact:true}).click();
-  if(await eighth.evaluate(el=>el.classList.contains('collapsed')))await eighth.locator('.moss-k2cf-slot-head').click();
-  await eighth.getByRole('button',{name:'Use color settings',exact:true}).click();assert.equal((await idRead()).boxes[7].promptData,undefined);
+  await first.locator('.moss-shared-defaults>summary').click();
+  assert.equal(await idCards.isVisible(),true);
+  if(await eighth.evaluate(el=>el.classList.contains('collapsed')))await eighth.locator('.moss-k2cf-foldmark').click();
+  await eighth.locator('.moss-card-menu').click();page.once('dialog',d=>d.accept());await eighth.getByRole('button',{name:'Box id-7 shared',exact:true}).click();assert.equal((await idRead()).boxes[7].promptData,undefined);
   await first.getByRole('button',{name:'Undo box prompt',exact:true}).click();assert.equal((await idRead()).boxes[7].promptData.prompt,'Independent eighth');
   await canvas.scrollIntoViewIfNeeded();
   const dragRect=await canvas.boundingBox();
@@ -342,6 +363,7 @@ try {
   await page.mouse.move(dragRect.x+710/896*dragRect.width,dragRect.y+380/1184*dragRect.height,{steps:5});await page.mouse.up();await page.keyboard.up('Alt');
   await page.waitForFunction(()=>window.idCanvas.__mossBoxEditor.read().boxes.length===10);
   const duplicate=(await idRead()).boxes.at(-1);assert.notEqual(duplicate.id,'id-7');assert.equal(duplicate.promptData.prompt,'Independent eighth');
+  if(await idCards.locator(`[data-box-id="${duplicate.id}"]`).evaluate(e=>e.classList.contains('collapsed')))await idCards.locator(`[data-box-id="${duplicate.id}"] .moss-k2cf-foldmark`).click();
   await idCards.getByRole('textbox',{name:`Box ${duplicate.id} prompt`,exact:true}).fill('Copy only');
   assert.equal((await idRead()).boxes[7].promptData.prompt,'Independent eighth');
   await first.getByRole('button',{name:'Undo box prompt',exact:true}).click();assert.equal((await idRead()).boxes.at(-1).promptData.prompt,'Independent eighth');
@@ -372,7 +394,7 @@ try {
   await page.waitForFunction(()=>document.querySelector('[aria-label="Box id-8 prompt"]')?.value==='  Ninth | "日本語"\ntext  ');
   Object.assign(results,{editable_json_id_cards:true,editable_json_prompt_history:true,editable_json_card_reload:true});
   const resizeCard=async card=>{
-    if(await card.evaluate(el=>el.classList.contains('collapsed')))await card.locator('.moss-k2cf-slot-head').click();
+    if(await card.evaluate(el=>el.classList.contains('collapsed')))await card.locator('.moss-k2cf-foldmark').click();
     const textarea=card.locator('.moss-k2cf-slot-body > textarea');
     await textarea.scrollIntoViewIfNeeded();const rect=await textarea.boundingBox();
     await page.mouse.move(rect.x+rect.width-3,rect.y+rect.height-3);await page.mouse.down();
@@ -382,11 +404,11 @@ try {
   };
   const manualHeight=await resizeCard(eighth);
   assert(manualHeight>200);
-  await eighth.locator('.moss-k2cf-slot-head').click();
-  await eighth.locator('.moss-k2cf-slot-head').click();
+  await eighth.locator('.moss-k2cf-foldmark').click();
+  await eighth.locator('.moss-k2cf-foldmark').click();
   assert.equal(await eighth.locator('.moss-k2cf-slot-body > textarea').evaluate(el=>parseFloat(el.style.height)),manualHeight);
-  await first.getByRole('button',{name:'Color defaults',exact:true}).click();
-  await first.getByRole('button',{name:'ID cards (9)',exact:true}).click();
+  await first.locator('.moss-shared-defaults>summary').click();
+  assert.equal(await idCards.isVisible(),true);
   assert.equal(await eighth.evaluate(el=>el.classList.contains('collapsed')),false);
   assert.equal(await eighth.locator('.moss-k2cf-slot-body > textarea').evaluate(el=>parseFloat(el.style.height)),manualHeight);
   await page.evaluate(()=>{
@@ -408,11 +430,11 @@ try {
   const restored=page.locator('.host').last().locator('[data-box-id="id-7"]');
   assert.equal(await restored.evaluate(el=>el.classList.contains('collapsed')),false);
   assert.equal(await restored.locator('.moss-k2cf-slot-body > textarea').evaluate(el=>parseFloat(el.style.height)),manualHeight);
-  await restored.locator('.moss-k2cf-slot-head').click();
+  await restored.locator('.moss-k2cf-foldmark').click();
   const closedSave=await page.evaluate(()=>window.uiCopy.save());
   await page.evaluate(data=>window.uiCopy.configure(data),closedSave);
   await page.waitForFunction(()=>window.uiCopy.host.querySelector('[data-box-id="id-7"]').classList.contains('collapsed'));
-  await restored.locator('.moss-k2cf-slot-head').click();
+  await restored.locator('.moss-k2cf-foldmark').click();
   assert.equal(await restored.locator('.moss-k2cf-slot-body > textarea').evaluate(el=>parseFloat(el.style.height)),manualHeight);
   Object.assign(results,{id_card_height_close_reopen:true,id_card_mode_switch:true,id_card_recreation_open_height:true,id_card_closed_restore:true,typed_node_size_save:true,serialization_read_only:true});
   await writeFile(resolve(artifacts,'id-prompts-browser-wire.json'),JSON.stringify({canvas:await page.evaluate(()=>window.idCanvas.save()),prompter:await page.evaluate(()=>window.nodes.first.save())}));

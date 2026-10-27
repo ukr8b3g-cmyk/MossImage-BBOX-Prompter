@@ -1,5 +1,5 @@
 import { app } from "../../scripts/app.js";
-import { helpText, setHelpLocaleReader, widgetHelpKey } from "./help.mjs";
+import { helpText, setHelpLocaleReader, widgetHelpKey } from "./help.mjs?v=1.0.11";
 
 setHelpLocaleReader(() => app.ui?.settings?.getSettingValue("Comfy.Locale") || document.documentElement.lang || "en");
 const nodeNames = new Set(["MOSSSharedCanvas", "MOSSSharedPrompter", "MOSSFromKrea2", "MOSSBBoxPreview",

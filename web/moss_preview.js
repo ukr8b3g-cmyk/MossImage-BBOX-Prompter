@@ -1,6 +1,6 @@
 import { app } from "../../scripts/app.js";
 import { api } from "../../scripts/api.js";
-import { mountPreview } from "./preview_ui.mjs";
+import { mountPreview } from "./preview_ui.mjs?v=20261027-simple4";
 
 app.registerExtension({
   name: "MOSS.BBoxPreview",

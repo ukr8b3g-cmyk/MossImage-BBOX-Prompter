@@ -30,6 +30,7 @@ jobs:
       PYTHONDONTWRITEBYTECODE: '1'
       COMFYUI_ROOT: ${{ github.workspace }}/ComfyUI
       MOSS_BEFORE_ROOT: ${{ github.workspace }}/moss-before
+      MOSS_FOCUS_BEFORE_ROOT: ${{ github.workspace }}/moss-focus-before
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
@@ -56,6 +57,12 @@ jobs:
             prompt_builder.py
             krea_bridge.py
           sparse-checkout-cone-mode: false
+      - name: Check out the published Focus compatibility reference
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: 29a75dfaf71c6a66b7211e4973103f2181112827
+          path: moss-focus-before
+          persist-credentials: false
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
         with:
           python-version: '3.12'
@@ -87,7 +94,7 @@ jobs:
               for path in expected:
                   assert archive.read(path) == Path(path).read_bytes(), path
               workflows = sorted(p for p in archive.namelist() if p.startswith("examples/MOSS_BBOX_"))
-              assert workflows == ["examples/MOSS_BBOX_DMD.json", "examples/MOSS_BBOX_Standard.json"]
+              assert workflows == ["examples/MOSS_BBOX_DMD.json", "examples/MOSS_BBOX_Standard.json", "examples/MOSS_BBOX_Template.json"]
           print("Verified", len(expected), "files against source")
           print("Archive SHA256:", hashlib.sha256(Path("node.zip").read_bytes()).hexdigest())
           PY
@@ -118,3 +125,31 @@ jobs:
           fi
           comfy --skip-prompt --no-enable-telemetry node publish --token "$REGISTRY_ACCESS_TOKEN"
 
+
+  github-release:
+    needs: publish
+    if: github.event_name == 'push' && contains(github.event.head_commit.message, '[github-release]')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Package and publish the requested GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          version=$(python -c "import pathlib,tomllib; print(tomllib.loads(pathlib.Path('pyproject.toml').read_text())['project']['version'])")
+          tag="v${version}"
+          if gh release view "$tag" --json tagName --jq .tagName >/dev/null 2>&1; then
+            echo "Release already exists; leaving it unchanged."
+            exit 0
+          fi
+          python tools/package_workflows.py --output dist
+          gh release create "$tag" dist/* --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
+            --title "MOSS BBOX Prompter $tag" --notes-file "docs/releases/${tag}.md" --latest

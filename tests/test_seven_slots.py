@@ -35,7 +35,7 @@ class SevenSlotTests(unittest.TestCase):
                     *(f"{s}_framing" for s in OLD_SLOTS), *(f"{s}_angle" for s in OLD_SLOTS))
         self.assertEqual(tuple(schema["required"]), expected)
         self.assertEqual(tuple(schema["optional"]), tuple(f"{s}_{key}" for s in ("cyan", "orange")
-                                                         for key in ("prompt", "type", "framing", "angle")))
+                                                         for key in ("prompt", "type", "framing", "angle")) + tuple(f"{s}_focus" for s in ALL_SLOTS))
         for slot in ("cyan", "orange"):
             self.assertEqual(schema["optional"][f"{slot}_prompt"][1]["default"], "")
             self.assertFalse(schema["optional"][f"{slot}_prompt"][1]["dynamicPrompts"])

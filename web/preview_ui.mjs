@@ -1,5 +1,5 @@
-import { SLOTS } from "./state.mjs";
-import { bindHelp, helpText } from "./help.mjs";
+import { SLOTS } from "./state.mjs?v=20261027-simple4";
+import { bindHelp, helpText } from "./help.mjs?v=1.0.11";
 
 const colors = new Map(SLOTS);
 const svgNS = "http://www.w3.org/2000/svg";

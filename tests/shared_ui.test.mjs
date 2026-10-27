@@ -1,3 +1,4 @@
+import {normalizeFocus} from '../web/camera_options.mjs';
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
@@ -327,11 +328,11 @@ test("Alt selection cycles overlapping boxes without reordering or changing coor
   assert.deepEqual(boxes, before);
 });
 
-const source = await readFile(new URL("../web/moss_shared_ui.js", import.meta.url), "utf8");
+const source = await readFile(process.env.MOSS_SHARED_UI_SOURCE || new URL("../web/moss_shared_ui.js", import.meta.url), "utf8");
 let extension;
 let installControls = () => {};
 const app = { registerExtension(value) { extension = value; } };
-new Function("app", "installControls", source.replace(/^import .*;\r?\n/gm, ""))(app, (...args) => installControls(...args));
+new Function("app", "installControls", "normalizeFocus", source.replace(/^import .*;\r?\n/gm, ""))(app, (...args) => installControls(...args), normalizeFocus);
 
 test("install bundled controls without registering any Krea2 node", () => {
   class SharedCanvas {}
@@ -442,6 +443,69 @@ test("restore widgets-only workflows before the shared renderer reads its creati
   assert.deepEqual(node.widgets.map(widget => widget.value), ["", "text"]);
 });
 
+test("explicit saved Type, text and Auto override stale property mirrors on every reload", () => {
+  for(const kind of ["MOSSSharedPrompter","MOSSSharedCanvas"]) {
+    const key=kind==="MOSSSharedPrompter"?"k2cfPromptState":"k2cfCanvasState";
+    class Node {}
+    installControls=type=>{type.prototype.onConfigure=function(info){this.widgets.forEach((w,i)=>w.value=this.properties[key].widgets_values[i]);};};
+    extension.beforeRegisterNodeDef(Node,{name:kind});
+    const node=new Node();node.widgets=[{name:"scene",value:""},{name:"red_type",value:"object"},{name:"red_angle",value:"Auto"}];
+    for(const value of ["character","text","object"]) {
+      const info={widgets_values:["current 日本語",value,"Auto"],properties:{[key]:{widgets_values:["old","object","Side view"],saved_at:20}}};
+      const before=structuredClone(info);node.onConfigure(info);
+      assert.deepEqual(node.widgets.map(w=>w.value),info.widgets_values);
+      assert.deepEqual(info,before);
+    }
+  }
+});
+
+test("explicit Object and Auto are not replaced by older UI-only values",async()=>{
+  const controlsSource=await readFile(process.env.MOSS_CONTROLS_SOURCE || new URL("../web/moss_controls.mjs",import.meta.url),"utf8");
+  const start=controlsSource.indexOf("  function selectValueWithStored(");
+  const end=controlsSource.indexOf("  function savePromptUiState(",start);
+  const choose=new Function(controlsSource.slice(start,end)+"\nreturn selectValueWithStored;")();
+  assert.equal(choose("object","character","obj"),"object");
+  assert.equal(choose("obj","character","obj"),"obj");
+  assert.equal(choose("Auto","Side view","Auto"),"Auto");
+  assert.equal(choose(undefined,"character","obj"),"character");
+});
+
+test("all seven color widget values stay authoritative through repeated restore with stale mirrors",async()=>{
+  const src=await readFile(new URL("../web/moss_controls.mjs",import.meta.url),"utf8");
+  const names=new Function(src.replace(/^import .*;\r?\n/gm,"").replace(/^export .*;\s*$/m,"")+"\nreturn PROMPT_WIDGETS;")();
+  class Prompt {}
+  installControls=type=>{type.prototype.onConfigure=function(){this.widgets.forEach((w,i)=>w.value=this.properties.k2cfPromptState.widgets_values[i]);};};
+  extension.beforeRegisterNodeDef(Prompt,{name:"MOSSSharedPrompter"});
+  const node=new Prompt();node.widgets=names.map(name=>({name,value:""}));
+  const values=names.map(name=>name.endsWith('_type')?'character':name.endsWith('_focus')||name.endsWith('_framing')||name.endsWith('_angle')?'Auto':name==='prompt_ui_data'?'{}':`${name} 日本語\n"exact" | value`);
+  const stale=names.map(name=>name.endsWith('_type')?'object':name.endsWith('_framing')?'Full body':name.endsWith('_angle')?'Side view':'stale');
+  for(let i=0;i<5;i++) {
+    const input={widgets_values:structuredClone(values),properties:{k2cfPromptState:{widgets_values:stale,saved_at:Date.now()+1000}}};
+    node.onConfigure(input);assert.deepEqual(node.widgets.map(w=>w.value),values);
+    assert.deepEqual(input.properties.k2cfPromptState.widgets_values,stale);
+  }
+});
+
+test("large deliberate prompt heights survive and automatic selection preserves every colored box",async()=>{
+  const source=await readFile(process.env.MOSS_CONTROLS_SOURCE || new URL("../web/moss_controls.mjs",import.meta.url),"utf8");
+  const helpers=new Function(source.replace(/^import .*;\r?\n/gm,"").replace(/^export .*;\s*$/m,"")+"\nreturn {k2cfPromptTextHeightInRange,k2cfSanitizePromptTextHeights};")();
+  for(const key of ['scene','red_prompt','blue_prompt','yellow_prompt','green_prompt','magenta_prompt','cyan_prompt','orange_prompt']) {
+    assert.equal(helpers.k2cfPromptTextHeightInRange(key,800),true);assert.equal(helpers.k2cfPromptTextHeightInRange(key,10001),false);
+    assert.equal(helpers.k2cfSanitizePromptTextHeights({[key]:800})[key],800);
+  }
+  const boxes=[{id:'a'},{id:'b'},{id:'c'}],drawn=[],selected=[];
+  const start=source.indexOf('  function drawOverlay('),end=source.indexOf('  function drawBox(',start);
+  const draw=new Function('refreshPrecision','overlayCtx','overlay','state','drawBox','selectedBoxes','drawSelection',source.slice(start,end)+'\nreturn drawOverlay;')
+    (()=>{},{clearRect(){}},{width:100,height:100},{boxes,hideBoxes:false},b=>drawn.push(b.id),()=>[boxes[1]],b=>selected.push(b.id));
+  draw();assert.deepEqual(drawn,['a','b','c']);assert.deepEqual(selected,['b']);
+  const calls=[],ctx={save(){},restore(){},beginPath(){},arc(){},fill(){},fillText(){},fillRect(...rect){calls.push(['fill',this.fillStyle,this.globalAlpha,...rect]);},strokeRect(...rect){calls.push(['stroke',this.strokeStyle,...rect]);}};
+  const first=source.indexOf('  function drawBox('),last=source.indexOf('  function clamp(',first);
+  const drawBox=new Function('overlayCtx','state','colorFor','normBox',source.slice(first,last)+'\nreturn drawBox;')
+    (ctx,{boxes:[]},()=> '#ffcc00',()=>[10,10,50,60]);
+  drawBox({slot:'yellow'},false);const plain=calls.splice(0);drawBox({slot:'yellow'},true);
+  assert.deepEqual(calls[0],plain[0]);assert.deepEqual(calls[1],plain[1]);assert.equal(calls.at(-1)[1],'#fff');
+});
+
 test("Seven-color restore appends defaults after the original widgets and clears stale extras", () => {
   class MossPrompt {}
   installControls=type=>{
@@ -466,6 +530,43 @@ test("Seven-color restore appends defaults after the original widgets and clears
 });
 
 const controlsSource = await readFile(new URL("../web/moss_controls.mjs", import.meta.url), "utf8");
+test('Canvas geometry visibility leaves relocated Snap/language usable and preserves the reserved row',()=>{
+  const start=controlsSource.indexOf('  function refreshPrecision(force = false) {'),end=controlsSource.indexOf('  const monitor =',start);
+  const state={boxes:[],selectedId:null,hideBoxes:false},precisionFields=Array.from({length:4},()=>({style:{}}));
+  const precisionInputs=Object.fromEntries(['x','y','width','height'].map(key=>[key,{value:'',disabled:false}]));
+  const lockBtn={setAttribute(){}},arrangeSelect={options:[{},{}]},arrangeLabels=[['','Align','整列'],['horizontal','Distribute','分布']];
+  const snap={checked:true,disabled:false},language={value:'English',disabled:false},bar={style:{display:'flex',flexWrap:'wrap'}};
+  const refresh=new Function('selectedBoxes','resolveLang','controls','arrangeSelect','arrangeLabels','state','pointerStart','precisionFields','lockBtn','normBox','precisionInputs','document',
+    controlsSource.slice(start,end)+'\nreturn refreshPrecision;')
+    (()=>state.boxes,()=> 'en',{ui_language:language},arrangeSelect,arrangeLabels,state,null,precisionFields,lockBtn,b=>[b.x1,b.y1,b.x2,b.y2],precisionInputs,{activeElement:null});
+  const before=structuredClone({snap,language,bar});refresh();
+  assert(precisionFields.every(f=>f.style.visibility==='hidden'));assert.equal(lockBtn.disabled,true);
+  state.boxes=[{id:'a',x1:10,y1:20,x2:110,y2:220}];state.selectedId='a';refresh();
+  assert(precisionFields.every(f=>f.style.visibility==='visible'));assert.equal(precisionInputs.width.value,'100');assert.equal(lockBtn.disabled,false);
+  state.hideBoxes=true;refresh();assert(precisionFields.every(f=>f.style.visibility==='hidden'));assert.equal(lockBtn.disabled,true);
+  assert.deepEqual({snap,language,bar},before);
+});
+test('Focus restores 23/31/38 inputs and snapshots atomically, with explicit Auto overriding old UI mirrors',()=>{
+  const names=new Function(controlsSource.replace(/^import .*;\r?\n/gm,'').replace(/^export .*;\s*$/m,'')+'\nreturn PROMPT_WIDGETS;')();
+  class Prompt {}
+  installControls=type=>{type.prototype.onConfigure=function(info){const values=info.widgets_values||this.properties.k2cfPromptState.widgets_values;values.forEach((value,i)=>this.widgets[i].value=value);};};
+  extension.beforeRegisterNodeDef(Prompt,{name:'MOSSSharedPrompter'});
+  const node=new Prompt();node.widgets=names.map(name=>({name,value:name.endsWith('_focus')?'Hands':''}));
+  const all=names.map(name=>name.endsWith('_type')?'character':name==='prompt_ui_data'?JSON.stringify({slotValues:{red:{focus:'Hands'}}}):name.endsWith('_prompt')?'日本語\nexact':name==='scene'?'scene':'Auto');
+  for(const length of [23,31,38])for(const snapshot of [false,true]) {
+    const values=all.slice(0,length),input=snapshot?{properties:{k2cfPromptState:{widgets_values:values}}}:{widgets_values:values,properties:{}};
+    node.widgets.slice(31).forEach(w=>w.value='Hands');const before=structuredClone(input);node.onConfigure(input);
+    assert(node.widgets.slice(31).every(w=>w.value==='Auto'));assert.deepEqual(input,before);
+    assert.equal(JSON.parse(node.widgets[names.indexOf('prompt_ui_data')].value).slotValues.red.focus,'Auto');
+    const saved=node.widgets.map(w=>w.value);node.onConfigure({widgets_values:saved});assert(node.widgets.slice(31).every(w=>w.value==='Auto'));
+  }
+  const next=all.slice();next[31]='Breasts';next[37]='Crotch';node.onConfigure({widgets_values:next});
+  assert.equal(node.widgets[31].value,'Breasts');assert.equal(node.widgets[37].value,'Crotch');
+  for(const invalid of [null,false,1,'','hands']) {
+    const bad=next.slice();bad[34]=invalid;const before=node.widgets.map(w=>w.value),props=structuredClone(node.properties);
+    assert.throws(()=>node.onConfigure({widgets_values:bad}),/Focus/);assert.deepEqual(node.widgets.map(w=>w.value),before);assert.deepEqual(node.properties,props);
+  }
+});
 function canvasLayoutHarness(raw, previousRaw = raw) {
   const app = { graph: { _nodes: [] },
     graphToPrompt() { return this.graph._nodes.map(node => node.widgets.find(w => w.name === "layout_data").value); },
@@ -555,6 +656,13 @@ test("Reloading a valid Canvas clears the error and resumes ordinary synchroniza
     assert.deepEqual(JSON.parse(h.save().widgets_values[3]).boxes, h.state.boxes);
   }
 });
+test('actual Canvas commits notify the native workflow snapshot for per-box Type and other settings',()=>{
+  const h=canvasLayoutHarness('{"boxes":[{"id":"a","slot":"red","x1":10,"y1":20,"x2":120,"y2":220,"promptData":{"type":"object","prompt":"keep"}}]}');
+  h.restoreCanvasLayout();let capturedType='object',captures=0;
+  h.app.extensionManager={workflow:{activeWorkflow:{changeTracker:{captureCanvasState(){captures++;capturedType=JSON.parse(h.widgets.layout_data.value).boxes[0].promptData.type;}}}}};
+  h.state.boxes[0].promptData.type='character';h.sync();assert.equal(capturedType,'character');assert.equal(captures,1);
+  h.state.boxes[0].promptData.type='text';h.sync();assert.equal(capturedType,'text');assert.equal(captures,2);
+});
 
 
 test("typed LiteGraph node sizes persist through saving and collapsed nodes keep their expanded size", () => {
@@ -571,23 +679,38 @@ test("typed LiteGraph node sizes persist through saving and collapsed nodes keep
 });
 
 
-test("Canvas dimension labels stay hidden without changing socket names, positions or links", () => {
+test("Canvas removes unused dimension rows and remaps reference links without deleting legacy overrides", () => {
   class Canvas {}
   installControls = type => { type.prototype.onNodeCreated = function () {}; type.prototype.onConfigure = function () {}; };
   extension.beforeRegisterNodeDef(Canvas, { name: "MOSSSharedCanvas" });
   const node = new Canvas();
   node.widgets = [];
-  node.inputs = [{name:"width_override",type:"INT",localized_name:"width",link:5},{name:"height_override",type:"INT",localized_name:"height",link:6},{name:"reference_image",type:"IMAGE",label:"Reference",link:7}];
-  const before = structuredClone(node.inputs);
+  node.inputs = [{name:"width_override",type:"INT",link:null},{name:"height_override",type:"INT",link:null},{name:"reference_image",type:"IMAGE",label:"Reference",link:7}];
+  const referenceLink={target_slot:2};
+  node.removeInput=index=>{node.inputs.splice(index,1);if(referenceLink.target_slot>index)referenceLink.target_slot--;};
   node.onNodeCreated();
-  assert.deepEqual(node.inputs.map(({name,type,link})=>({name,type,link})),before.map(({name,type,link})=>({name,type,link})));
-  assert.equal(node.inputs[0].label, "\u200b");
-  assert.equal(node.inputs[1].label, "\u200b");
-  assert.equal(node.inputs[2].label, "Reference");
-  node.inputs[0].label = "Width";
+  assert.deepEqual(node.inputs,[{name:"reference_image",type:"IMAGE",label:"Reference",link:7}]);
+  assert.equal(referenceLink.target_slot,0);
+  node.inputs.unshift({name:"width_override",type:"INT",label:"\u200b",link:5},{name:"height_override",type:"INT",link:null});
+  referenceLink.target_slot=2;
   node.onConfigure({properties:{}});
-  assert.equal(node.inputs[0].label, "\u200b");
-  assert.equal(node.inputs[0].localized_name, "\u200b");
+  assert.deepEqual(node.inputs.map(i=>i.name),["width_override","reference_image"]);
+  assert.equal(node.inputs[0].link,5);
+  assert.equal(node.inputs[0].label,"width");
+  assert.equal(referenceLink.target_slot,1);
+});
+
+test("restoring color prompt heights does not interrupt a manual resize", async () => {
+  const controlsSource=await readFile(new URL("../web/moss_controls.mjs",import.meta.url),"utf8");
+  const start=controlsSource.indexOf("  function applySavedTextHeight(");
+  const end=controlsSource.indexOf("  function applyAllSavedTextHeights(",start);
+  const apply=new Function("promptUiState","k2cfPromptTextHeightInRange","k2cfDefaultTextHeightForKey",
+    controlsSource.slice(start,end)+"\nreturn applySavedTextHeight;")
+    ({textHeights:{red_prompt:245},textHeightManual:{red_prompt:true}},()=>true,()=>125);
+  const element={style:{height:"310px"},dataset:{},__k2cfResizingTextHeight:true};
+  apply("red_prompt",element);assert.equal(element.style.height,"310px");
+  element.__k2cfResizingTextHeight=false;apply("red_prompt",element);
+  assert.equal(element.style.height,"245px");assert.equal(element.dataset.k2cfAppliedHeight,"245px");
 });
 
 

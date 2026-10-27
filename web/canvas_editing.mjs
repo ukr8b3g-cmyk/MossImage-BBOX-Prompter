@@ -64,10 +64,14 @@ export function arrangeBoxes(boxes, action, bounds) {
   return result;
 }
 
-export function nextOverlappingBox(boxes, point, selectedId) {
-  const hits = boxes.filter(box => point.x >= Math.min(box.x1, box.x2)
+export function overlappingBoxes(boxes, point) {
+  return boxes.filter(box => point.x >= Math.min(box.x1, box.x2)
     && point.x <= Math.max(box.x1, box.x2) && point.y >= Math.min(box.y1, box.y2)
     && point.y <= Math.max(box.y1, box.y2)).reverse();
+}
+
+export function nextOverlappingBox(boxes, point, selectedId) {
+  const hits = overlappingBoxes(boxes, point);
   if (!hits.length) return null;
   const index = hits.findIndex(box => box.id === selectedId);
   return hits[(index + 1) % hits.length];

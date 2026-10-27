@@ -2,10 +2,19 @@
 
 **English** | [Japanese](README.ja.md)
 
-**Latest release: 1.0.10** — [GitHub Releases](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases)
-· [Comfy Registry](https://registry.comfy.org/nodes/mossimage-bbox-prompter)
+**Latest GitHub release: 1.0.11** — [Release and workflows](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/tag/v1.0.11) · [Comfy Registry](https://registry.comfy.org/nodes/mossimage-bbox-prompter)
 
-**1.0.10:** Workflow tab changes now retain per-ID card open/closed state, prompt field heights and Canvas/Prompter node sizes. The top width/height socket labels are hidden; connections and the LATENT SIZE controls remain available. Update through ComfyUI Manager, save your workflow and refresh the browser. This frontend update needs no backend restart when upgrading from 1.0.9.
+## What's new in 1.0.11
+
+- One compact card layout before and after connection: the same four rows, typography, widths and 170px initial editor height for all seven colors. Saved manual sizes remain authoritative.
+- Header **⋯** holds Name/Shared for individual boxes or presets for shared color settings. Short labels and hover help replace inline explanations.
+- Prompt/Type ownership and saved card expansion/heights are fixed. Selecting a box does not fold its card or restore stale words/settings.
+- Three distinct Angle additions and independent Focus controls; see Angle / Focus below.
+- Text usage (7), bubble shapes (22), structure, direction, colors and an offline emoji picker. Literal wording stays separate from appearance hints.
+- A [current UI template](examples/MOSS_BBOX_Template.json), preserving example words and generation settings while normalizing editor dimensions. **New nodes start blank**; they never inherit sample prompts.
+- Unconnected legacy width_override/height_override sockets are removed. Connected legacy overrides and the LATENT SIZE W/H controls remain supported.
+
+**Updating:** save a separate workflow copy and finish running work first. Upgrading from 1.0.10 or earlier changes Python inputs for Focus, so restart ComfyUI normally and then press Ctrl+F5. Registry publication is separate from GitHub Releases.
 
 <img width="1154" height="839" alt="image" src="https://github.com/user-attachments/assets/739cff51-f11a-4c25-88d5-7b0c5eb1a76c" />
 
@@ -28,8 +37,58 @@ preset and width/height on one line, and Latent Size / Camera Settings / Canvas
 Preset have matching panel heights. Narrow nodes wrap whole panels without
 horizontal overflow. Camera/preset explanations remain available on hover.
 Only the MOSS Canvas DOM is rearranged; Krea2 nodes, saved widgets, presets and
-box coordinates keep their existing behavior. Refresh the frontend to load this
-layout change; no backend restart is needed.
+box coordinates keep their existing behavior. The footer rearrangement alone
+needs a frontend refresh; the complete 1.0.11 update needs the restart described above.
+
+## Angle, Focus and dialogue
+
+### Angle / Focus
+
+The original 24 Angle choices keep their names, order and descriptions. **Rear 3/4 right, Rear 3/4 left and Voyeur low angle** append three distinct viewpoints. No Looking back choice is added; describe that action in the prompt when needed. Rear left/right uses the subject's side, not image placement.
+
+Color and ID cards add **Focus** below Angle: Auto, Face, Eyes, Mouth, Hands, Feet, Upper torso, Back, Clothing details, Accessories, Object detail, **Breasts and Crotch**. Upper torso covers shoulders/upper torso while Breasts targets that specific part. These hints do not add clothing or exposure, zoom, crop, focal-distance changes, or change the BBOX. Text disables Focus in place while retaining it for a later Type change.
+
+Auto adds nothing. An individual card's Auto is independent of color defaults; Confirming Shared restores shared values. Workflow restore, per-ID duplication and Undo/Redo preserve Focus. New text presets store Focus, including Auto. Old text presets without Focus leave the current Focus unchanged; Type/Framing/Angle remain outside text presets.
+
+Editable JSON uses **v2** only when saved per-ID settings contain non-Auto Focus or a new Angle, including settings disabled for Text. Placement-only and other editable files remain v1. Updated readers accept v1/v2; old readers reject v2. Save the full workflow to transfer color defaults.
+
+**Restart ComfyUI, then press Ctrl+F5 to use this update:** it appends seven optional Focus inputs after the existing 31 widgets. Old 23/31-widget workflows restore Focus as Auto. Before restarting, the frontend disables the new choices and displays a restart message for the old backend schema. The implementation did not restart the user's process. CPU and isolated real-ComfyUI frontend checks were performed; no new GPU generation was run for this release. External text-input improvements remain on hold.
+
+### Dialogue, bubbles and lettering
+
+1. Use a **Character** box for the speaker and a separate **Text** box for visible dialogue. Add speaking/mouth descriptions to the character if needed.
+2. Enter only the exact visible words in the Text prompt. The **😀** button inserts emoji. Appearance controls never rewrite the words.
+3. Choose **Usage** and **Shape** directly. Changes save immediately; the old Apply button is no longer needed.
+4. Open **Lettering / Bubbles** for structure, size, direction, border weight, tail/speaker, colors, typeface, lettering weight and notes. Closing details retains the settings.
+5. Set Export **text_mode=literal**, normally **output_mode=auto**. Place the character and text independently on Canvas. A separate Object box for the bubble is optional.
+
+| Control | Choices / behavior |
+| --- | --- |
+| Usage (7) | Legacy default, Speech, Thought, Narration, Title, Plain text, Sound effect. Legacy default adds no usage hint. |
+| Shape (22) | Follow usage, No enclosure, Oval, Round, Rectangle, Rounded rectangle, Cloud, Spiky/shout, Radiating lines, Dotted/whisper, Wavy, Notched, Sweating, Heart, Animal, Character, Pixelated, Dripping, Melting, Conjoined, Distorted, Polygon. |
+| Structure | Normal, shared, overlapping, nested or numbered. Does not create extra Canvas boxes. |
+| Direction | Auto, Horizontal (left to right), Vertical (top to bottom, columns right to left). Literal text and line breaks remain unchanged. |
+| Letter size / border weight | Relative generated lettering size and bubble-outline thickness; neither resizes the editor. |
+| Tail / speaker | Describe a target, such as toward the left woman’s mouth. No automatic speaker-ID binding. |
+| Text / outline / shadow / bubble fill / bubble border color | Color name, HEX or picker. Existing 256 text-color presets remain available. Empty adds no hint; opening a picker does not set a color. |
+| Typeface, weight, notes | Existing values are retained. Notes describe appearance, separately from visible words. |
+| Text style | Shared style uses Export.text_style; Custom style overrides appearance for this Text. Editing usage/shape enables the latter. This is an appearance choice, not a prompt-view switch. |
+
+**Emoji picker:** the same offline category/search list as Comic. Insert at the caret or replace the selection. Outside click, × or Escape closes it without modifying text. Internal search/category clicks keep it open. It inserts Unicode emoji; generated rendering depends on the model.
+
+These are generation descriptions, not vector bubbles drawn on Canvas. Appearance uses ordinary prose in the existing `textStyle.extra`; literal words stay separate. Old speech/thought/shout settings, fonts, colors, notes, workflows, editable JSON, duplication and Undo/Redo remain supported. No language detection, translation or generation is added. These lettering controls are frontend-only; upgrading from 1.0.10 or earlier still needs a normal restart for Angle/Focus inputs.
+
+**TagComplete (Danbooru Tag JP Assist) Format:** when JP Assist supports custom DOM prompt fields, scene/background and Character/Object color and ID prompts participate in All / Selected nodes formatting. **Literal Text wording is excluded from batch formatting.** To explicitly format lettering or style notes, choose **Current input / selection**, focus that field and press Format. Selected text is supported. Formatting runs only on explicit action, never on tab or focus changes. JP Assist is a separate extension and is not bundled or updated here. Existing formatting options and dictionaries stay unchanged. Save the workflow and press Ctrl+F5 to load the frontend update.
+
+## Workflow downloads
+
+[Workflow ZIP for 1.0.11](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/download/v1.0.11/MOSS_BBOX_Workflows_1.0.11.zip) includes the README files, reference image and these examples:
+
+- [MOSS_BBOX_Template.json](examples/MOSS_BBOX_Template.json): current UI template, including example character/dialogue words and generation settings. Edit those words for your use. They are not defaults for new nodes.
+- [MOSS_BBOX_Standard.json](examples/MOSS_BBOX_Standard.json): Standard generation example.
+- [MOSS_BBOX_DMD.json](examples/MOSS_BBOX_DMD.json): DMD generation example.
+
+Select installed model/CLIP/VAE/LoRA filenames. The example LoRA loader needs rgthree-comfy. These are example settings, not universal recommendations. Keep both Canvas and Prompter when saving a workflow.
 
 ### 1.0.9: seven colors, JSON import/export and ID cards
 
@@ -53,7 +112,7 @@ This adds independent descriptions, not a seven-box limit. Restart ComfyUI and
 refresh the browser after installing this main-branch update. Workflows using the
 new colors or per-ID prompts require 1.0.9 or newer; 1.0.8 does not fully interpret them.
 
-[Download Standard + DMD + reference image ZIP](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/download/v1.0.9/MOSS_BBOX_Workflows_1.0.9.zip). The two workflow JSONs are unchanged from v1.0.8. Restart ComfyUI and refresh the browser after updating.
+[Download the current workflow ZIP](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/download/v1.0.11/MOSS_BBOX_Workflows_1.0.11.zip). Current examples include updated UI sizes; Standard/DMD generation settings remain unchanged.
 
 ### 1.0.8: alignment, Text styles and two color pickers
 
@@ -68,12 +127,12 @@ Restart ComfyUI and refresh the browser after updating the node package.
 
 ### 1.0.8: per-color Text styles
 
-Each **Text** card has **Text style: Use shared settings** (default) or
-**Individual settings**. Individual mode exposes Typeface, Weight, Text color
-and Additional description. It replaces Export's shared `text_style` for that
-color in **literal** mode only. Character/Object cards hide these controls;
-legacy text notation keeps its existing behavior. Changing type or switching
-back to shared preserves the individual settings for later use.
+Each **Text** card supports **Shared style** (default) or
+**Custom style**. The latter overrides Export's shared `text_style` for this
+Text in **literal** mode. Typeface, Weight, Text color and Additional description
+are under **Lettering / Bubbles**; opening/closing it retains values.
+Character/Object hide Text controls without changing words or Type; returning
+to Text retains appearance. Legacy text mode keeps its existing behavior.
 
 Typeface presets are Auto, Serif/Mincho, Sans-serif/Gothic, Rounded,
 Cursive/Script, Handwritten, Brush, Blackletter and Monospace. Weight supports
@@ -312,7 +371,7 @@ ComfyUI widget tooltips must be enabled in ComfyUI's tooltip settings.
 
 ### 1.0.2: center/thirds snapping
 
-The compact **Snap** checkbox next to Grid enables snapping during box movement
+The compact **Snap** checkbox next to the reference-image status (Connect Load Image) enables snapping during box movement
 and corner resizing. Moving boxes align their nearest edge or center to the
 Canvas center or one-third/two-thirds lines; resizing aligns only the dragged
 edges. The grab distance is 6 displayed pixels, including at different zooms.
@@ -680,7 +739,7 @@ Chromium; they never contact the running ComfyUI or submit a queue.
 ```powershell
 $env:COMFYUI_ROOT = 'D:\StabilityMatrix\Data\Packages\ComfyUI-Q'
 python -B -m unittest discover -s tests -p "test_*.py"
-node --test tests/state.test.mjs tests/shared_ui.test.mjs tests/preview.test.mjs
+node --test tests/*.test.mjs
 node --check web/moss_bbox.js
 node --check web/editor.mjs
 # Optional: point PLAYWRIGHT_MODULE and CHROMIUM_PATH at installed copies.
@@ -693,8 +752,7 @@ byte-compatibility test; otherwise that one comparison is skipped.
 
 The action runs Registry warning checks, the Python suite and JavaScript
 unit/syntax tests before packing or publishing; any failure stops publication.
-Push runs and manual runs with `publish` disabled never run Registry version
-checks or publication. It uses pinned ComfyUI and published MOSS source references, including the
+Push runs and manual runs with `publish` disabled never publish to Registry. A push commit explicitly marked `[github-release]` creates a GitHub Release after tests and packaging pass; ordinary push commits do not create releases. It uses pinned ComfyUI and published MOSS source references, including the
 optional byte-compatibility comparison. No Krea2 checkout is needed.
 The official MOSS node is imported with test-only I/O types for a CPU comparison;
 this does not test the real ComfyUI frontend or GPU generation. Test tools are
@@ -722,7 +780,7 @@ The import dialog lets you select a file or paste JSON, review placement, and ch
 
 The dialog, file-selection button and empty-file message follow **ComfyUI's display language**, independently of the Canvas's saved UI Language. Close and reopen the dialog after changing the language.
 
-External MOSS/Canvas JSON import is **placement only**. New boxes use the current Prompter's color defaults for text, Type and styles. Edit **ID cards** after importing for independent prompts, including the eighth box and beyond; otherwise same-color boxes share their prompt. Native editable exports can also restore individual settings, as described below.
+External MOSS/Canvas JSON import is **placement only**. New boxes use the current Prompter's color defaults for text, Type and styles. Edit the visible box cards after importing for independent prompts, including the eighth box and beyond; otherwise same-color boxes share their prompt. Native editable exports can also restore individual settings, as described below.
 
 Supports MOSS Layout JSON (`items`, `bbox_format: yxyx`, `bbox_coord_space: abs_centralized`) and Canvas `boxes` with pixel `x1/y1/x2/y2`. Enter the original width and height if absent; dimensions are never inferred from box extents. Changing aspect ratio scales X and Y independently. Source-size mode requires positive multiples of 16 and no external size connection. Locked boxes prevent replacement and size changes, but permit additions.
 
@@ -747,13 +805,48 @@ Both native formats use `format: "moss_bbox_layout"`, `version: 1`, `contents: "
 
 **Deleting a Canvas preset:** Delete asks for confirmation and shows the selected preset's name in ComfyUI's display language. Cancel keeps the preset and selection. Confirm removes that saved preset only; the current Canvas layout remains. No preset selected means no deletion.
 
-### Per-box ID cards (1.0.9)
+### Box prompts and advanced shared values
 
-Connect Canvas `framing_data` and Prompter `prompt_ui_data` to the same MOSS BBOX Export. In Prompter, choose **ID cards**; creating or importing another Canvas box adds another card, including the eighth and beyond. If multiple Canvases feed Exports using this Prompter, select the Canvas in the selector. Direct connections and Reroute connections are supported.
+Connect Canvas and Prompter to the same Export. **Box prompts (2)** shows the number of Canvas boxes, not an ID number or limit. Edit each box directly, including multiple boxes of the same color; no view switching is required.
 
-Color defaults preserve existing workflows. Editing an ID card creates an independent prompt, Character/Object/Text type, framing, angle and Text style for that box. **Use color settings** removes that override. Color is a visual group and default source, not the identity of an individual card. Optional names help identify cards. Clicking a box opens/highlights its card; clicking a card highlights its box. Scrolling is contained inside the existing Prompter.
+| UI | Meaning |
+| --- | --- |
+| Box card | The actual text, Type and settings used for that box; formerly ID cards. Headings keep the color name for every Type. The colored dot identifies the corresponding Canvas box; automatic IDs remain internal. |
+| ⋯ | Fixed card options: Name/Shared for individual boxes, presets for colors. Opening options never resizes the editor. |
+| Name (optional) | Open header ⋯. Formerly Optional: an editable text input, not a button. Click and type a display name, such as Dialogue 1. Empty is allowed. The name never enters generated prompt text. Saved with Undo/Redo support; it is not intentionally disabled. |
+| Heading / arrow | The heading selects the Canvas box; only the arrow folds the card. Selection/focus does not reset text, Type or field height. |
+| Shared defaults | Below the normal editor, initially closed. Retains compatible common values for boxes of the same color. With no Canvas connection, it opens as the standalone color editor. |
+| Shared (under ⋯) | Replaces this box’s individual words, name, Type, framing, angle and style. A confirmation previews the replacement text. Cancel preserves everything; Canvas Undo restores an accepted replacement. Mere view changes never perform this action. |
+| Shared (disabled) | This box has not been edited independently, so the replacement action is disabled. This is separate from the editable Name input. |
 
-Individual settings live in the Canvas layout alongside the box ID and are saved in the workflow. Canvas Undo/Redo (also available in the ID-card toolbar) restores these edits. Alt-duplicate copies the settings into a new ID; subsequent edits are independent. Deleting and undoing a box restores its settings too. Box locks protect geometry, while prompt fields remain editable. Save the workflow containing both nodes. Refresh after restarting ComfyUI for the updated backend; older versions do not interpret the new per-box settings.
+Shared and individual text are not concatenated. An independently edited box uses its own words even if an older shared prompt remains. Clearing the individual prompt is an explicit empty value, never a fallback to old shared words. Opening/closing Advanced neither copies nor replaces text. The former Color defaults / ID cards view-switch buttons have been removed; existing words and IDs are retained.
 
+Individual settings live with the Canvas box ID. Save a workflow containing both Canvas and Prompter. Browser/workflow tabs and focus do not change words. Card expansion and manually resized prompt heights are saved. Canvas Undo/Redo restores edits; Alt-duplicate creates an independently editable copy, and Undo restores deleted boxes with their settings. Geometry locks still allow prompt editing.
 
-Canvas keeps its top width/height sockets available with their labels hidden; edit dimensions in LATENT SIZE. ID-card open/closed state, prompt field heights and the color/ID view are saved with the workflow. Closing a card keeps its field height. Canvas and Prompter node sizes also survive workflow tab changes.
+If multiple Canvases feed Exports using this Prompter, choose the target Canvas. Connect Canvas.framing_data and Prompter.prompt_ui_data to the same Export; direct and Reroute connections work. Right-click the Canvas to select overlapping/locked boxes without changing order.
+
+Unconnected legacy width_override/height_override sockets are removed; connected ones remain supported. Edit dimensions in LATENT SIZE. UI Language is at the right of the coordinate row; Snap is next to the reference-image status.
+
+### Connecting Krea2 background and prompt effects
+
+Optionally install [Krea2 BBOX Prompter Suite](https://github.com/ukr8b3g-cmyk/Krea2-BBOX-Prompter), which supplies both nodes below. MOSS itself does not require that suite.
+
+| Node | Purpose | Inputs / outputs |
+| --- | --- | --- |
+| Krea2 Background Effect | Append a preset/custom background description | prompt_in → prompt_out; background_text contains only the background fragment. |
+| Krea2 BBOX Prompt Effect | Append style, lighting, weather, color or finish descriptions | prompt_in → prompt_out; effect_text contains only the effect fragment. |
+
+Example:
+
+```text
+MOSS BBOX Canvas.framing_data → MOSS BBOX Export.framing_data
+MOSS BBOX Prompter.prompt_ui_data → MOSS BBOX Export.prompt_ui_data
+MOSS BBOX Export.prompt_text → Krea2 Background Effect.prompt_in
+Krea2 Background Effect.prompt_out → Krea2 BBOX Prompt Effect.prompt_in
+Krea2 BBOX Prompt Effect.prompt_out → CLIP Text Encode.text
+```
+
+Either effect node can be omitted. Send the last **prompt_out** to the text encoder. If prompt_in is displayed as a widget, convert it to an input using ComfyUI’s widget-to-input operation. Using only background_text/effect_text as the final prompt discards the original layout, characters and dialogue; use prompt_out for the normal chain.
+
+These nodes append descriptions to the exported string; they do not composite images. Disconnected nodes have no generation effect. MOSS external-text input improvements remain deferred; this update adds no new input sockets.
+

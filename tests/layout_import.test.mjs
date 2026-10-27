@@ -51,7 +51,7 @@ test('placement export and editable import as placement omit all prompt identity
 });
 test('native editable schema rejects invalid IDs, future versions and corrupt prompt metadata',()=>{
   const data=exportLayout(editableSample(),'editable');
-  for(const mutate of [d=>d.version=2,d=>d.contents='all',d=>d.width=0,d=>d.boxes[0].id='',d=>d.boxes[1].id=d.boxes[0].id,
+  for(const mutate of [d=>d.version=3,d=>d.contents='all',d=>d.width=0,d=>d.boxes[0].id='',d=>d.boxes[1].id=d.boxes[0].id,
     d=>d.boxes[0].promptData=null,d=>d.boxes[0].promptData.prompt=5,d=>d.boxes[0].promptData.type='unknown',
     d=>d.boxes[0].promptData.textStyle.color={},d=>d.boxes[0].locked='false',d=>d.boxes[0].slot='unknown']){
     const bad=structuredClone(data);mutate(bad);assert.throws(()=>parseLayoutImport(JSON.stringify(bad)));

@@ -132,6 +132,8 @@ class MOSSSharedPrompter:
             inputs["optional"][f"{slot}_type"] = ([*ELEMENT_TYPES, "obj"], {"default": "object"})
             inputs["optional"][f"{slot}_framing"] = (controls.FRAMING_OPTIONS, {"default": "Auto"})
             inputs["optional"][f"{slot}_angle"] = (controls.ANGLE_OPTIONS, {"default": "Auto"})
+        for slot in SLOTS:
+            inputs["optional"][f"{slot}_focus"] = (controls.FOCUS_OPTIONS, {"default": "Auto"})
         return inputs
 
     RETURN_TYPES = ("KREA2_ELEMENT_PROMPT_DATA",)
@@ -153,6 +155,9 @@ class MOSSSharedPrompter:
                 "framing": controls._normalize_framing(kwargs.get(f"{slot}_framing", "Auto")),
                 "angle": controls._normalize_angle(kwargs.get(f"{slot}_angle", "Auto")),
             }
+            focus = controls._normalize_focus(kwargs.get(f"{slot}_focus", "Auto"))
+            if focus != "Auto":
+                slots[slot]["focus"] = focus
             if slots[slot]["type"] == "text":
                 slots[slot]["literal_text"] = kwargs.get(f"{slot}_prompt", "")
                 saved = saved_slots.get(slot, {})
