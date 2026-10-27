@@ -12,6 +12,15 @@ const typeNames = new Set(slots.map(slot => `${slot}_type`));
 const mossTypes = [["character", "Character"], ["object", "Object"], ["text", "Text"]];
 const canonicalType = value => value === "obj" ? "object" : value;
 
+function hideDimensionInputLabels(node) {
+  for (const input of node.inputs || []) {
+    if (["width", "height", "width_override", "height_override"].includes(input.name)) {
+      input.label = "\u200b";
+      input.localized_name = "\u200b";
+    }
+  }
+}
+
 function normalizeTypeValues(node, values) {
   if (!Array.isArray(values)) return values;
   const normalized = values.map((value, index) =>
@@ -66,6 +75,7 @@ function compactCanvasFooter(root) {
   const dimensions = size.querySelector('input[type="number"]').closest(".moss-k2cf-rowline");
   const actions = [...size.querySelectorAll(".moss-k2cf-rowline")].find(row => row.querySelector("button"));
   root.classList.add("moss-canvas-compact");
+  root.dataset.mossUiState = "20261027";
   size.classList.add("moss-size-panel");
   presetRow.previousElementSibling.classList.add("moss-size-preset-label");
   presetRow.classList.add("moss-size-preset");
@@ -130,6 +140,7 @@ app.registerExtension({
       let result;
       try { result = created?.apply(this, arguments); }
       finally { this.addDOMWidget = addDOMWidget; }
+      if (!isPrompt) hideDimensionInputLabels(this);
       if (root) {
         const hydrate = this.__k2cfHydrateFromWidgets;
         this.__k2cfHydrateFromWidgets = function () {
@@ -147,7 +158,9 @@ app.registerExtension({
         // Creation installs a default snapshot; replace it before the shared hydrator reads it.
         this.properties = { ...this.properties, k2cfPromptState: infoToRestore.properties.k2cfPromptState };
       }
-      return configured?.call(this, infoToRestore);
+      const result = configured?.call(this, infoToRestore);
+      if (nodeData.name === "MOSSSharedCanvas") hideDimensionInputLabels(this);
+      return result;
     };
   },
 });

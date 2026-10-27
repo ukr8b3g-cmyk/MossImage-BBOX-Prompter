@@ -2,8 +2,10 @@
 
 **English** | [Japanese](README.ja.md)
 
-**Latest release: 1.0.9** — [GitHub Releases](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases)
+**Latest release: 1.0.10** — [GitHub Releases](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases)
 · [Comfy Registry](https://registry.comfy.org/nodes/mossimage-bbox-prompter)
+
+**1.0.10:** Workflow tab changes now retain per-ID card open/closed state, prompt field heights and Canvas/Prompter node sizes. The top width/height socket labels are hidden; connections and the LATENT SIZE controls remain available. Update through ComfyUI Manager, save your workflow and refresh the browser. This frontend update needs no backend restart when upgrading from 1.0.9.
 
 <img width="1154" height="839" alt="image" src="https://github.com/user-attachments/assets/739cff51-f11a-4c25-88d5-7b0c5eb1a76c" />
 
@@ -752,3 +754,6 @@ Connect Canvas `framing_data` and Prompter `prompt_ui_data` to the same MOSS BBO
 Color defaults preserve existing workflows. Editing an ID card creates an independent prompt, Character/Object/Text type, framing, angle and Text style for that box. **Use color settings** removes that override. Color is a visual group and default source, not the identity of an individual card. Optional names help identify cards. Clicking a box opens/highlights its card; clicking a card highlights its box. Scrolling is contained inside the existing Prompter.
 
 Individual settings live in the Canvas layout alongside the box ID and are saved in the workflow. Canvas Undo/Redo (also available in the ID-card toolbar) restores these edits. Alt-duplicate copies the settings into a new ID; subsequent edits are independent. Deleting and undoing a box restores its settings too. Box locks protect geometry, while prompt fields remain editable. Save the workflow containing both nodes. Refresh after restarting ComfyUI for the updated backend; older versions do not interpret the new per-box settings.
+
+
+Canvas keeps its top width/height sockets available with their labels hidden; edit dimensions in LATENT SIZE. ID-card open/closed state, prompt field heights and the color/ID view are saved with the workflow. Closing a card keeps its field height. Canvas and Prompter node sizes also survive workflow tab changes.

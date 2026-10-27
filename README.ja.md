@@ -2,8 +2,10 @@
 
 [English](README.md) | **日本語**
 
-**最新リリース：1.0.9** — [GitHub Releases](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases)
+**最新リリース：1.0.10** — [GitHub Releases](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases)
 ・[Comfy Registry](https://registry.comfy.org/nodes/mossimage-bbox-prompter)
+
+**1.0.10の修正：** Workflowのタブ切り替え後も、ID別カードの開閉状態・入力欄の高さ・Canvas／Prompterのノードサイズを保持します。上部のwidth／height端子名は非表示にし、接続と下部LATENT SIZEの寸法入力は維持しています。ComfyUI Managerで更新後、Workflowを保存してブラウザーを更新してください。1.0.9からの今回のフロントエンド更新に本体再起動は不要です。
 
 **1.0.9の更新：** 7色対応・外部配置JSON読み込み・ID別プロンプトカード・JSON書き出しと再編集用の再読み込みを追加しました。読み込みの初期値は「枠を置き換え」で、Canvasプリセットの削除時には確認が出ます。下記の「配置JSON読み込み」「JSON書き出しと再編集用の読み込み」「ID別プロンプトカード」に使い方を記載しています。更新後はComfyUIを再起動し、ブラウザを更新してください。
 
@@ -342,3 +344,6 @@ Canvasのframing_dataとPrompterのprompt_ui_dataを同じMOSS BBOX Exportへ接
 既存ワークフローは色別設定を維持します。IDカードを編集した枠だけ、文章・Character／Object／Text・構図・角度・Textスタイルが独立します。「色別設定へ戻す」で個別指定を解除できます。色は表示上の区別と初期設定で、個別カードの識別にはIDを使用します。任意の名前も付けられます。枠の選択で対応カードを開き、カードの選択で枠を強調します。スクロールはPrompter内部に収めます。
 
 個別設定は枠IDと一緒にCanvasの配置へ保存されます。CanvasのUndo／Redoで文章編集も戻せ、IDカード側の矢印ボタンからも操作できます。Alt複製は設定をコピーした新しいIDを作り、その後の編集は独立します。削除した枠をUndoすると文章も戻ります。枠のロック中も文章は編集できます。両ノードを含むWorkflowを保存してください。更新したバックエンドを使うためComfyUI再起動とブラウザー更新が必要です。旧バージョンは新しいID別設定を解釈できません。
+
+
+Canvas上部のwidth／height端子は名前を非表示にし、接続機能は維持しています。寸法は下部のLATENT SIZEで変更できます。ID別カードの開閉状態、入力欄の高さ、色別／ID別表示はWorkflowに保存され、カードを閉じても入力欄の高さを保持します。Canvas／PrompterのノードサイズもWorkflowのタブ切り替え時に復元します。

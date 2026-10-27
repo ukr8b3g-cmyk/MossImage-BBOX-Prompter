@@ -30,7 +30,7 @@ export function linkedCanvases(prompt) {
   return found;
 }
 
-export function mountBoxPrompts(node,wrap,{language,defaults,framing,angles}) {
+export function mountBoxPrompts(node,wrap,{language,defaults,framing,angles,uiState=()=>null,saveUiState=()=>{}}) {
   const el=(tag,text,cls)=>{const e=document.createElement(tag);if(text)e.textContent=text;if(cls)e.className=cls;return e;};
   const bar=el('div',null,'moss-box-prompt-bar');bar.style.cssText='display:flex;gap:4px;align-items:center;flex-wrap:wrap';
   const colors=el('button',null,'moss-k2cf-btn'),boxes=el('button',null,'moss-k2cf-btn');
@@ -45,16 +45,44 @@ export function mountBoxPrompts(node,wrap,{language,defaults,framing,angles}) {
   wrap.insertBefore(bar,colorCards[0]||null);wrap.append(container);
   let current=null,mode='colors',manualMode=false,selection=null,frame=null;
   const cards=new Map();
+  let savedUi={},restoring=false;
   const ja=()=>language()==='ja';const text=(en,jp)=>ja()?jp:en;
   const read=()=>current?.__mossBoxEditor.read();
+  const savedCard=id=>savedUi.cards?.find(item=>item.canvasId===String(current?.id)&&item.id===id);
+  function persist() {
+    if(restoring)return;
+    const canvasId=String(current?.id);
+    const entries=Array.isArray(savedUi.cards)?savedUi.cards.filter(item=>item.canvasId!==canvasId):[];
+    for(const [id,card] of cards)entries.push({canvasId,id,open:!card.root.classList.contains('collapsed'),height:parseFloat(card.prompt.style.height)||125});
+    savedUi={mode,manualMode,sourceId:current?String(current.id):savedUi.sourceId||'',cards:entries};
+    saveUiState(structuredClone(savedUi));
+  }
+  function restoreCard(card,id) {
+    const saved=savedCard(id);
+    if(!saved)return;
+    card.root.classList.toggle('collapsed',saved.open===false);
+    const height=Number(saved.height);
+    if(Number.isFinite(height)&&height>=80&&height<=10000)card.prompt.style.height=`${height}px`;
+  }
+  function restore(value=uiState()) {
+    savedUi=value&&typeof value==='object'?structuredClone(value):{};
+    savedUi.cards=Array.isArray(savedUi.cards)?savedUi.cards.filter(item=>item&&typeof item==='object'):[];
+    mode=savedUi.mode==='boxes'?'boxes':'colors';manualMode=!!savedUi.manualMode;
+    restoring=true;
+    for(const [id,card] of cards)restoreCard(card,id);
+    restoring=false;
+    schedule();
+  }
   function reveal(card) {
     const view=wrap.getBoundingClientRect(),rect=card.getBoundingClientRect();
     const scale=view.height/Math.max(1,wrap.clientHeight);
     if(rect.top<view.top || rect.bottom>view.bottom)wrap.scrollTop+=(rect.top-view.top)/Math.max(.01,scale);
   }
   function pick(id,scroll=false) {
+    selection=id;
     current?.__mossBoxEditor.select(id);
     for(const [key,card] of cards){card.root.style.outline=key===id?'1px solid #eee':'';if(key===id){card.root.classList.remove('collapsed');if(scroll)reveal(card.root);}}
+    persist();
   }
   function createCard(box,index) {
     const root=el('div',null,'moss-k2cf-slot-card collapsed');root.dataset.boxId=box.id;
@@ -79,9 +107,9 @@ export function mountBoxPrompts(node,wrap,{language,defaults,framing,angles}) {
     for(const control of [prompt,name])control.addEventListener('input',commit);
     for(const control of [type,fr,angle])control.addEventListener('change',()=>{style.refresh();commit();});
     inherit.onclick=()=>current?.__mossBoxEditor.update(box.id,null);
-    head.onclick=()=>{const wasOpen=!root.classList.contains('collapsed');pick(box.id);root.classList.toggle('collapsed',wasOpen);};
+    head.onclick=()=>{const wasOpen=!root.classList.contains('collapsed');pick(box.id);root.classList.toggle('collapsed',wasOpen);persist();};
     body.addEventListener('focusin',()=>pick(box.id));
-    const card={root,refresh(b,i){
+    const card={root,prompt,refresh(b,i){
       const value=b.promptData||defaults(b.slot);
       title.textContent=`#${i+1} · ${b.id} ${value.name||''} · ${b.slot.toUpperCase()}`;
       inherit.textContent=b.promptData?text('Use color settings','色別設定へ戻す'):text('Using color settings','色別設定を使用中');
@@ -91,13 +119,23 @@ export function mountBoxPrompts(node,wrap,{language,defaults,framing,angles}) {
       const serialized=JSON.stringify(value.textStyle||{});
       if(card.styleValue!==serialized){style.set(value.textStyle);card.styleValue=serialized;}else style.refresh();
     }};
+    restoreCard(card,box.id);
+    const observer=new MutationObserver(()=>{
+      const height=parseFloat(prompt.style.height);
+      if(Number.isFinite(height)&&height>=80&&height<=10000&&height!==savedCard(box.id)?.height)persist();
+    });
+    observer.observe(prompt,{attributes:true,attributeFilter:['style']});
+    card.dispose=()=>observer.disconnect();
     card.refresh(box,index);return card;
   }
   function refresh() {
     frame=null;
     if(!wrap.isConnected)return;
     const choices=linkedCanvases(node);
-    if(!choices.includes(current)){current=choices.length===1?choices[0]:null;selection=null;}
+    if(!choices.includes(current)){
+      current=choices.find(canvas=>String(canvas.id)===savedUi.sourceId)||(choices.length===1?choices[0]:null);selection=null;
+      for(const card of cards.values()){card.dispose();card.root.remove();}cards.clear();
+    }
     const wanted=current?String(current.id):'';
     source.replaceChildren();
     const empty=el('option',text('Select Canvas','Canvasを選択'));empty.value='';source.append(empty);
@@ -110,21 +148,23 @@ export function mountBoxPrompts(node,wrap,{language,defaults,framing,angles}) {
     for(const card of colorCards)card.style.display=mode==='colors'?'':'none';
     container.style.display=mode==='boxes'?'flex':'none';
     note.textContent=choices.length===0?text('Connect Canvas and this Prompter to the same MOSS BBOX Export.','CanvasとこのPrompterを同じMOSS BBOX Exportへ接続してください。'):!current?text('Choose the Canvas to edit.','編集するCanvasを選択してください。'):text('One card per box ID. Editing creates independent settings saved with the Canvas. Add a box on Canvas to add a card.','枠IDごとのカードです。編集すると独立した設定になりCanvasと一緒に保存されます。Canvasで枠を追加するとカードも増えます。');
-    const ids=new Set(list.map(b=>b.id));for(const [id,card] of cards)if(!ids.has(id)){card.root.remove();cards.delete(id);}
-    list.forEach((b,i)=>{let card=cards.get(b.id);if(!card){card=createCard(b,i);cards.set(b.id,card);container.append(card.root);}else card.refresh(b,i);
+    const ids=new Set(list.map(b=>b.id));for(const [id,card] of cards)if(!ids.has(id)){card.dispose();card.root.remove();cards.delete(id);}
+    list.forEach((b,i)=>{let card=cards.get(b.id);const existed=!!card;if(!card){card=createCard(b,i);cards.set(b.id,card);container.append(card.root);}else card.refresh(b,i);
       card.root.style.outline=b.id===state.selectedId?'1px solid #eee':'';
-      if(b.id===state.selectedId && selection!==b.id){card.root.classList.remove('collapsed');if(mode==='boxes')reveal(card.root);}
+      if(b.id===state.selectedId && selection!==b.id && (existed||!savedCard(b.id))){card.root.classList.remove('collapsed');if(mode==='boxes')reveal(card.root);}
     });
-    selection=state?.selectedId||null;undo.disabled=!state?.canUndo;redo.disabled=!state?.canRedo;
+    const nextSelection=state?.selectedId||null;
+    if(nextSelection!==selection){selection=nextSelection;persist();}
+    undo.disabled=!state?.canUndo;redo.disabled=!state?.canRedo;
   }
   const schedule=()=>{if(frame==null)frame=requestAnimationFrame(refresh);};
-  colors.onclick=()=>{mode='colors';manualMode=true;selection=read()?.selectedId;schedule();};
-  boxes.onclick=()=>{mode='boxes';manualMode=true;schedule();};
-  source.onchange=()=>{current=linkedCanvases(node).find(n=>String(n.id)===source.value)||null;selection=null;for(const card of cards.values())card.root.remove();cards.clear();schedule();};
+  colors.onclick=()=>{mode='colors';manualMode=true;selection=read()?.selectedId;persist();schedule();};
+  boxes.onclick=()=>{mode='boxes';manualMode=true;persist();schedule();};
+  source.onchange=()=>{persist();current=linkedCanvases(node).find(n=>String(n.id)===source.value)||null;selection=null;for(const card of cards.values()){card.dispose();card.root.remove();}cards.clear();savedUi.sourceId=current?String(current.id):'';saveUiState(structuredClone(savedUi));schedule();};
   undo.onclick=()=>{current?.__mossBoxEditor.undo();schedule();};redo.onclick=()=>{current?.__mossBoxEditor.redo();schedule();};
   const listener=event=>{if(event.detail?.graph===node.graph)schedule();};document.addEventListener(BOX_EVENT,listener);
   const connected=node.onConnectionsChange;node.onConnectionsChange=function(){const result=connected?.apply(this,arguments);schedule();return result;};
   const configured=node.onConfigure;node.onConfigure=function(){const result=configured?.apply(this,arguments);schedule();return result;};
-  const removed=node.onRemoved;node.onRemoved=function(){document.removeEventListener(BOX_EVENT,listener);if(frame!=null)cancelAnimationFrame(frame);return removed?.apply(this,arguments);};
-  schedule();return {refresh:schedule};
+  const removed=node.onRemoved;node.onRemoved=function(){document.removeEventListener(BOX_EVENT,listener);if(frame!=null)cancelAnimationFrame(frame);for(const card of cards.values())card.dispose();return removed?.apply(this,arguments);};
+  restore();return {refresh:schedule,restore};
 }

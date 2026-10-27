@@ -505,6 +505,7 @@ function k2cfPromptTextHeightMeaningful(key, h, manual = false) {
 function k2cfPromptUiHasMeaningfulState(value) {
   const data = k2cfReadJsonObject(value);
   if (!data || typeof data !== "object") return false;
+  if (data.boxCards && typeof data.boxCards === "object") return true;
   const heights = data.textHeights && typeof data.textHeights === "object" ? data.textHeights : {};
   const manual = data.textHeightManual && typeof data.textHeightManual === "object" ? data.textHeightManual : {};
   if (Object.entries(heights).some(([key, h]) => k2cfPromptTextHeightMeaningful(key, h, manual[key]))) return true;
@@ -542,7 +543,7 @@ function k2cfElementPixelHeight(el) {
 }
 
 function k2cfNormalizeNodeSize(size) {
-  if (!Array.isArray(size) || size.length < 2) return null;
+  if ((!Array.isArray(size) && !ArrayBuffer.isView(size)) || size.length < 2) return null;
   const w = Math.round(Number(size[0]) || 0);
   const h = Math.round(Number(size[1]) || 0);
   if (!Number.isFinite(w) || !Number.isFinite(h) || w < 80 || h < 60) return null;
@@ -627,6 +628,8 @@ function k2cfLikelyManualNodeResize(node) {
   const appObj = window.comfyAPI?.app?.app || app;
   const canvas = appObj?.canvas || app?.canvas || appObj?.graphcanvas || null;
   if (!canvas || !node) return false;
+  if (canvas.pointer?.resizeDirection && canvas.resizing_node && node.id != null &&
+      String(canvas.resizing_node.id) === String(node.id)) return true;
   return canvas.resizing_node === node ||
     canvas.node_resizing === node ||
     canvas.node_being_resized === node ||
@@ -648,7 +651,7 @@ function k2cfCommitNodeSizeState(node, kind, size, savedAt = Date.now()) {
 
 function k2cfSaveNodeSize(node, kind, markDirty = false, force = false) {
   const size = k2cfNormalizeNodeSize(node?.size);
-  if (!node || !size || node.__k2cfRestoringNodeSize || k2cfIsWorkflowLoading()) return;
+  if (!node || !size || node.flags?.collapsed || node.__k2cfRestoringNodeSize || k2cfIsWorkflowLoading()) return;
   // ComfyUI 0.26 workflow-tab restore can auto-fit DOM widgets shortly after the node is rebuilt.
   // Do not let that transient auto-size overwrite the user's last manual size.
   if (!force && k2cfNodeAutoSizeGuarded(node) && !k2cfLikelyManualNodeResize(node)) return;
@@ -712,6 +715,7 @@ function k2cfInstallNodeSizePersistence(node, kind, defaultSize = null) {
   if (typeof oldComputeSize === "function" && !node.__k2cfComputeSizePatched) {
     node.computeSize = function () {
       const computed = k2cfNormalizeNodeSize(oldComputeSize.apply(this, arguments)) || k2cfNormalizeNodeSize(this.size) || [80, 60];
+      if (k2cfLikelyManualNodeResize(this)) return computed;
       const preferredSize = k2cfPreferredNodeSize(this, kind, defaultSize);
       if (!preferredSize) return computed;
       // Auto-fit should never be allowed to shrink below the persisted user size.
@@ -2872,6 +2876,7 @@ function setupPromptNode(node) {
       scenePreset: promptUiState.scenePreset || "",
       slotPreset: Object.assign({}, promptUiState.slotPreset),
       slotValues: Object.assign({}, promptUiState.slotValues || {}),
+      boxCards: promptUiState.boxCards ? structuredClone(promptUiState.boxCards) : undefined,
       saved_at: promptUiState.saved_at,
     };
     const serializedPromptUiState = JSON.stringify(node.properties.k2cfPromptUiState);
@@ -3461,6 +3466,7 @@ function setupPromptNode(node) {
       }
       applyPromptLabels();
       scheduleApplyAllSavedTextHeights();
+      boxPrompts.restore();
     } finally {
       isHydrating = false;
       notifyBoxEdit(node);
@@ -3469,14 +3475,20 @@ function setupPromptNode(node) {
 
   node.__k2cfPromptUiSnapshot = (markDirty = false, allowShrink = false) => captureCurrentTextHeights(markDirty, allowShrink);
   node.__k2cfHydrateFromWidgets = hydratePromptFromWidgets;
-  mountBoxPrompts(node, wrap, {
+  const boxPrompts = mountBoxPrompts(node, wrap, {
     language: () => resolveLang(promptLangSelect.value), framing: FRAMING_OPTIONS, angles: ANGLE_OPTIONS,
+    uiState: () => promptUiState.boxCards,
+    saveUiState: value => { promptUiState.boxCards = value; savePromptUiState(); },
     defaults: slot => ({
       prompt: widgets[`${slot}_prompt`]?.value || "", type: widgets[`${slot}_type`]?.value || "object",
       framing: widgets[`${slot}_framing`]?.value || "Auto", angle: widgets[`${slot}_angle`]?.value || "Auto",
       textStyle: textStyles[slot]?.get(),
     }),
   });
+  node.__k2cfRestoreBoxCards = value => {
+    promptUiState.boxCards = value ? structuredClone(value) : undefined;
+    boxPrompts.restore(value);
+  };
 
   node.addDOMWidget("krea2_prompt_ui", "Krea2PromptUI", wrap, {
     serialize:false,
@@ -3536,6 +3548,10 @@ function installControls(nodeType, nodeData) {
         !k2cfHasMeaningfulState(this.__k2cfConfiguredPromptState?.widgets_values);
       const result = oldConfigure?.apply(this, arguments);
       if (this.__k2cfApplyConfiguredValues) this.__k2cfApplyConfiguredValues(this.__k2cfConfiguredWidgetValues);
+      if (nodeData.name === PROMPT_NODE) {
+        const savedUi = k2cfReadJsonObject(widget(this, "prompt_ui_data")?.value);
+        this.__k2cfRestoreBoxCards?.(savedUi?.boxCards ?? this.__k2cfConfiguredPromptUiState?.boxCards ?? null);
+      }
       if (this.__k2cfHydrateFromWidgets) {
         // Restore boxes before linked-size preview callbacks can write the empty initial state.
         if (nodeData.name === CANVAS_NODE) this.__k2cfHydrateFromWidgets();

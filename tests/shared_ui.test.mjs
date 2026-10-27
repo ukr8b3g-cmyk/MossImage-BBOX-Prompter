@@ -473,7 +473,7 @@ function canvasLayoutHarness(raw, previousRaw = raw) {
   const window = { comfyAPI: { app: { app } } };
   const helpers = new Function("app", "window", "createCanvasHistory", "nextOverlappingBox",
     controlsSource.replace(/^import .*;\r?\n/gm, "").replace(/^export .*;\s*$/m, "") +
-    "\nreturn { CANVAS_WIDGETS, k2cfParseCanvasLayout, k2cfIsDefaultValue, k2cfMergeWithPrevious, k2cfBestSavedState, applyConfiguredValuesToWidgets, k2cfWriteLocalState, installNodePersistenceHooks };")
+    "\nreturn { CANVAS_WIDGETS, k2cfParseCanvasLayout, k2cfIsDefaultValue, k2cfMergeWithPrevious, k2cfBestSavedState, applyConfiguredValuesToWidgets, k2cfWriteLocalState, installNodePersistenceHooks, k2cfNormalizeNodeSize, k2cfSaveNodeSize };")
     (app, window, createCanvasHistory, nextOverlappingBox);
   const values = [896, 1184, "Custom", raw, "{}", "Thirds", "English", '{"sets":[],"selected":""}', '{"sets":[],"selected":""}'];
   const widgets = Object.fromEntries(helpers.CANVAS_WIDGETS.map((name, i) => [name, { name, value: values[i] }]));
@@ -554,4 +554,59 @@ test("Reloading a valid Canvas clears the error and resumes ordinary synchroniza
     h.sync();
     assert.deepEqual(JSON.parse(h.save().widgets_values[3]).boxes, h.state.boxes);
   }
+});
+
+
+test("typed LiteGraph node sizes persist through saving and collapsed nodes keep their expanded size", () => {
+  const h = canvasLayoutHarness('{"boxes":[]}');
+  h.node.size = new Float32Array([912, 1048]);
+  assert.deepEqual(h.k2cfNormalizeNodeSize(h.node.size), [912, 1048]);
+  h.k2cfSaveNodeSize(h.node, "canvas");
+  assert.deepEqual(h.node.properties.k2cfCanvasNodeSize.size, [912, 1048]);
+  assert.deepEqual(h.save().size, [912, 1048]);
+  h.node.flags = { collapsed: true };
+  h.node.size = new Float32Array([160, 80]);
+  h.k2cfSaveNodeSize(h.node, "canvas");
+  assert.deepEqual(h.node.properties.k2cfCanvasNodeSize.size, [912, 1048]);
+});
+
+
+test("Canvas dimension labels stay hidden without changing socket names, positions or links", () => {
+  class Canvas {}
+  installControls = type => { type.prototype.onNodeCreated = function () {}; type.prototype.onConfigure = function () {}; };
+  extension.beforeRegisterNodeDef(Canvas, { name: "MOSSSharedCanvas" });
+  const node = new Canvas();
+  node.widgets = [];
+  node.inputs = [{name:"width_override",type:"INT",localized_name:"width",link:5},{name:"height_override",type:"INT",localized_name:"height",link:6},{name:"reference_image",type:"IMAGE",label:"Reference",link:7}];
+  const before = structuredClone(node.inputs);
+  node.onNodeCreated();
+  assert.deepEqual(node.inputs.map(({name,type,link})=>({name,type,link})),before.map(({name,type,link})=>({name,type,link})));
+  assert.equal(node.inputs[0].label, "\u200b");
+  assert.equal(node.inputs[1].label, "\u200b");
+  assert.equal(node.inputs[2].label, "Reference");
+  node.inputs[0].label = "Width";
+  node.onConfigure({properties:{}});
+  assert.equal(node.inputs[0].label, "\u200b");
+  assert.equal(node.inputs[0].localized_name, "\u200b");
+});
+
+
+test("saved node size guards auto-fit while manual resizing can still shrink", () => {
+  const app={graph:{_nodes:[]},canvas:{}};
+  const window={comfyAPI:{app:{app}}};
+  const install=new Function("app","window","setInterval","clearInterval",
+    controlsSource.replace(/^import .*;\r?\n/gm, "").replace(/^export .*;\s*$/m, "") +
+    "\nreturn k2cfInstallNodeSizePersistence;")(app,window,()=>0,()=>{});
+  const node={id:1,size:new Float64Array([830,980]),properties:{k2cfCanvasNodeSize:{size:[830,980]}},
+    computeSize(){return [160,300];},setSize(size){this.size=new Float64Array(size);this.onResize?.();}};
+  install(node,"canvas");
+  assert.deepEqual(node.computeSize(),[830,980]);
+  app.canvas.resizing_node=node;
+  assert.deepEqual(node.computeSize(),[160,300]);
+  app.canvas.resizing_node={id:"1"};app.canvas.pointer={resizeDirection:"SE"};
+  assert.deepEqual(node.computeSize(),[160,300]);
+  node.setSize([720,840]);
+  assert.deepEqual(node.properties.k2cfCanvasNodeSize.size,[720,840]);
+  delete app.canvas.resizing_node;
+  assert.deepEqual(node.computeSize(),[720,840]);
 });
