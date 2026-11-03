@@ -78,3 +78,10 @@ test('editable replacement respects existing locks, append preserves them, histo
   assert.deepEqual(history.undo(after),before);assert.deepEqual(history.redo(before),after);
   assert.equal(boxes[0].locked,true);
 });
+
+test('explicit empty Type is rejected while omitted Type and legacy obj remain accepted',()=>{
+ const payload=type=>({format:'moss_bbox_layout',version:1,contents:'editable',width:100,height:100,boxes:[{id:'a',slot:'red',x1:0,y1:0,x2:40,y2:40,promptData:{prompt:'a traveler',...type}}]});
+ assert.throws(()=>parseLayoutImport(JSON.stringify(payload({type:''}))),/prompt/);
+ assert.equal(parseLayoutImport(JSON.stringify(payload({}))).items[0].promptData.type,undefined);
+ assert.equal(parseLayoutImport(JSON.stringify(payload({type:'obj'}))).items[0].promptData.type,'obj');
+});

@@ -8,9 +8,9 @@ import { mountCanvasReference } from "./canvas_reference.mjs?v=20261027-simple4"
 import { bindHelp } from "./help.mjs?v=1.0.11";
 import { mountTextStyle } from "./text_style.mjs?v=20261028-palette1";
 import { openLayoutImport } from "./layout_import.mjs?v=20261027-simple4";
-import { mountBoxPrompts, notifyBoxEdit, BOX_PROMPT_HEIGHTS, mountCardOptions } from "./box_prompts.mjs?v=20261104-controls1";
+import { mountBoxPrompts, notifyBoxEdit, BOX_PROMPT_HEIGHTS, mountCardOptions } from "./box_prompts.mjs?v=20261104-safety1";
 import { mountBoxSelectionMenu } from "./box_selection.mjs?v=20261103-analysis1";
-import {analysisStatus,requestAnalysis} from './reference_analysis.mjs?v=20261104-controls1';
+import {analysisStatus,requestAnalysis} from './reference_analysis.mjs?v=20261104-safety1';
 import { createCanvasHistory, nextOverlappingBox, snapBoxToGuides, resizeBoxWithAspect, moveBoxSelection, arrangeBoxes } from "./canvas_editing.mjs?v=20261027-simple4";
 
 const CANVAS_NODE = "MOSSSharedCanvas";

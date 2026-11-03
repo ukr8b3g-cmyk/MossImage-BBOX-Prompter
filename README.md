@@ -32,7 +32,7 @@ The generation subgraph exposes **Image analysis enable**, **target** and **kind
 | ![Target menu: Auto, RED and BLUE](docs/images/v2-target-menu.png) | ![Kind menu: character or object](docs/images/v2-kind-menu.png) |
 | **Auto** uses the first created/stored box and displays its color, such as `Auto · RED`. Select a box explicitly to keep the destination fixed. | **character** describes a person; **object** describes an object. This does not change the card's Type. |
 
-**Missing box** means there is no valid target. With analysis ON, running raises an error: create a box or select an existing one first. This version analyzes **one reference image and one box**.
+**Missing box** means there is no valid target. With analysis ON, running raises an error: create a box or select an existing one first. This version analyzes **one reference image and one box**. Text targets are excluded, including when Auto selects a Text box.
 
 ### 2. Turn ON and Run
 
@@ -45,6 +45,8 @@ Set **Image analysis enable = false**. The text stays in the card, becomes **Man
 ![Manual RED card: the analysis text remains editable after switching OFF](docs/images/v2-manual-card.png)
 
 **Running again with analysis ON overwrites manual edits with the new analysis.** Switching ON alone does not analyze anything. Keep it OFF while using your edited wording; save the whole workflow to retain it.
+
+**Safety fix on current main:** changing the image, target, body, coordinates, Type or Switch invalidates pending results; Undo or OFF→ON does not revive them. An in-flight job still finishes with its queued inputs. Update from GitHub, restart ComfyUI and press Ctrl+F5.
 
 <details>
 <summary>ON / OFF control screenshots</summary>
@@ -77,7 +79,7 @@ The reference is described as text; it is not direct image conditioning. Exact i
 - **External STRING**: text-processing/LLM node → **MOSS BBOX Text Link.text**; Canvas.framing_data → Text Link.framing_data; select Box; Text Link.external_text → Prompter.external_text. The card previews external text read-only. Unlinking restores its saved manual text. [Details](docs/REFERENCE.md#external-text-optional-string-connections).
 - **Krea2 effects**: [Krea2 BBOX Prompter Suite](https://github.com/ukr8b3g-cmyk/Krea2-BBOX-Prompter) optionally adds Background Effect / BBOX Prompt Effect after Export. Connect **Export.prompt_text → Effect.prompt_in → Effect.prompt_out → CLIP Text Encode.text**. Chain both effects if desired; use `prompt_out` to keep the original prompt. [Wiring guide](docs/REFERENCE.md#connecting-krea2-background-and-prompt-effects).
 
-[Detailed guide and older-version notes](docs/REFERENCE.md) · [Validation](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/blob/v2.0.0/TEST_REPORT.md) · [Issues](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/issues)
+[Detailed guide and older-version notes](docs/REFERENCE.md) · [Validation](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/blob/main/TEST_REPORT.md) · [Issues](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/issues)
 
 V2 GPU operation was confirmed by the user. CPU/UI, saved-state and packaging checks are recorded separately in the validation report. GitHub Releases and Registry publication are separate.
 

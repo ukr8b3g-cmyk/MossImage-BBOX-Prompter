@@ -3,6 +3,7 @@ import {FOCUS_OPTIONS,normalizeFocus,localizeCameraSelect} from '../web/camera_o
 import {origin,externalBindings} from '../web/external_text.mjs';
 import {analysisStatus} from '../web/reference_analysis.mjs';
 import {graphInputs} from '../web/graph_inputs.mjs';
+import {installAnalysisRequests} from '../web/analysis_requests.mjs';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import test from 'node:test';
@@ -51,11 +52,11 @@ function harness(initial={}) {
     (document,window,MutationObserver,ResizeObserver,requestAnimationFrame,cancelAnimationFrame,mountTextStyle,()=>{},FOCUS_OPTIONS,normalizeFocus,localizeCameraSelect,origin,externalBindings,initial.analysisStatus||analysisStatus,(...args)=>analysisCalls.push(args),graphInputs);
   const state=structuredClone(initial.state||{boxes:[{id:'red-1',slot:'red'},{id:'yellow-2',slot:'yellow'}],selectedId:null});
   const graph={_nodes:[],links:new Map([[1,{origin_id:10}],[2,{origin_id:20}]]),getNodeById:id=>graph._nodes.find(n=>n.id===id)};
-  const node={id:20,graph};
+  const node={id:20,type:'MOSSSharedPrompter',graph};
   const history=createCanvasHistory();
   const canvas={id:10,type:'MOSSSharedCanvas',graph,__mossBoxEditor:{read:()=>structuredClone(state),select:id=>{state.selectedId=id;api.refresh();},
-    update(id,value){const before=structuredClone(state),box=state.boxes.find(b=>b.id===id);if(value===null)delete box.promptData;else box.promptData=structuredClone(value);history.record(before,state);api.refresh();},
-    undo(){Object.assign(state,history.undo(state));api.refresh();},redo(){Object.assign(state,history.redo(state));api.refresh();}}};
+    update(id,value){const before=structuredClone(state),box=state.boxes.find(b=>b.id===id);if(value===null)delete box.promptData;else box.promptData=structuredClone(value);history.record(before,state);document.dispatchEvent(Object.assign(new Event('moss-bbox-edit'),{detail:canvas}));api.refresh();},
+    undo(){Object.assign(state,history.undo(state));document.dispatchEvent(Object.assign(new Event('moss-bbox-edit'),{detail:canvas}));api.refresh();},redo(){Object.assign(state,history.redo(state));document.dispatchEvent(Object.assign(new Event('moss-bbox-edit'),{detail:canvas}));api.refresh();}}};
   graph._nodes=[node,canvas,{type:'MOSSFromKrea2',inputs:[{name:'framing_data',link:1},{name:'prompt_ui_data',link:2}]}];
   const wrap=new Element(),colorCards=Array.from({length:7},()=>Object.assign(new Element(),{className:'moss-k2cf-slot-card'}));wrap.append(...colorCards);
   let saved=structuredClone(initial.ui||{mode:'boxes',manualMode:true,sourceId:'10',cards:[{canvasId:'10',id:'red-1',open:true,height:245},{canvasId:'10',id:'yellow-2',open:false,height:185}]});
@@ -70,7 +71,28 @@ function harness(initial={}) {
   const inherit=id=>descendant(card(id),e=>e.attributes['aria-label']===`Box ${id} shared`);
   const mutate=element=>mutations.filter(o=>o.target===element).forEach(o=>o.callback());
   const resume=()=>{document.hidden=false;document.dispatchEvent(new Event('visibilitychange'));window.dispatchEvent(new Event('focus'));flush();};
-  return {node,canvas,graph,wrap,state,api,container,card,field,fold,control,inherit,colorCards,defaults,document,window,flush,resume,mutate,resizes,mutations,analysisCalls,saved:()=>structuredClone(saved)};
+  const executionApi=new EventTarget(),app={rootGraph:graph};let requestSequence=0;
+  executionApi.queuePrompt=initial.queuePrompt|| (async()=>({prompt_id:`request-${++requestSequence}`}));
+  executionApi.addEventListener('executed',event=>{if(String(event.detail.node)==='20')node.onExecuted(event.detail.output);});
+  const requests=installAnalysisRequests(app,executionApi,document);
+  const removed=node.onRemoved;node.onRemoved=function(){requests.dispose();return removed?.apply(this,arguments);};
+  const changed=()=>{graph.onAfterChange?.();document.dispatchEvent(Object.assign(new Event('litegraph:canvas'),{detail:{subType:'after-change'}}));flush();};
+  const payload=()=>{
+    const output={};for(const n of graph._nodes)if(n.id!=null){
+      const inputs=Object.fromEntries((n.widgets||[]).map(w=>[w.name,w.value]));
+      for(const input of n.inputs||[]){const link=graph.links.get(input.link);if(link)inputs[input.name]=[String(link.origin_id),0];}
+      output[String(n.id)]={class_type:n.type,inputs};
+    }
+    output['10'].inputs.layout_data=JSON.stringify({boxes:state.boxes});
+    for(const [slot,value] of Object.entries(defaults))for(const key of ['type','prompt'])output['20'].inputs[`${slot}_${key}`]=value[key];
+    return {output,workflow:{}};
+  };
+  const queue=async()=>{const response=await executionApi.queuePrompt(0,payload());return response.prompt_id;};
+  const deliver=async(id,text,box='red-1',link='30',canvasId='10')=>{
+    executionApi.dispatchEvent(Object.assign(new Event('executed'),{detail:{prompt_id:id,node:'20',output:{moss_external_text:[{canvas:canvasId,box,text,link}]}}}));
+    await Promise.resolve();flush();
+  };
+  return {node,canvas,graph,wrap,state,api,container,card,field,fold,control,inherit,colorCards,defaults,document,window,flush,resume,mutate,resizes,mutations,analysisCalls,executionApi,app,changed,payload,queue,deliver,saved:()=>structuredClone(saved)};
 }
 
 function descendant(root,predicate){if(predicate(root))return root;for(const child of root.children){const found=descendant(child,predicate);if(found)return found;}return null;}
@@ -86,15 +108,15 @@ function connectExternal(h,box='red-1') {
 function connectAnalysis(h){
   const analysis={id:30,type:'MOSSBBoxImageAnalysis',graph:h.graph,widgets:[{name:'target',value:'red-1'}],inputs:[{name:'framing_data',link:1},{name:'image',link:4}]};
   const sw={id:40,type:'ComfySwitchNode',graph:h.graph,widgets:[{name:'switch',value:true}],inputs:[{name:'on_true',link:5},{name:'on_false',link:null},{name:'switch',link:null}]};
-  h.graph._nodes.push(analysis,sw,{id:31,type:'LoadImage'});h.graph.links.set(3,{origin_id:40});h.graph.links.set(4,{origin_id:31});h.graph.links.set(5,{origin_id:30});
-  h.node.inputs=[{name:'external_text',link:3}];h.node.onConnectionsChange();h.flush();return {analysis,sw};
+  const image={id:31,type:'LoadImage',widgets:[{name:'image',value:'A.png'}]};h.graph._nodes.push(analysis,sw,image);h.graph.links.set(3,{origin_id:40});h.graph.links.set(4,{origin_id:31});h.graph.links.set(5,{origin_id:30});
+  h.node.inputs=[{name:'external_text',link:3}];h.node.onConnectionsChange();h.flush();return {analysis,sw,image};
 }
 
-test('analysis Auto resolves the first box independent of color and explicit missing targets remain invalid',()=>{
+test('analysis Auto resolves the first box independent of color and explicit missing targets remain invalid',async()=>{
   const h=harness({state:{boxes:[{id:'blue-first',slot:'blue'},{id:'red-next',slot:'red'}]}}),{analysis}=connectAnalysis(h);
   analysis.widgets[0].value='';h.api.refresh();h.flush();
   assert.equal(externalBindings(h.node).items[0].box,'blue-first');assert.equal(externalBindings(h.node).error,'');
-  h.node.onExecuted({moss_external_text:[{canvas:'10',box:'blue-first',text:'Blue analysis',link:'30'}]});h.flush();
+  await h.deliver(await h.queue(),'Blue analysis','blue-first');
   assert.equal(h.state.boxes[0].promptData.prompt,'Blue analysis');assert.equal(h.state.boxes[1].promptData,undefined);
   analysis.widgets[0].value='deleted';h.api.refresh();h.flush();assert.equal(externalBindings(h.node).error,'target');
   analysis.widgets[0].value='red-next';h.api.refresh();h.flush();assert.equal(externalBindings(h.node).items[0].box,'red-next');
@@ -102,14 +124,14 @@ test('analysis Auto resolves the first box independent of color and explicit mis
   h.state.boxes=[];h.api.refresh();h.flush();assert.equal(externalBindings(h.node).error,'target');h.node.onRemoved();
 });
 
-test('successful analysis remains editable on OFF, saves with the box and uses existing Undo',()=>{
+test('successful analysis remains editable on OFF, saves with the box and uses existing Undo',async()=>{
   const h=harness(),before=structuredClone(h.state.boxes),height=h.field('red-1').style.height;
-  const {sw}=connectAnalysis(h);assert.equal(h.field('red-1').readOnly,true);
-  h.node.onExecuted({moss_external_text:[{canvas:'10',box:'red-1',text:'Automatically analyzed subject',link:'30'}]});h.flush();
+  const {sw}=connectAnalysis(h);assert.equal(h.field('red-1').readOnly,true);const request=await h.queue();
+  await h.deliver(request,'Automatically analyzed subject');
   assert.equal(h.field('red-1').value,'Automatically analyzed subject');
   assert.deepEqual(h.state.boxes[0].promptData,{...h.defaults.red,prompt:'Automatically analyzed subject'});assert.deepEqual(h.state.boxes[1],before[1]);
   // Repeated delivery must not add a second Undo entry.
-  h.node.onExecuted({moss_external_text:[{canvas:'10',box:'red-1',text:'Automatically analyzed subject',link:'30'}]});h.flush();
+  await h.deliver(request,'Automatically analyzed subject');
   sw.widgets[0].value=false;h.document.dispatchEvent(Object.assign(new Event('litegraph:canvas'),{detail:{subType:'after-change'}}));h.flush();
   assert.equal(h.field('red-1').readOnly,false);assert.equal(h.field('red-1').value,'Automatically analyzed subject');assert.equal(h.field('red-1').style.height,height);
   h.canvas.__mossBoxEditor.undo();h.flush();assert.deepEqual(h.state.boxes,before);
@@ -121,14 +143,14 @@ test('successful analysis remains editable on OFF, saves with the box and uses e
   assert.equal(reloaded.field('red-1').value,'Completely different manual prompt');h.node.onRemoved();reloaded.node.onRemoved();
 });
 
-test('analysis saves only valid current results and preserves every other box setting',()=>{
+test('analysis saves only valid current results and preserves every other box setting',async()=>{
   const h=harness({state:{boxes:[{id:'red-1',slot:'red',promptData:{prompt:'Original',name:'Keep',type:'character',framing:'Full body',angle:'Side view',focus:'Face',textStyle:{mode:'individual',color:'#123456'}}},{id:'yellow-2',slot:'yellow'}]}});
   const before=structuredClone(h.state.boxes),{analysis,sw}=connectAnalysis(h);
-  const receive=(text,box='red-1',link='30',canvas='10')=>{h.node.onExecuted({moss_external_text:[{canvas,box,text,link}]});h.flush();};
-  receive('');receive('   ');receive('Wrong link','red-1','999');receive('Wrong Canvas','red-1','30','999');assert.deepEqual(h.state.boxes,before);
-  analysis.widgets[0].value='yellow-2';h.api.refresh();h.flush();receive('Stale target');assert.deepEqual(h.state.boxes,before);
-  analysis.widgets[0].value='red-1';h.api.refresh();h.flush();sw.widgets[0].value=false;receive('Late after OFF');assert.deepEqual(h.state.boxes,before);
-  sw.widgets[0].value=true;h.api.refresh();h.flush();receive('New analyzed body');assert.deepEqual(h.state.boxes[0].promptData,{...before[0].promptData,prompt:'New analyzed body'});assert.deepEqual(h.state.boxes[1],before[1]);h.node.onRemoved();
+  let request=await h.queue();const receive=(text,box='red-1',link='30',canvas='10')=>h.deliver(request,text,box,link,canvas);
+  await receive('');await receive('   ');await receive('Wrong link','red-1','999');await receive('Wrong Canvas','red-1','30','999');assert.deepEqual(h.state.boxes,before);
+  analysis.widgets[0].value='yellow-2';h.api.refresh();h.flush();h.changed();await receive('Stale target');assert.deepEqual(h.state.boxes,before);
+  analysis.widgets[0].value='red-1';h.api.refresh();h.flush();sw.widgets[0].value=false;h.changed();await receive('Late after OFF');assert.deepEqual(h.state.boxes,before);
+  sw.widgets[0].value=true;h.api.refresh();h.flush();h.changed();request=await h.queue();await receive('New analyzed body');assert.deepEqual(h.state.boxes[0].promptData,{...before[0].promptData,prompt:'New analyzed body'});assert.deepEqual(h.state.boxes[1],before[1]);h.node.onRemoved();
 });
 
 test('external card uses one read-only field, restores manual text on unlink and rejects formatter writes',()=>{
@@ -529,4 +551,99 @@ test('all seven colors start with the same compact height and keep optional acti
  const slots=['red','blue','yellow','green','magenta','cyan','orange'];const h=harness({ui:{},state:{boxes:slots.map(slot=>({id:slot,slot})),selectedId:null}});
  for(const slot of slots){assert.match(h.field(slot).style.cssText,/height:170px/);const side=h.card(slot).children[1].children[1];assert.equal(side.children.length,4);assert(h.inherit(slot));assert.equal(h.inherit(slot).parentNode.className,'moss-card-options');}
  h.node.onRemoved();
+});
+
+
+test('request identity rejects stale image results without changing visible or saved text',async()=>{
+ const h=harness(),{image}=connectAnalysis(h),before=structuredClone(h.state.boxes);const id=await h.queue();
+ image.widgets[0].value='B.png';h.changed();await h.deliver(id,'Description of image A');
+ assert.deepEqual(h.state.boxes,before);assert.equal(h.field('red-1').value,h.defaults.red.prompt);assert.equal(h.node.__mossAnalysisNotice,'stale');h.node.onRemoved();
+});
+test('image A -> B -> A invalidates the old request permanently',async()=>{
+ const h=harness(),{image}=connectAnalysis(h),before=structuredClone(h.state.boxes);const id=await h.queue();
+ image.widgets[0].value='B.png';h.changed();image.widgets[0].value='A.png';h.changed();await h.deliver(id,'Old result');
+ assert.deepEqual(h.state.boxes,before);await h.deliver(await h.queue(),'New requested result');assert.equal(h.state.boxes[0].promptData.prompt,'New requested result');h.node.onRemoved();
+});
+test('OFF -> manual edit -> ON never revives an earlier request',async()=>{
+ const h=harness(),{sw}=connectAnalysis(h);const id=await h.queue();sw.widgets[0].value=false;h.changed();
+ h.field('red-1').value='Edited while OFF';h.field('red-1').dispatchEvent(new Event('input'));h.flush();sw.widgets[0].value=true;h.changed();
+ await h.deliver(id,'Old analysis');assert.equal(h.state.boxes[0].promptData.prompt,'Edited while OFF');assert.equal(h.field('red-1').value,'Edited while OFF');h.node.onRemoved();
+});
+test('edit -> Undo while waiting cannot resurrect an invalidated request',async()=>{
+ const h=harness(),{sw}=connectAnalysis(h),before=structuredClone(h.state.boxes);const id=await h.queue();sw.widgets[0].value=false;h.changed();
+ h.canvas.__mossBoxEditor.update('red-1',{...h.defaults.red,prompt:'Temporary edit'});h.canvas.__mossBoxEditor.undo();h.flush();sw.widgets[0].value=true;h.changed();
+ assert.deepEqual(h.state.boxes,before);await h.deliver(id,'Old analysis');assert.deepEqual(h.state.boxes,before);h.node.onRemoved();
+});
+test('coordinate changes and restoration invalidate the old request',async()=>{
+ const h=harness();connectAnalysis(h);h.state.boxes[0].x1=0;const id=await h.queue();h.state.boxes[0].x1=40;h.changed();h.state.boxes[0].x1=0;h.changed();
+ await h.deliver(id,'Old crop');assert.equal(h.state.boxes[0].promptData,undefined);h.node.onRemoved();
+});
+test('Type changes and restoration invalidate pending analysis',async()=>{
+ const h=harness();connectAnalysis(h);const id=await h.queue();h.control('red-1','Type').value='text';h.control('red-1','Type').dispatchEvent(new Event('change'));h.flush();
+ h.control('red-1','Type').value='character';h.control('red-1','Type').dispatchEvent(new Event('change'));h.flush();
+ const before=structuredClone(h.state.boxes);await h.deliver(id,'Old result');assert.deepEqual(h.state.boxes,before);h.node.onRemoved();
+});
+test('individual Text literal is never replaced by analysis or a bare onExecuted callback',async()=>{
+ const literal='Hello! 日本語 (12:30)',h=harness();h.state.boxes[0].promptData={type:'text',prompt:literal,textStyle:{mode:'individual',color:'red'}};connectAnalysis(h);
+ const before=structuredClone(h.state.boxes);await h.deliver(await h.queue(),'A person with blue hair.');
+ h.node.onExecuted({moss_external_text:[{canvas:'10',box:'red-1',link:'30',text:'Another description'}]});h.flush();
+ assert.deepEqual(h.state.boxes,before);assert.equal(h.field('red-1').value,literal);assert.equal(h.field('red-1').readOnly,false);h.node.onRemoved();
+});
+test('shared Text literal stays intact and does not create individual state',async()=>{
+ const h=harness();h.defaults.red={type:'text',prompt:'Shared literal 日本語'};connectAnalysis(h);await h.deliver(await h.queue(),'A person.');
+ assert.equal(h.state.boxes[0].promptData,undefined);assert.equal(h.field('red-1').value,'Shared literal 日本語');h.node.onRemoved();
+});
+test('unrequested and wrong prompt_id results cannot write analysis text',async()=>{
+ const h=harness();connectAnalysis(h);const before=structuredClone(h.state.boxes);await h.deliver('no-request','Unrequested');assert.deepEqual(h.state.boxes,before);
+ const id=await h.queue();await h.deliver('different-request','Wrong job');assert.deepEqual(h.state.boxes,before);await h.deliver(id,'Correct job');assert.equal(h.state.boxes[0].promptData.prompt,'Correct job');h.node.onRemoved();
+});
+test('a newer queued request supersedes older results even when they arrive last',async()=>{
+ const h=harness();connectAnalysis(h);const old=await h.queue(),latest=await h.queue();await h.deliver(latest,'Latest result');await h.deliver(old,'Old result');
+ assert.equal(h.state.boxes[0].promptData.prompt,'Latest result');assert.equal(h.field('red-1').value,'Latest result');h.node.onRemoved();
+});
+test('results arriving before the HTTP queue reply still match the returned prompt_id',async()=>{
+ let resolve;const reply=new Promise(r=>resolve=r),h=harness({queuePrompt:()=>reply});connectAnalysis(h);const queued=h.queue();
+ h.executionApi.dispatchEvent(Object.assign(new Event('executed'),{detail:{prompt_id:'early',node:'20',output:{moss_external_text:[{canvas:'10',box:'red-1',link:'30',text:'Early result'}]}}}));
+ h.executionApi.dispatchEvent(Object.assign(new Event('execution_success'),{detail:{prompt_id:'early'}}));resolve({prompt_id:'early'});await queued;await Promise.resolve();h.flush();
+ assert.equal(h.state.boxes[0].promptData.prompt,'Early result');h.node.onRemoved();
+});
+test('a failed or interrupted request cannot save a late result',async()=>{
+ for(const type of ['execution_error','execution_interrupted']){const h=harness();connectAnalysis(h);const id=await h.queue();h.executionApi.dispatchEvent(Object.assign(new Event(type),{detail:{prompt_id:id}}));
+ await h.deliver(id,'Late failed result');assert.equal(h.state.boxes[0].promptData,undefined);h.node.onRemoved();}
+});
+test('queue rejection preserves the body and rejects later unsolicited output',async()=>{
+ const h=harness({queuePrompt:async()=>{throw Error('Queue failed');}});connectAnalysis(h);await assert.rejects(h.queue(),/Queue failed/);await h.deliver('unknown','Unsolicited');assert.equal(h.state.boxes[0].promptData,undefined);h.node.onRemoved();
+});
+test('snapshot and queued image must agree before a result can be accepted',async()=>{
+ const h=harness(),{image}=connectAnalysis(h),payload=h.payload();image.widgets[0].value='B.png';const {prompt_id:id}=await h.executionApi.queuePrompt(0,payload);
+ await h.deliver(id,'Queued A despite current B');assert.equal(h.state.boxes[0].promptData,undefined);h.node.onRemoved();
+});
+test('unrelated boxes, saved style and ordinary browser focus do not invalidate valid analysis',async()=>{
+ const h=harness();connectAnalysis(h);const id=await h.queue();h.canvas.__mossBoxEditor.update('yellow-2',{...h.defaults.yellow,prompt:'Other box edit'});
+ h.resume();await h.deliver(id,'Target result');assert.equal(h.state.boxes[0].promptData.prompt,'Target result');assert.equal(h.state.boxes[1].promptData.prompt,'Other box edit');h.node.onRemoved();
+});
+test('a deleted then restored target cannot revive a previous result',async()=>{
+ const h=harness();connectAnalysis(h);const before=structuredClone(h.state.boxes),id=await h.queue();h.state.boxes.splice(0,1);h.changed();h.state.boxes.splice(0,0,before[0]);h.changed();
+ await h.deliver(id,'Old deleted-box result');assert.deepEqual(h.state.boxes,before);h.node.onRemoved();
+});
+
+test('Core next-run sampling seed advance does not discard a valid current request',async()=>{
+ const h=harness(),{analysis}=connectAnalysis(h);analysis.widgets.push({name:'seed',value:10},{name:'control_after_generate',value:'increment'});const id=await h.queue();
+ analysis.widgets.find(w=>w.name==='seed').value=11;h.changed();await h.deliver(id,'Current requested analysis');assert.equal(h.state.boxes[0].promptData.prompt,'Current requested analysis');h.node.onRemoved();
+});
+test('analysis instructions changed and restored still invalidate an old request',async()=>{
+ const h=harness(),{analysis}=connectAnalysis(h);analysis.widgets.push({name:'system_prompt',value:'Appearance only'});const id=await h.queue();
+ analysis.widgets.at(-1).value='Different instructions';h.changed();analysis.widgets.at(-1).value='Appearance only';h.changed();await h.deliver(id,'Old instructions result');assert.equal(h.state.boxes[0].promptData,undefined);h.node.onRemoved();
+});
+test('workflow changes and returning to the original workflow do not revive a request',async()=>{
+ const h=harness();connectAnalysis(h);const id=await h.queue();h.app.rootGraph={_nodes:[]};h.changed();h.app.rootGraph=h.graph;h.changed();await h.deliver(id,'Old workflow result');assert.equal(h.state.boxes[0].promptData,undefined);h.node.onRemoved();
+});
+
+test('native Switch callbacks alone refresh editability and permanently invalidate OFF -> ON',async()=>{
+ const h=harness(),{sw}=connectAnalysis(h),id=await h.queue();sw.widgets[0].value=false;sw.widgets[0].callback(false);h.flush();assert.equal(h.field('red-1').readOnly,false);
+ sw.widgets[0].value=true;sw.widgets[0].callback(true);h.flush();assert.equal(h.field('red-1').readOnly,true);await h.deliver(id,'Old native-switch result');assert.equal(h.state.boxes[0].promptData,undefined);h.node.onRemoved();
+});
+
+test('replacing an image under the same filename invalidates the pending request',async()=>{
+ const h=harness(),{image}=connectAnalysis(h),id=await h.queue();image.widgets[0].callback('A.png');await h.deliver(id,'Old pixels with the same filename');assert.equal(h.state.boxes[0].promptData,undefined);h.node.onRemoved();
 });

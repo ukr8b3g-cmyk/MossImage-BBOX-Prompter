@@ -1,5 +1,7 @@
 # MOSS BBOX Prompter — 詳細ガイド・旧版の記録
 
+**現在のmainの保護修正：** 自動保存は実行要求IDと入力状態を照合し、変更した要求はOFF→ON・編集→Undoでも復活させません。共有色の設定とキャッシュ済み結果も含め、Text枠は解析対象外として停止します。通常の外部STRINGをTextへ渡す機能は維持します。再編集JSONの明示的な空文字Typeは拒否し、省略と旧objは許可します。GitHub更新後にComfyUIを通常再起動し、Ctrl+F5で反映してください。既存v2.0.0 Releaseタグの内容は変更していません。
+
 [短いREADMEへ戻る](../README.ja.md)。設定一覧と旧版の操作・実装・検証記録を残しています。過去の試験件数や生成設定は、V2全体の保証・共通推奨値ではありません。
 
 [English](REFERENCE.md) | **日本語**
@@ -138,7 +140,7 @@ Canvasの座標をMOSS標準の中央原点・ピクセル`yxyx`形式へ変換�
 - 新しい文章プリセットはFocusも保存します。旧プリセットにFocusがなければ現在のFocusを維持し、新プリセットのAutoは明示的にAutoへ戻します。Type／Framing／Angleは文章プリセットで切り替えません。
 - 再編集JSONは、保存するID別設定に非Auto Focusまたは新Angleがあれば **v2**、それ以外や配置のみはv1です。Textで無効表示の設定も判定します。v1は引き続き読み込め、v2は更新版のノードが必要です。色別設定はJSONではなくWorkflow全体で保存してください。
 
-**1.0.10以前からの更新では、ComfyUIの通常再起動と、その後のCtrl+F5が必要です。** 再起動前の古い入力定義では新Angle／Focusを無効表示にし、再起動案内を出します。既存31ウィジェットの後ろへ7色のFocusを追加し、旧23／31入力はFocus=Autoで復元します。外部STRING入力はV2で対応しています。詳細は「外部テキスト」を参照してください。検証範囲は[TEST_REPORT.md](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/blob/v2.0.0/TEST_REPORT.md)に記載しています。
+**1.0.10以前からの更新では、ComfyUIの通常再起動と、その後のCtrl+F5が必要です。** 再起動前の古い入力定義では新Angle／Focusを無効表示にし、再起動案内を出します。既存31ウィジェットの後ろへ7色のFocusを追加し、旧23／31入力はFocus=Autoで復元します。外部STRING入力はV2で対応しています。詳細は「外部テキスト」を参照してください。検証範囲は[TEST_REPORT.md](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/blob/main/TEST_REPORT.md)に記載しています。
 
 ### ダイアログ・吹き出し・文字の設定
 
@@ -374,7 +376,7 @@ Canvasにフォーカスがあるとき、矢印キーで1px、Shift併用で10p
 1.0.7の公開CIはPython47件・JavaScript36件、構文・Ruff・全42ファイルの配布物確認に成功しました。
 ロック・参照画像の動作はユーザーがComfyUI上で確認済みです。
 隔離ブラウザー試験とCPUテンソル確認は実施しましたが、今回の公開作業でGPU生成は追加実行していません。
-過去の通常版・DMD版GPU確認は別の記録です。詳しくは[TEST_REPORT.md](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/blob/v2.0.0/TEST_REPORT.md)を参照してください。
+過去の通常版・DMD版GPU確認は別の記録です。詳しくは[TEST_REPORT.md](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/blob/main/TEST_REPORT.md)を参照してください。
 
 旧Canvas／Prompter／Hybridノードと保存形式は互換性のため残しています。
 新規作成は現在のCanvas／Prompter／Exportを使用してください。

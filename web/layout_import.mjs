@@ -10,7 +10,7 @@ function promptData(value) {
     if(typeof value[key]!=='string')fail('prompt');
     result[key]=value[key];
   }
-  if(result.type && !['character','object','text','obj'].includes(result.type))fail('prompt');
+  if('type' in result && !['character','object','text','obj'].includes(result.type))fail('prompt');
   if('focus' in value){const focus=normalizeFocus(value.focus);if(focus!=='Auto')result.focus=focus;}
   if('textStyle' in value){
     if(!object(value.textStyle))fail('prompt');

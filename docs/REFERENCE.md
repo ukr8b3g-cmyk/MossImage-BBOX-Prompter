@@ -1,5 +1,7 @@
 # MOSS BBOX Prompter — Detailed guide and version notes
 
+**Safety fixes on current main:** automatic saving is matched to the queued prompt_id and input snapshot. Changes invalidate that request permanently, including OFF→ON and edit→Undo. Text targets, including inherited color defaults and cached results, are rejected; ordinary external STRING input to Text remains supported. Explicit empty Type in editable JSON is rejected; omitted Type and legacy obj remain accepted. Update from GitHub and restart ComfyUI, then Ctrl+F5. These fixes do not rewrite the v2.0.0 release tag.
+
 [Back to the short README](../README.md). This page retains detailed controls and older-version implementation/validation notes; historical test counts and sample settings are not universal V2 guarantees.
 
 **English** | [日本語](REFERENCE.ja.md)
@@ -470,7 +472,7 @@ The 0.1.4 implementation passed **38 Python tests**, **13 JavaScript unit tests*
 and all three isolated browser fixtures. Actual ComfyUI frontend checks passed
 with both bundled Standard and DMD workflows, covering history buttons, keyboard
 shortcuts, selection and movement of covered boxes, and deletion/restoration.
-Those frontend checks submitted no generation jobs. See [TEST_REPORT.md](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/blob/v2.0.0/TEST_REPORT.md)
+Those frontend checks submitted no generation jobs. See [TEST_REPORT.md](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/blob/main/TEST_REPORT.md)
 for the tested scope and the earlier GPU validation record.
 
 ### 1.0.1: damaged layout recovery
@@ -740,7 +742,7 @@ Both produced 896×1184 WebP images with embedded workflow and API prompt
 metadata matching the submitted data. The sampler executed in both runs;
 the source workflow JSON files were unchanged. Visual review confirmed the
 title at the top, the character on the left, and the table/vase on the right.
-See [the GPU validation record](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/blob/v2.0.0/TEST_REPORT.md#standalone-gpu-acceptance--2026-10-21)
+See [the GPU validation record](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/blob/main/TEST_REPORT.md#standalone-gpu-acceptance--2026-10-21)
 for settings, execution scope and limitations. Independence from a separate
 Krea2 installation is also covered by isolated CPU and browser tests.
 

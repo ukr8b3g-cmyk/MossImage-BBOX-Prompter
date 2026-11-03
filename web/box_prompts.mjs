@@ -1,9 +1,9 @@
 import {FOCUS_OPTIONS, normalizeFocus, localizeCameraSelect} from './camera_options.mjs?v=20261027-simple4';
 import {mountTextStyle} from './text_style.mjs?v=20261028-palette1';
 import {bindHelp} from './help.mjs?v=1.0.11';
-import {externalBindings} from './external_text.mjs?v=20261104-controls1';
+import {externalBindings} from './external_text.mjs?v=20261104-safety1';
 import {graphInputs} from './graph_inputs.mjs?v=20261103-target1';
-import {analysisStatus,requestAnalysis} from './reference_analysis.mjs?v=20261104-controls1';
+import {analysisStatus,requestAnalysis} from './reference_analysis.mjs?v=20261104-safety1';
 
 export const BOX_PROMPT_HEIGHTS=Object.fromEntries(['red','blue','yellow','green','magenta','cyan','orange'].map(slot=>[slot,170]));
 export const BOX_EVENT='moss-bbox-edit';
@@ -167,11 +167,12 @@ export function mountBoxPrompts(node,wrap,{language,defaults,framing,angles,came
       const value=b.promptData||defaults(b.slot);
       const assignment=bindings.items.find(item=>item.canvas===current&&item.box===b.id);
       const received=!assignment?.error&&node.__mossExternalResult?.find(item=>item.canvas===String(current.id)&&item.box===b.id&&item.link===assignment?.link);
-      prompt.readOnly=Boolean(assignment);
+      const textTarget=assignment?.analysis&&value.type==='text';
+      prompt.readOnly=Boolean(assignment&&!textTarget);
       const sourceLabel=assignment?.analysis?text('Analysis','解析'):text('External','外部');
-      const label=assignment?(assignment.error?`${sourceLabel} · ${text('Check link','接続確認')}`:received?`${sourceLabel} · ${text('Last run','前回実行')}`:`${sourceLabel} · ${text('Not run','未実行')}`):text('Manual','手入力');
+      const label=textTarget?text('Analysis · Text excluded','解析・Text対象外'):assignment?.analysis&&node.__mossAnalysisNotice?text('Analysis · Run again','解析・再実行'):assignment?(assignment.error?`${sourceLabel} · ${text('Check link','接続確認')}`:received?`${sourceLabel} · ${text('Last run','前回実行')}`:`${sourceLabel} · ${text('Not run','未実行')}`):text('Manual','手入力');
       status.textContent=label;prompt.placeholder=assignment?label:text('Prompt','プロンプト');
-      const displayed=assignment?(received?.text??''):(value.prompt||'');
+      const displayed=assignment&&!assignment.analysis?(received?.text??''):(value.prompt||'');
       if((assignment||card.wasExternal||card.model!==JSON.stringify(value))&&prompt.value!==displayed)prompt.value=displayed;
       card.wasExternal=Boolean(assignment);
       const color=slotColor(b.slot),slot=b.slot.toUpperCase();
@@ -255,18 +256,15 @@ export function mountBoxPrompts(node,wrap,{language,defaults,framing,angles,came
   const connected=node.onConnectionsChange;node.onConnectionsChange=function(){const result=connected?.apply(this,arguments);schedule();return result;};
   const executed=node.onExecuted;node.onExecuted=function(message){
     const result=executed?.apply(this,arguments);bindings=externalBindings(node);
-    node.__mossExternalResult=Array.isArray(message?.moss_external_text)?message.moss_external_text:null;
-    // Successful analysis becomes the ordinary box body, using its existing Undo/save owner.
-    for(const item of node.__mossExternalResult||[]){
-      const assignment=bindings.items.find(a=>a.analysis&&!a.error&&String(a.canvas.id)===item.canvas&&a.box===item.box&&a.link===item.link);
-      if(!assignment||typeof item.text!=='string'||!item.text.trim())continue;
-      const box=assignment.canvas.__mossBoxEditor.read().boxes.find(b=>b.id===item.box);
-      if(box&&(!box.promptData||box.promptData.prompt!==item.text))
-        assignment.canvas.__mossBoxEditor.update(box.id,{...(box.promptData||defaults(box.slot)),prompt:item.text});
-    }
+    const analysisLinks=new Set(bindings.items.filter(a=>a.analysis).map(a=>a.link));
+    // Analysis needs the API event's prompt_id. Only its request-checked handler
+    // may save or preview that result; ordinary external STRINGs stay unchanged.
+    const incoming=Array.isArray(message?.moss_external_text)?message.moss_external_text:[];
+    node.__mossExternalResult=[...incoming.filter(i=>!analysisLinks.has(i.link)),
+      ...(node.__mossExternalResult||[]).filter(i=>analysisLinks.has(i.link))];
     schedule();return result;
   };
-  const configured=node.onConfigure;node.onConfigure=function(){shared.open=false;delete node.__mossExternalResult;const result=configured?.apply(this,arguments);schedule();return result;};
+  const configured=node.onConfigure;node.onConfigure=function(){shared.open=false;delete node.__mossExternalResult;delete node.__mossAnalysisNotice;const result=configured?.apply(this,arguments);schedule();return result;};
   const removed=node.onRemoved;node.onRemoved=function(){document.removeEventListener('litegraph:canvas',graphChanged);document.removeEventListener(BOX_EVENT,listener);document.removeEventListener('visibilitychange',resume);window.removeEventListener('focus',resume);window.removeEventListener('pageshow',resume);resizeObserver?.disconnect();if(frame!=null)cancelAnimationFrame(frame);for(const card of cards.values())card.dispose();return removed?.apply(this,arguments);};
   restore();return {refresh:schedule,restore,selectColor(slot){const state=read(),box=state?.boxes.find(b=>b.slot===slot&&b.id===state.selectedId)||state?.boxes.find(b=>b.slot===slot);if(box)pick(box.id);}};
 }

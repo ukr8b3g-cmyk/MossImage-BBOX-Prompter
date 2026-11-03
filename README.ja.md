@@ -32,7 +32,7 @@ V2 ZIPを展開し、`examples/MOSS_BBOX_Canvas_V2.json`を開きます。**Load
 | ![対象メニュー：Auto・RED・BLUE](docs/images/v2-target-menu.png) | ![種別メニュー：character・object](docs/images/v2-kind-menu.png) |
 | **Auto**は最初に作成・保存された枠を使い、`Auto · RED`など対象色も表示します。入力先を固定する場合は枠を明示指定してください。 | 人物は**character**、物体は**object**。カードのTypeを変更する設定ではありません。 |
 
-**Missing box／対象なし**は有効な入力先がない状態です。解析ONで実行するとエラーになるため、枠を作るか実在する枠を選び直してください。今回の解析範囲は**参照画像1枚・対象枠1つ**です。
+**Missing box／対象なし**は有効な入力先がない状態です。解析ONで実行するとエラーになるため、枠を作るか実在する枠を選び直してください。今回の解析範囲は**参照画像1枚・対象枠1つ**です。Autoが選んだ場合も含め、Text枠は解析対象外です。
 
 ### 2. ONで解析・生成
 
@@ -45,6 +45,8 @@ V2 ZIPを展開し、`examples/MOSS_BBOX_Canvas_V2.json`を開きます。**Load
 ![ManualのREDカード：OFF後も解析文が残り、そのまま編集できる](docs/images/v2-manual-card.png)
 
 **再びONで実行すると、手動編集した本文も新しい解析文で上書きされます。** ONへ切り替えるだけでは解析しません。編集文を使う間はOFFのままにし、Workflow全体を保存してください。
+
+**現在のmainで保護を修正：** 画像・対象・本文・座標・Type・Switchの変更後に届く旧結果は保存しません。UndoやOFF→ONでも復活しません。実行中のジョブ自体は実行要求時の入力で完了します。GitHubから更新後、ComfyUIを通常再起動し、Ctrl+F5で反映してください。
 
 <details>
 <summary>ON／OFFの操作画面</summary>
@@ -77,7 +79,7 @@ V2 ZIPを展開し、`examples/MOSS_BBOX_Canvas_V2.json`を開きます。**Load
 - **外部STRING**：文章処理・LLMノード → **MOSS BBOX Text Link.text**、Canvas.framing_data → Text Link.framing_dataを接続し、Boxを選択。Text Link.external_text → Prompter.external_textへ渡します。カードは外部文章の読み取り専用プレビューとなり、接続を外すと保存済みの手入力へ戻ります。[詳細](docs/REFERENCE.ja.md#外部テキスト任意のstring接続)。
 - **Krea2エフェクト**：[Krea2 BBOX Prompter Suite](https://github.com/ukr8b3g-cmyk/Krea2-BBOX-Prompter)のBackground Effect／BBOX Prompt EffectをExportの後ろへ任意で追加できます。**Export.prompt_text → Effect.prompt_in → Effect.prompt_out → CLIP Text Encode.text**。2種類の連結も可能です。元のプロンプトを保持するため`prompt_out`を使います。[配線図](docs/REFERENCE.ja.md#krea2の背景エフェクトを追加する接続)。
 
-[詳細ガイド・旧版の記録](docs/REFERENCE.ja.md) · [検証記録](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/blob/v2.0.0/TEST_REPORT.md) · [不具合報告](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/issues)
+[詳細ガイド・旧版の記録](docs/REFERENCE.ja.md) · [検証記録](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/blob/main/TEST_REPORT.md) · [不具合報告](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/issues)
 
 V2のGPU動作はユーザー確認済みです。開発側のCPU・画面・保存復元・配布物の検証とは区別して検証記録に記載しています。GitHub ReleaseとRegistry公開は別工程です。
 

@@ -1,4 +1,4 @@
-import {origin,externalBindings} from './external_text.mjs?v=20261104-controls1';
+import {origin,externalBindings} from './external_text.mjs?v=20261104-safety1';
 import {analysisGraph,cropBounds,kind} from './reference_analysis_graph.mjs?v=20261103-analysis1';
 
 const input=(n,k)=>n.inputs?.find(i=>i.name===k);

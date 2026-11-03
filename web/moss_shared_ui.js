@@ -1,7 +1,9 @@
 import { normalizeFocus } from "./camera_options.mjs?v=20261027-simple4";
 import { app } from "../../scripts/app.js";
-import { installControls } from "./moss_controls.mjs?v=20261104-controls1";
-import { installTextLink } from "./external_text.mjs?v=20261104-controls1";
+import { api } from "../../scripts/api.js";
+import { installAnalysisRequests } from "./analysis_requests.mjs?v=20261104-safety1";
+import { installControls } from "./moss_controls.mjs?v=20261104-safety1";
+import { installTextLink } from "./external_text.mjs?v=20261104-safety1";
 import { helpText } from "./help.mjs?v=1.0.11";
 
 const sharedTypes = new Set(["MOSSSharedCanvas", "MOSSSharedPrompter"]);
@@ -149,8 +151,11 @@ function compactCanvasFooter(root) {
   root.appendChild(style);
 }
 
+let analysisRequests;
 app.registerExtension({
   name: "moss.bbox.shared-ui.v1",
+  setup() { analysisRequests=installAnalysisRequests(app,api); },
+  beforeConfigureGraph() { analysisRequests?.reset(); },
   beforeRegisterNodeDef(nodeType, nodeData) {
     if(['MOSSBBoxTextLink','MOSSBBoxImageAnalysis'].includes(nodeData.name)){installTextLink(nodeType,app);return;}
     if (nodeData.name === "MOSSFromKrea2") {
