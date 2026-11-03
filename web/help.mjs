@@ -3,7 +3,9 @@ let localeReader = () => globalThis.document?.documentElement.lang || "en";
 export function setHelpLocaleReader(reader) { localeReader = reader; }
 
 export const HELP = {
-  card_options: ["Card options. Per-box cards include Name and Shared; color cards include presets.", "カードの設定です。枠別は名前・共通設定、色別はプリセットを開きます。"],
+  external_text: ["Analysis saves the result to this box. Switch OFF to edit it; Canvas Undo restores the prior text. A normal Text Link stays external and does not replace saved manual text.", "解析結果はこの枠の本文に保存します。OFFで編集でき、CanvasのUndoで解析前へ戻せます。通常のText Linkは保存本文を置き換えません。"],
+  analysis_command: ["Analyze the selected Character or Object box from the reference image. Enable the analysis Switch first. Review the candidate, then Apply; ordinary image generation does not start analysis.", "参照画像から選択枠を解析します。先に解析SwitchをONにしてください。候補を確認し「適用」で本文を置き換えます。通常生成では解析を開始しません。"],
+  card_options: ["Card options. Per-box cards include Name, Shared and reference analysis; color cards include presets.", "カードの設定です。枠別は名前・共通設定・参照画像の解析、色別はプリセットを開きます。"],
   dialogue_role: ["Choose the purpose of the visible text: speech, thought, narration, title, plain lettering or sound effect. Follow Export leaves appearance unchanged until you choose an option.", "描く文字の用途を選びます。セリフ・心の声・ナレーション・タイトル・通常の文字・効果音です。従来設定のままなら用途の追加指示は出しません。"],
   dialogue_shape: ["Choose an enclosure independently of text usage. Follow usage adds no shape hint; No enclosure explicitly requests no bubble or caption box. This never changes BBOX geometry.", "用途とは別に文字を囲む形を指定します。「用途に合わせる」は形の追加指示なし、「枠なし」は吹き出し・囲みなしの指示です。Canvasの枠形状は変更しません。"],
   dialogue_structure: ["Optional bubble structure: normal, shared by speakers, overlapping, nested or numbered. Auto adds no instruction; this does not create extra Canvas boxes.", "吹き出しの構造を通常・複数話者で共有・重なり・入れ子・番号付きから指定します。自動は追加指示なし。Canvasの枠は自動追加しません。"],
@@ -29,7 +31,7 @@ export const HELP = {
   box_prompts: ["Edit each box here. Shared defaults are below.", "枠ごとに入力します。色の共通設定は下の共通設定欄です。"],
   layout_import: ["Import/export JSON. Export placement only, or editable box IDs, locks and individual prompts/styles. Reopen exported files here. Defaults: replace boxes, keep Canvas size. Editable files restore per-ID settings; color defaults, scene and shared Export style remain in the workflow.", "JSONの読み込み・書き出し。配置のみ、または枠ID・ロック・ID別文章とスタイルを含む再編集用を選べます。書き出したファイルもここから再読み込み。初期値は置き換え・現在サイズ維持。再編集用はID別設定を復元し、色別共通設定・シーン・Export共通スタイルはWorkflow側に残します。"],
   text_color_presets: ["Open 256 preset swatches in a 16 × 16 grid. Click a color to apply its HEX code. Opening or dismissing does not change your color. The popup closes after selection, on Escape or an outside click. The adjacent swatch opens the free color picker.", "256個のプリセット色を16×16のマス目で開きます。色をクリックするとHEXコードで反映します。開閉だけでは色は変わりません。選択後、Esc、外側クリックで閉じます。隣の色見本では自由に色を選べます。"],
-  text_color_pick: ["Apply this preset as the text color and close the palette.", "このプリセットを文字色に指定してパレットを閉じます。"],
+  text_color_pick: ["Apply this preset to the selected color field and close the palette.", "選択中の項目にこの色を指定してパレットを閉じます。"],
   close_color_presets: ["Close preset colors without changing the text color.", "文字色を変えずにプリセット色を閉じます。"],
   text_color_palette: ["Click the swatch to choose a text color. Choosing writes a HEX code into the adjacent field. You can still type a color name or HEX code there, or clear it for no color hint. The white swatch for an empty/unrecognized description does not set a color until you choose one.", "色見本をクリックして文字色を選びます。選択した色は隣の欄へHEXコードで反映します。色名やHEXコードの直接入力も可能です。空欄なら色の追加指示なし。空欄や解釈できない色名の白い見本は、選択するまで色指定として保存されません。"],
   individual_text_style: ["Text cards only. Shared uses Export text_style unchanged (default). Individual replaces it for this color in literal mode: typeface, weight, color and extra appearance. Blank/Auto adds no hint. Same-color boxes share the style. Legacy mode ignores these fields. Visible wording is never changed; exact fonts/colors are not guaranteed.", "Text専用です。初期値の共通設定ではExportのtext_styleをそのまま使用します。個別指定ではliteralモードのその色だけを書体・太さ・文字色・補足で置き換えます。空欄・自動は追加指示なし。同じ色の枠は同じスタイルを共有します。legacyモードでは無視します。描く文字そのものは変更せず、書体や色の厳密な再現は保証しません。"],
@@ -104,6 +106,9 @@ export const HELP = {
 export function helpText(key, locale = localeReader()) {
   return HELP[key]?.[/^ja(?:-|$)/i.test(locale || "") ? 1 : 0] || "";
 }
+
+HELP.external_text=["Connected text replaces this box's generation body. Run to update the card. Switch OFF or disconnect to restore saved manual text. Empty external STRING stays empty.","接続した文章をこの枠の生成本文に使います。通常の実行でカードも更新されます。Switch OFFまたは接続解除で保存した手入力へ戻ります。外部の空文字は空欄として使います。"];
+HELP.external_target=["Choose one box on the connected Canvas. Same-color boxes remain independent. Names and colors are labels, not identifiers.","接続したCanvasの枠を選びます。同じ色の枠も個別に指定できます。色や名前を変えても対象は変わりません。"];
 
 export function bindHelp(element, key) {
   element.dataset.mossHelp = key;

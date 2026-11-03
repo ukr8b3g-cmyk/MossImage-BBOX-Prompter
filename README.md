@@ -2,16 +2,18 @@
 
 **English** | [Japanese](README.ja.md)
 
-**Latest GitHub release: 1.0.11** — [Release and workflows](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/tag/v1.0.11) · [Comfy Registry](https://registry.comfy.org/nodes/mossimage-bbox-prompter)
+**Latest GitHub release: 2.0.0 (V2)** — [Release and workflows](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/tag/v2.0.0) · [Comfy Registry](https://registry.comfy.org/nodes/mossimage-bbox-prompter)
 
-## What's new in 1.0.11
+**New in V2:** reference-image analysis, automatic box-text saving, editing after OFF, Auto targets and visible analysis settings. V1 compatibility is retained.
+
+## Features retained from V1 (1.0.11)
 
 - One compact card layout before and after connection: the same four rows, typography, widths and 170px initial editor height for all seven colors. Saved manual sizes remain authoritative.
 - Header **⋯** holds Name/Shared for individual boxes or presets for shared color settings. Short labels and hover help replace inline explanations.
 - Prompt/Type ownership and saved card expansion/heights are fixed. Selecting a box does not fold its card or restore stale words/settings.
 - Three distinct Angle additions and independent Focus controls; see Angle / Focus below.
 - Text usage (7), bubble shapes (22), structure, direction, colors and an offline emoji picker. Literal wording stays separate from appearance hints.
-- A [current UI template](examples/MOSS_BBOX_Template.json), preserving example words and generation settings while normalizing editor dimensions. **New nodes start blank**; they never inherit sample prompts.
+- A [V1 template](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/download/v1.0.11/MOSS_BBOX_Template.json), preserving example words and generation settings while normalizing editor dimensions. **New nodes start blank**; they never inherit sample prompts.
 - Unconnected legacy width_override/height_override sockets are removed. Connected legacy overrides and the LATENT SIZE W/H controls remain supported.
 
 **Updating:** save a separate workflow copy and finish running work first. Upgrading from 1.0.10 or earlier changes Python inputs for Focus, so restart ComfyUI normally and then press Ctrl+F5. Registry publication is separate from GitHub Releases.
@@ -52,7 +54,7 @@ Auto adds nothing. An individual card's Auto is independent of color defaults; C
 
 Editable JSON uses **v2** only when saved per-ID settings contain non-Auto Focus or a new Angle, including settings disabled for Text. Placement-only and other editable files remain v1. Updated readers accept v1/v2; old readers reject v2. Save the full workflow to transfer color defaults.
 
-**Restart ComfyUI, then press Ctrl+F5 to use this update:** it appends seven optional Focus inputs after the existing 31 widgets. Old 23/31-widget workflows restore Focus as Auto. Before restarting, the frontend disables the new choices and displays a restart message for the old backend schema. The implementation did not restart the user's process. CPU and isolated real-ComfyUI frontend checks were performed; no new GPU generation was run for this release. External text-input improvements remain on hold.
+**Restart ComfyUI, then press Ctrl+F5 to use this update:** it appends seven optional Focus inputs after the existing 31 widgets. Old 23/31-widget workflows restore Focus as Auto. Before restarting, the frontend disables the new choices and displays a restart message for the old backend schema. The implementation did not restart the user's process. CPU and isolated real-ComfyUI frontend checks were performed; no new GPU generation was run for this release. Optional external STRING inputs are available in V2; see External text.
 
 ### Dialogue, bubbles and lettering
 
@@ -70,7 +72,7 @@ Editable JSON uses **v2** only when saved per-ID settings contain non-Auto Focus
 | Direction | Auto, Horizontal (left to right), Vertical (top to bottom, columns right to left). Literal text and line breaks remain unchanged. |
 | Letter size / border weight | Relative generated lettering size and bubble-outline thickness; neither resizes the editor. |
 | Tail / speaker | Describe a target, such as toward the left woman’s mouth. No automatic speaker-ID binding. |
-| Text / outline / shadow / bubble fill / bubble border color | Color name, HEX or picker. Existing 256 text-color presets remain available. Empty adds no hint; opening a picker does not set a color. |
+| Text / bubble fill / lettering outline / bubble border / shadow color | Text color and bubble fill come first in Lettering / Bubbles. Each color has a free picker, a **▦** 256-color palette, and color-name/HEX input. Empty shows **Unset** and adds no hint. Preset buttons are created on first opening, then reused by all five fields on that card. Opening or closing never changes a value. |
 | Typeface, weight, notes | Existing values are retained. Notes describe appearance, separately from visible words. |
 | Text style | Shared style uses Export.text_style; Custom style overrides appearance for this Text. Editing usage/shape enables the latter. This is an appearance choice, not a prompt-view switch. |
 
@@ -80,15 +82,66 @@ These are generation descriptions, not vector bubbles drawn on Canvas. Appearanc
 
 **TagComplete (Danbooru Tag JP Assist) Format:** when JP Assist supports custom DOM prompt fields, scene/background and Character/Object color and ID prompts participate in All / Selected nodes formatting. **Literal Text wording is excluded from batch formatting.** To explicitly format lettering or style notes, choose **Current input / selection**, focus that field and press Format. Selected text is supported. Formatting runs only on explicit action, never on tab or focus changes. JP Assist is a separate extension and is not bundled or updated here. Existing formatting options and dictionaries stay unchanged. Save the workflow and press Ctrl+F5 to load the frontend update.
 
-## Workflow downloads
+## External text (optional STRING connections)
 
-[Workflow ZIP for 1.0.11](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/download/v1.0.11/MOSS_BBOX_Workflows_1.0.11.zip) includes the README files, reference image and these examples:
+**MOSS BBOX Text Link** assigns an upstream STRING to one Canvas box. It replaces only the body; Type, Framing, Angle, Focus and lettering settings stay on the card. No extra dependency is added. Text Link requires ComfyUI's V3 node API. Existing workflow formats are preserved.
 
-- [MOSS_BBOX_Template.json](examples/MOSS_BBOX_Template.json): current UI template, including example character/dialogue words and generation settings. Edit those words for your use. They are not defaults for new nodes.
-- [MOSS_BBOX_Standard.json](examples/MOSS_BBOX_Standard.json): Standard generation example.
-- [MOSS_BBOX_DMD.json](examples/MOSS_BBOX_DMD.json): DMD generation example.
+1. Connect **Text (Multiline)**, a text-processing node or an LLM's STRING output to Text Link **text**.
+2. Connect Canvas **framing_data** to Text Link **framing_data**, then choose **Box**. Colors and optional names identify boxes; renaming or recoloring keeps the selected box ID.
+3. Connect Text Link **external_text** to Prompter **external_text**. Keep Canvas and Prompter connected to the same Export as usual.
+4. For another box, add another Text Link. Connect the first one's **external_text** to the next one's **previous**, and the last one to Prompter.
 
-Select installed model/CLIP/VAE/LoRA filenames. The example LoRA loader needs rgthree-comfy. These are example settings, not universal recommendations. Keep both Canvas and Prompter when saving a workflow.
+The existing card editor becomes read-only: **External · Not run** before execution, **External · Last run** after Prompter receives the text. The display is a preview of the last execution, not a live preview of upstream edits. Copying remains possible. Card position, saved height and expansion do not change. Type and appearance remain editable. External body formatting and emoji insertion are disabled.
+
+| Situation | Body used at execution |
+| --- | --- |
+| External input connected | Only that STRING; no concatenation with manual text |
+| Upstream STRING is empty | Empty; saved manual text is not used |
+| Text Link → Prompter disconnected | Original saved manual text returns |
+| Upstream STRING missing, target deleted or target assigned twice | Error; no fallback to manual or a previous execution |
+| Same Canvas + Prompter connected to multiple Exports | Same box body in that execution, regardless of Export order or selection |
+
+External **Text** is literal, including spaces, line breaks, quotes and `|`, even when Export uses legacy text mode. Different Export modes may still produce different final prompt formats or appearance hints. Connect each Export's **prompt** to **Preview as Text** to inspect the actual final output. Separate Text Link + Prompter branches allow different external wording; changing a shared Canvas's manual text still affects every branch using it.
+
+A normal Text Link preserves saved manual text in Canvas and never overwrites it with external results. Workflow files store the links and chosen box, not the card's last-run preview. After loading, execute again to populate that preview. Image Analysis instead saves successful results to the target box body, ready to edit when switched OFF. Canvas identity prevents an assignment from leaking into another Canvas with the same box ID or color. Keep both Canvas and Prompter in saved workflows.
+
+
+## V2 template and usage
+
+Downloads are presented in two versions. The V2 ZIP contains the new workflow only; V1 workflows are not mixed into it. Older release history is retained.
+
+| Version | Download | Use |
+| --- | --- | --- |
+| **V2 · 2.0.0** | [V2 ZIP](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/download/v2.0.0/MOSS_BBOX_Canvas_V2.zip) / [Workflow JSON](examples/MOSS_BBOX_Canvas_V2.json) | Current template with reference-image analysis. |
+| V1 · 1.0.11 | [Previous release](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/tag/v1.0.11) / [Previous Template JSON](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/download/v1.0.11/MOSS_BBOX_Template.json) | Previous generation setup. |
+
+Extract the V2 ZIP and load `examples/MOSS_BBOX_Canvas_V2.json` in ComfyUI. Upload/select the included `ed6c61ad22695e639fb4b5b75fd2b931.webp` in Load Image. Select your installed model, TE, VAE and LoRA files. The template's Power Lora Loader requires [rgthree-comfy](https://github.com/rgthree/rgthree-comfy). Use a MOSS-capable ComfyUI with Core Generate Text, If/Else Switch and Seed nodes.
+
+### 1. Reference image and analysis controls
+
+Load the reference image and set **Image analysis enable** on the generation subgraph to true. This describes the reference as text and generates from that text; it does not directly condition image generation with the reference pixels.
+
+### 2. target and kind
+
+Auto uses the first created box and displays the resolved target, such as Auto · RED. Colors have no priority. Select RED, BLUE or another box explicitly when the destination must stay fixed.
+
+kind selects character or object for the analysis request. It does not change the prompt card's Type.
+
+This version analyzes **one reference image and one target box**. Missing box is not an output destination: running with analysis ON raises an error. Create a box or select an existing target first.
+
+### 3. Analyze and generate with ON
+
+With Image analysis enable set to true, press the ordinary Run button. The analysis is saved automatically to the selected Prompter card and flows through Export into generation. No copying, pasting or separate Apply operation is required.
+
+### 4. Edit and generate normally with OFF
+
+To edit the analysis, first switch Image analysis enable to **false**. The text stays in the card, which becomes Manual and editable. You can replace it with entirely different wording. OFF does not reanalyze the reference; it uses the saved prompt for normal generation as before.
+
+**Switching back to true and running overwrites manual edits with the new analysis.** Merely switching to true does not start analysis. Keep it false while using edited wording. Save/reload retains the body; Canvas Undo restores the pre-analysis body within the same session.
+
+Existing V1 node IDs, workflows and saved settings remain compatible. There is no need to replace them with separate V1/V2-named nodes. New nodes start with blank prompts and never copy template wording automatically.
+
+GPU operation of the V2 template was confirmed by the user. This is distinguished from developer CPU, UI and save/reload checks.
 
 ### 1.0.9: seven colors, JSON import/export and ID cards
 
@@ -112,7 +165,6 @@ This adds independent descriptions, not a seven-box limit. Restart ComfyUI and
 refresh the browser after installing this main-branch update. Workflows using the
 new colors or per-ID prompts require 1.0.9 or newer; 1.0.8 does not fully interpret them.
 
-[Download the current workflow ZIP](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/download/v1.0.11/MOSS_BBOX_Workflows_1.0.11.zip). Current examples include updated UI sizes; Standard/DMD generation settings remain unchanged.
 
 ### 1.0.8: alignment, Text styles and two color pickers
 
@@ -121,7 +173,6 @@ Undo/Redo. Text cards now support individual typeface, weight, color and extra
 appearance hints, defaulting to shared settings. Choose colors freely or from
 256 presets in a compact grid. Existing node IDs and workflows stay compatible.
 
-[Download Standard + DMD + reference image ZIP](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/download/v1.0.8/MOSS_BBOX_Workflows_1.0.8.zip).
 The JSON templates are unchanged from v1.0.7; per-Text styles default to shared.
 Restart ComfyUI and refresh the browser after updating the node package.
 
@@ -184,14 +235,8 @@ size (rounded to a multiple of 16), with proportional box scaling and Undo/Redo.
 **Lock** beside X/Y/W/H protects selected boxes from accidental edits. This image
 is a layout reference; connecting it here does not add image conditioning.
 
-**Download the updated examples:** [Standard + DMD + reference image ZIP](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/download/v1.0.7/MOSS_BBOX_Workflows_1.0.7.zip).
-The ZIP contains exactly two workflow JSONs and `ComfyUI_00238_.webp`.
-In each workflow's **Load Image**, upload/select that WebP (or copy it into
-`ComfyUI/input/`). Both workflows use WebP saving and include the BBOX Preview.
-DMD uses LoRA ON, 8 steps / CFG 1; Standard uses LoRA OFF, 25 steps / CFG 2.5.
-Select installed model/LoRA filenames if your installation uses different names.
-These reference-input examples require node version **1.0.7+**. Previous release
-assets remain available for older versions; old workflows work with the new nodes.
+Use the [V2 / V1 download guide](#v2-template-and-usage) above. Older Standard
+and DMD examples remain in their original releases and work with the new nodes.
 
 - Turn **Draw Box OFF**, select a box (Ctrl/Cmd-click for several), then use
   **Lock / Unlock** beside X/Y/W/H. Locked boxes remain selectable and show a
@@ -488,38 +533,16 @@ the LoRA loader's model output to KSampler.
 The separate `moss_state_896x1184.json` is a state-import sample, not a generation
 workflow. Older workflow versions remain available in Git history.
 
-### Versioned workflow downloads and compatibility
+### Workflow compatibility
 
-Use the workflow associated with your installed node version. The existing
-Standard and DMD workflows remain compatible with the current nodes; node IDs,
-sockets and saved values are preserved. The current templates include Preview;
-the archived v1.0.0 files below do not include Preview and remain usable.
+Use the [V2 / V1 download guide](#v2-template-and-usage) above. Existing Standard
+and DMD workflows remain compatible: node IDs, sockets and saved values are
+preserved. Older tags and release assets remain available in GitHub release
+history. The new V2 workflow bundle contains only the V2 template.
 
-| Release | Standard | DMD |
-| --- | --- | --- |
-| [v1.0.9](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/tag/v1.0.9) | [Download JSON](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/download/v1.0.9/MOSS_BBOX_Standard.json) | [Download JSON](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/download/v1.0.9/MOSS_BBOX_DMD.json) |
-| [v1.0.8](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/tag/v1.0.8) | [Download JSON](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/download/v1.0.8/MOSS_BBOX_Standard.json) | [Download JSON](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/download/v1.0.8/MOSS_BBOX_DMD.json) |
-| [v1.0.7](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/tag/v1.0.7) | [Download JSON](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/download/v1.0.7/MOSS_BBOX_Standard.json) | [Download JSON](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/download/v1.0.7/MOSS_BBOX_DMD.json) |
-| [v1.0.6](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/tag/v1.0.6) | [Download JSON](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/download/v1.0.6/MOSS_BBOX_Standard.json) | [Download JSON](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/download/v1.0.6/MOSS_BBOX_DMD.json) |
-| [v1.0.5](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/tag/v1.0.5) | [Download JSON](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/download/v1.0.5/MOSS_BBOX_Standard.json) | [Download JSON](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/download/v1.0.5/MOSS_BBOX_DMD.json) |
-| [v1.0.4](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/tag/v1.0.4) | [Download JSON](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/download/v1.0.4/MOSS_BBOX_Standard.json) | [Download JSON](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/download/v1.0.4/MOSS_BBOX_DMD.json) |
-| Current main (reference input; nodes 1.0.7+) | [Download JSON](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/raw/refs/heads/main/examples/MOSS_BBOX_Standard.json) | [Download JSON](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/raw/refs/heads/main/examples/MOSS_BBOX_DMD.json) |
-| [v1.0.0](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/tag/v1.0.0) | [Download JSON](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/raw/refs/tags/v1.0.0/examples/MOSS_BBOX_Standard.json) | [Download JSON](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/raw/refs/tags/v1.0.0/examples/MOSS_BBOX_DMD.json) |
-
-For future GitHub Releases, attach the corresponding Standard and DMD JSON files
-as release assets and add that release to this table. Keep existing tags and
-assets intact so older workflows remain downloadable. Keep only the two current
-generation templates in `examples/`; historical copies belong to their releases,
-not additional files in the current template folder. Registry versions and
-GitHub Releases are separate; a Registry publication alone does not create a
-GitHub Release or attach workflow files.
-
-The maintainer-supplied Standard and DMD replacements are now bundled.
-Workflows using **MOSS BBOX Preview**
-require node version **1.0.3 or newer**; older node versions do not register it.
-The zoom/hover/layout fixes are included in version 1.0.4. Installed model
-names and other custom-node dependencies must still be available; compatibility
-does not promise identical pixels across model or ComfyUI updates.
+MOSS BBOX Preview requires node version 1.0.3 or newer. Installed models and
+other custom-node dependencies must still be available; compatibility does not
+promise identical pixels across model or ComfyUI updates.
 
 This path runs entirely from the bundled MOSS package.
 The node IDs are `MOSSSharedCanvas`, `MOSSSharedPrompter` and `MOSSFromKrea2`.
@@ -737,7 +760,7 @@ Pillow (already in ComfyUI). Optional isolated browser tests need Playwright and
 Chromium; they never contact the running ComfyUI or submit a queue.
 
 ```powershell
-$env:COMFYUI_ROOT = 'D:\StabilityMatrix\Data\Packages\ComfyUI-Q'
+$env:COMFYUI_ROOT = 'C:\ComfyUI'
 python -B -m unittest discover -s tests -p "test_*.py"
 node --test tests/*.test.mjs
 node --check web/moss_bbox.js
@@ -815,7 +838,7 @@ Connect Canvas and Prompter to the same Export. **Box prompts (2)** shows the nu
 | ⋯ | Fixed card options: Name/Shared for individual boxes, presets for colors. Opening options never resizes the editor. |
 | Name (optional) | Open header ⋯. Formerly Optional: an editable text input, not a button. Click and type a display name, such as Dialogue 1. Empty is allowed. The name never enters generated prompt text. Saved with Undo/Redo support; it is not intentionally disabled. |
 | Heading / arrow | The heading selects the Canvas box; only the arrow folds the card. Selection/focus does not reset text, Type or field height. |
-| Shared defaults | Below the normal editor, initially closed. Retains compatible common values for boxes of the same color. With no Canvas connection, it opens as the standalone color editor. |
+| Shared defaults | Normally only actual box cards are visible. This section closes on workflow load or Canvas connection; click its heading when needed. Opening/closing changes no text or settings. Old saved open states are ignored; shared values and individual card text, heights and folding are preserved. With no Canvas connection, it opens as the standalone color editor. |
 | Shared (under ⋯) | Replaces this box’s individual words, name, Type, framing, angle and style. A confirmation previews the replacement text. Cancel preserves everything; Canvas Undo restores an accepted replacement. Mere view changes never perform this action. |
 | Shared (disabled) | This box has not been edited independently, so the replacement action is disabled. This is separate from the editable Name input. |
 
@@ -848,5 +871,63 @@ Krea2 BBOX Prompt Effect.prompt_out → CLIP Text Encode.text
 
 Either effect node can be omitted. Send the last **prompt_out** to the text encoder. If prompt_in is displayed as a widget, convert it to an input using ComfyUI’s widget-to-input operation. Using only background_text/effect_text as the final prompt discards the original layout, characters and dialogue; use prompt_out for the normal chain.
 
-These nodes append descriptions to the exported string; they do not composite images. Disconnected nodes have no generation effect. MOSS external-text input improvements remain deferred; this update adds no new input sockets.
+These nodes append descriptions to the exported string; they do not composite images. Disconnected nodes have no generation effect. V2 also supports optional external STRING connections; see External text.
 
+# Automatic reference-image box text (V2)
+
+The supported configuration for this version is **one reference image, one Image Analysis node and one analysis target box**. Batch analysis of multiple images/boxes and automatic distribution are outside this version's scope. Normal Canvas workflows can still contain multiple boxes.
+
+1. Choose a reference in Load Image.
+2. Check Box/target in MOSS BBOX Image Analysis. Its default Auto uses the first created box (the first stored box on reload) and displays the resolved target, such as Auto · RED. Select RED or another box explicitly to fix the destination, and choose character or object in kind. Same-color boxes remain independent targets.
+3. Set If/Else Switch to ON (true), then press the ordinary Run button.
+4. The target card saves the analysis automatically. Export, CLIP Text Encode and Sampler use that text to generate the image. No copying, pasting or Apply action is needed.
+5. Switch OFF: the analysis stays as ordinary editable text. You can also replace it with a completely different prompt and generate normally.
+
+**Before editing, switch OFF. Switching ON again and pressing Run overwrites the body, including manual edits, with the new analysis.** Switching ON alone does not start analysis or overwrite text. Keep it OFF while generating from your edited wording.
+
+Wire Image Analysis.external_text → Switch.on_true → Switch.output → Prompter.external_text. Leave on_false unconnected. While ON, the card is read-only and shows Analysis · Last run; each valid received result is saved through the existing Canvas box editor. OFF makes that saved analysis editable. Canvas Undo restores the prior body. Name, Type, framing, angle, Focus and text style remain unchanged. Running, saving and reloading while OFF preserve manual edits. Failed, empty or late results received after OFF do not change saved text.
+
+Connect Canvas framing_data, the same Load Image IMAGE, and the existing MOSS CLIPLoader CLIP to Image Analysis. Supported encoder: qwen3.5_9b_int8_convrot.safetensors, type moss_image. Expose and share CLIP if the loader lives in a generation subgraph. No extra loader, cloud API or model download is needed.
+
+
+The target uses a native ComfyUI dropdown. It resolves Canvas boxes across subgraph boundaries; expose target on the subgraph to select Auto, RED, BLUE and other boxes from outside. Explicit selections retain their stable box IDs through save/reload. A deleted explicit target remains Missing box and is never redirected. Auto moves to the next first remaining box if its previous target is deleted, so **explicit selection is recommended when the destination must stay fixed**.
+
+### target and behavior while OFF
+
+`target` selects **where to save analysis text**. It does not restrict image generation to one box. Selecting RED and switching analysis OFF still sends the other Canvas boxes to Export normally.
+
+Example: analyze RED, switch OFF, then change target to BLUE. RED keeps its text; nothing moves or copies to BLUE. The next run with ON saves its new analysis to BLUE.
+
+| Target display | Analysis Switch | Behavior |
+| --- | --- | --- |
+| Auto · RED/BLUE/etc. | ON + Run | Use the first stored box. Colors have no priority: if BLUE was first, Auto uses BLUE. |
+| Auto · Missing box | ON + Run | There are no Canvas boxes, so execution raises an error. Create a box first. |
+| An existing box, such as RED | ON + Run | Analyze that reference-image region, save the result to its card and use it for generation. |
+| An existing box, such as RED | OFF | No analysis or overwrite. RED uses its last saved body: analysis text, your subsequent edits, or its original text if never analyzed. An empty body remains empty. |
+| Missing box | ON + Run | The target does not exist, so execution raises an error. There is no destination; text is never redirected or saved to another box. Select an existing box such as RED. |
+| Missing box | OFF | The analysis target is unused. Normal generation uses each box's saved body; nothing writes text to the invalid target. |
+
+**Missing box is not a new box or an output destination.** It means the explicit box ID is missing, or Auto has no available box. An empty target value on Image Analysis means Auto. Auto · Connect Canvas asks for the missing Canvas connection. Running analysis ON while Missing box is displayed raises an error.
+
+The OFF rows assume the standard wiring with on_false unconnected and valid model, image and generation inputs. ComfyUI still validates connected inputs while OFF; it does not ignore a missing Load Image or other required connection.
+
+### Analysis settings and system prompt
+
+The System prompt field contains the actual analysis instructions. Its default describes visible appearance, clothing and colors while excluding background, other subjects and hidden details. You can inspect, edit and save it with the workflow. There is no extra Describe… user-prompt field; a short kind-specific request is constructed internally.
+
+| Setting | Default | Purpose |
+| --- | --- | --- |
+| system_prompt | Appearance-analysis instructions | Edit the analysis instructions. Core ignores this when use_default_template is OFF. |
+| max_length | 384 | Maximum generated analysis tokens, not a character count. |
+| Sampling Mode | off | on exposes Core's temperature, top_k, top_p, min_p, repetition_penalty, seed and presence_penalty controls. |
+| thinking | false | Thinking mode when supported by the model. |
+| use_default_template | true | Use the model's standard chat template. Keep ON to use system_prompt. |
+| mtp | off | Core's MTP setting; has no effect without the required model weights. |
+
+New settings follow the existing target/kind widgets; old workflows load with the prior defaults. Because these are new Python inputs, save your work, restart ComfyUI normally and refresh the browser to activate them.
+
+This describes visible appearance. OCR, identity, hidden details and exact reference reproduction are not guaranteed. It does not condition the generator directly with the reference image. Core validates wired lazy branches before execution; select a valid Load Image even when OFF.
+
+The earlier Reference Crop / Generate Text / disconnected Switch and menu-driven review-and-Apply flow remain for old workflows. The new connected workflow does not use that special button or dialog.
+
+Validated on an RTX 5060 Ti: ordinary Run → analysis → RED card → Export → generated image. OFF uses the last saved body. Exhaustive orientation coverage, arbitrary encoders and universal VRAM guarantees remain unverified. ComfyUI retains model-memory ownership.

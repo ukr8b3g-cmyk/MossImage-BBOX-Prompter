@@ -94,7 +94,7 @@ jobs:
               for path in expected:
                   assert archive.read(path) == Path(path).read_bytes(), path
               workflows = sorted(p for p in archive.namelist() if p.startswith("examples/MOSS_BBOX_"))
-              assert workflows == ["examples/MOSS_BBOX_DMD.json", "examples/MOSS_BBOX_Standard.json", "examples/MOSS_BBOX_Template.json"]
+              assert workflows == ["examples/MOSS_BBOX_Canvas_V2.json", "examples/MOSS_BBOX_DMD.json", "examples/MOSS_BBOX_External_Text_Blank.json", "examples/MOSS_BBOX_Reference_Analysis_Blank.json", "examples/MOSS_BBOX_Standard.json", "examples/MOSS_BBOX_Template.json"]
           print("Verified", len(expected), "files against source")
           print("Archive SHA256:", hashlib.sha256(Path("node.zip").read_bytes()).hexdigest())
           PY

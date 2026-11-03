@@ -6,6 +6,7 @@ from . import canvas_controls as controls
 from .prompt_builder import OUTPUT_MODES, SLOTS, build_prompt, default_state, parse_state
 from .krea_bridge import ELEMENT_TYPES, build_from_krea, element_type
 from .preview import MOSSBBoxPreview, reference_preview
+from .external_text import external_items
 
 
 class MOSSBBoxCanvasPrompt:
@@ -104,6 +105,7 @@ class MOSSSharedCanvas:
         inputs["required"]["height"][1]["default"] = 1184
         inputs["required"]["preset"][1]["default"] = "Custom"
         inputs["optional"]["reference_image"] = ("IMAGE", {"tooltip": "Optional Canvas underlay. Connect Load Image IMAGE for a generation-free reference. Does not change Canvas dimensions or condition generation."})
+        inputs["hidden"] = {"unique_id": "UNIQUE_ID"}
         return inputs
 
     RETURN_TYPES = ("KREA2_ELEMENT_FRAMING_DATA",)
@@ -112,14 +114,21 @@ class MOSSSharedCanvas:
     CATEGORY = "conditioning/MOSS"
     DESCRIPTION = "Seven-color MOSS canvas with shared drawing, presets and workflow persistence. Default 896 x 1184."
 
-    def execute(self, reference_image=None, **kwargs):
+    def execute(self, reference_image=None, unique_id=None, **kwargs):
         result = controls.CanvasControls().execute(**kwargs)
+        if unique_id is not None:
+            data = json.loads(result[0])
+            data["moss_canvas_id"] = str(unique_id)
+            result = (json.dumps(data, ensure_ascii=False, separators=(",", ":")),)
         if reference_image is None:
             return result
         return {"result": result, "ui": {"moss_canvas_reference": [reference_preview(reference_image)]}}
 
 
 class MOSSSharedPrompter:
+    # Replay the read-only preview when downstream outputs are served from cache.
+    HAS_INTERMEDIATE_OUTPUT = True
+
     @classmethod
     def INPUT_TYPES(cls):
         inputs = controls.PromptControls.INPUT_TYPES()
@@ -134,6 +143,7 @@ class MOSSSharedPrompter:
             inputs["optional"][f"{slot}_angle"] = (controls.ANGLE_OPTIONS, {"default": "Auto"})
         for slot in SLOTS:
             inputs["optional"][f"{slot}_focus"] = (controls.FOCUS_OPTIONS, {"default": "Auto"})
+        inputs["optional"]["external_text"] = ("MOSS_BBOX_TEXT_LINKS", {"tooltip": "Connect MOSS BBOX Text Link. All Exports using this Prompter receive the same box text. Disconnect to use saved manual text."})
         return inputs
 
     RETURN_TYPES = ("KREA2_ELEMENT_PROMPT_DATA",)
@@ -169,6 +179,11 @@ class MOSSSharedPrompter:
             }:
                 del slots[slot]
         data = controls._prompt_ui_data(kwargs.get("scene", ""), kwargs.get("background", ""), slots)
+        if "external_text" in kwargs and kwargs["external_text"] is not None:
+            items = external_items(kwargs["external_text"])
+            data["external_text"] = items
+            return {"result": (json.dumps(data, ensure_ascii=False, separators=(",", ":")),),
+                    "ui": {"moss_external_text": items}}
         return (json.dumps(data, ensure_ascii=False, separators=(",", ":")),)
 
 

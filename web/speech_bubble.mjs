@@ -59,23 +59,22 @@ export function dialogueDescription(value={},rest='') {
 }
 
 // Editor controls compile to the existing appearance field, separately from literal text.
-export function mountSpeechBubble(slot,{language,apply}) {
+export function mountSpeechBubble(slot,{language,apply,makeColorRow}) {
   const element=document.createElement('div');element.className='moss-speech-bubble';
   const quick=document.createElement('div');quick.className='moss-dialogue-grid';
   const details=document.createElement('details'),summary=document.createElement('summary'),grid=document.createElement('div');
   details.className='moss-dialogue-details';bindHelp(summary,'speech_bubble');grid.className='moss-dialogue-grid';details.append(summary,grid);element.append(quick,details);
   const titles={role:['Usage','用途'],shape:['Shape','形状'],structure:['Structure','構造'],size:['Letter size','文字の大きさ'],direction:['Writing direction','文字方向'],bubbleWeight:['Border weight','輪郭の太さ']};
-  const controls={},labels=[];let original='',baseline='',notes='';
+  const controls={},labels=[],fieldLabels={};let original='',baseline='',notes='';
   function field(key,en,jp,items) {
     const label=document.createElement('label'),title=document.createElement('span'),control=document.createElement(items?'select':'input');
     label.append(title,control);(key==='role'||key==='shape'?quick:grid).append(label);
     control.className=items?'moss-k2cf-select':'moss-k2cf-num';control.setAttribute('aria-label',`${slot} dialogue ${key}`);bindHelp(control,`dialogue_${key}`);
     for(const [value,,text] of items||[]){const option=document.createElement('option');option.value=value;option.textContent=text;control.append(option);}
     control.addEventListener(items?'change':'input',()=>{refresh();apply();});
-    controls[key]=control;labels.push({title,en,jp,control,items});
+    controls[key]=control;fieldLabels[key]=label;labels.push({title,en,jp,control,items});
     if(!items&&key!=='tail'){
-      const picker=document.createElement('input');picker.type='color';picker.value='#000000';picker.setAttribute('aria-label',`${slot} dialogue ${key} palette`);bindHelp(picker,`dialogue_${key}`);
-      picker.addEventListener('input',()=>{control.value=picker.value;refresh();apply();});const row=document.createElement('div');row.className='moss-dialogue-color';row.append(picker,control);label.append(row);labels.at(-1).picker=picker;
+      label.append(makeColorRow(control,`${slot} dialogue ${key}`,()=>{refresh();apply();},`dialogue_${key}`,'#000000'));
     }
   }
   for(const [key,items] of Object.entries(DIALOGUE_OPTIONS))field(key,...titles[key],items);
@@ -83,10 +82,10 @@ export function mountSpeechBubble(slot,{language,apply}) {
   const current=()=>Object.fromEntries(Object.entries(controls).map(([key,control])=>[key,control.value]));
   function refresh(){
     const ja=language()==='ja';summary.textContent=ja?'文字・吹き出し':'Lettering / Bubbles';
-    for(const item of labels){if(item.picker)item.picker.value=/^#[0-9a-f]{6}$/i.test(item.control.value)?item.control.value:'#000000';item.title.textContent=ja?item.jp:item.en;item.items?.forEach((row,i)=>item.control.options[i].textContent=row[ja?1:2]);}
+    for(const item of labels){item.title.textContent=ja?item.jp:item.en;item.items?.forEach((row,i)=>item.control.options[i].textContent=row[ja?1:2]);}
     controls.tail.placeholder=ja?'話者・方向':'Speaker / direction';
   }
-  return {element,details,grid,refresh,
+  return {element,details,grid,labels:fieldLabels,refresh,
     get(rest){return JSON.stringify({value:current(),rest})===baseline?original:dialogueDescription(current(),rest);},
     set(extra){original=String(extra||'');const parsed=readDialogueDescription(original);notes=parsed.rest;
       for(const [key,control] of Object.entries(controls))control.value=parsed.value[key]||(DIALOGUE_OPTIONS[key]?'auto':'');

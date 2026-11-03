@@ -13,7 +13,7 @@ from test_krea_bridge import package, bridge, shared_source as controls
 class CameraFocusTests(unittest.TestCase):
     def test_schema_order_and_js_python_candidates(self):
         schema = package.NODE_CLASS_MAPPINGS['MOSSSharedPrompter'].INPUT_TYPES()
-        names = list(schema['required']) + list(schema['optional'])
+        names = [name for group in ('required', 'optional') for name, entry in schema[group].items() if 'default' in entry[1]]
         self.assertEqual(len(names), 38)
         self.assertEqual(names[31:], [f'{slot}_focus' for slot in bridge.SLOTS])
         module = (Path(__file__).resolve().parents[1] / 'web/camera_options.mjs').as_uri()

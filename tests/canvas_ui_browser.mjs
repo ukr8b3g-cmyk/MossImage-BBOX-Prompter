@@ -70,6 +70,7 @@ const server = createServer(async (request, response) => {
     else if (request.url === "/web/layout_import.mjs") content = await readFile(resolve(root, "web/layout_import.mjs"));
     else if (request.url === "/web/box_prompts.mjs") content = await readFile(resolve(root, "web/box_prompts.mjs"));
     else if (request.url === "/web/box_selection.mjs") content = await readFile(resolve(root, "web/box_selection.mjs"));
+    else if (["/web/reference_analysis.mjs","/web/reference_analysis_graph.mjs","/web/external_text.mjs","/web/graph_inputs.mjs","/web/dialogue_options.mjs","/web/emoji_picker.mjs"].includes(request.url)) content = await readFile(resolve(root, request.url.slice(1)));
     else if (request.url === "/web/camera_options.mjs") content = await readFile(resolve(root, "web/camera_options.mjs"));
     else if (request.url === "/web/text_style.mjs") content = await readFile(resolve(root, "web/text_style.mjs"));
     else if (request.url === "/web/speech_bubble.mjs") content = await readFile(resolve(root, "web/speech_bubble.mjs"));

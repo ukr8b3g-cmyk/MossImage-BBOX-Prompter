@@ -63,7 +63,8 @@ const server = createServer(async (request, response) => {
     else if (request.url === "/external-krea.js" && process.env.KREA2_UI_SOURCE) content = await readFile(process.env.KREA2_UI_SOURCE);
     else if (request.url === "/web/moss_controls.mjs") content = await readFile(resolve(root, "web/moss_controls.mjs"));
     else if (request.url === "/web/canvas_editing.mjs") content = await readFile(resolve(root, "web/canvas_editing.mjs"));
-    else if (["/web/camera_options.mjs","/web/canvas_reference.mjs","/web/text_style.mjs","/web/dialogue_options.mjs","/web/emoji_picker.mjs","/web/speech_bubble.mjs","/web/layout_import.mjs","/web/box_prompts.mjs","/web/box_selection.mjs"].includes(request.url)) content = await readFile(resolve(root, request.url.slice(1)));
+    else if (["/web/reference_analysis.mjs","/web/reference_analysis_graph.mjs","/web/graph_inputs.mjs"].includes(request.url)) content = await readFile(resolve(root, request.url.slice(1)));
+    else if (["/web/external_text.mjs","/web/camera_options.mjs","/web/canvas_reference.mjs","/web/text_style.mjs","/web/dialogue_options.mjs","/web/emoji_picker.mjs","/web/speech_bubble.mjs","/web/layout_import.mjs","/web/box_prompts.mjs","/web/box_selection.mjs"].includes(request.url)) content = await readFile(resolve(root, request.url.slice(1)));
     else if (request.url === "/web/moss_shared_ui.js") content = await readFile(resolve(root, "web/moss_shared_ui.js"));
     else if (["/web/help.mjs", "/web/moss_help.js"].includes(request.url)) content = await readFile(resolve(root, request.url.slice(1)));
     else if (request.url === "/scripts/app.js") content = "export const app=window.comfyAPI.app.app;";
@@ -98,6 +99,7 @@ try {
   assert(helpCheck.japanese && helpCheck.english && helpCheck.unchanged, JSON.stringify(helpCheck));
   console.log('Localized hover coverage', JSON.stringify(helpCheck));
   const first=page.locator('.host').nth(0);
+  assert.equal(await page.locator('.moss-text-color-presets button[aria-pressed]').count(),0);
   assert.deepEqual(await first.locator('.moss-k2cf-type').first().locator('option').evaluateAll(es=>es.map(e=>e.value)),['character','object','text']);
   await first.locator('.moss-k2cf-type').nth(0).selectOption('character');
   await first.locator('.moss-k2cf-type').nth(1).selectOption('object');
@@ -147,6 +149,56 @@ try {
   assert.equal(await mode.inputValue(),'common');
   assert.equal(await style.getByRole('combobox',{name:'yellow text style font',exact:true}).isVisible(),false);
   await mode.selectOption('individual');await style.locator('details').evaluate(e=>e.open=true);
+  // Each color edits its own saved value through the same 256-color palette.
+  const colorStateBefore=await page.evaluate(()=>window.nodes.first.save());
+  const colorNames=['yellow text style color',...['bubbleFill','outline','bubbleStroke','shadow'].map(key=>`yellow dialogue ${key}`)];
+  const order=await style.locator('.moss-dialogue-details>.moss-dialogue-grid').evaluate(grid=>
+    [...grid.children].slice(0,5).map(label=>label.querySelector('input:not([type=color])')?.getAttribute('aria-label')));
+  assert.deepEqual(order,colorNames);
+  assert.equal(await style.locator('.moss-text-color-presets button[aria-pressed]').count(),0);
+  const language=first.locator('.moss-k2cf-language-select');
+  for(const [lang,placeholder] of [['Japanese','未指定'],['English','Unset']]){
+    await language.selectOption(lang);
+    for(const name of colorNames){
+      const field=style.getByRole('textbox',{name,exact:true});
+      assert.equal(await field.getAttribute('placeholder'),placeholder);
+      assert.equal(await field.inputValue(),'');
+    }
+    assert.equal(await style.locator('.moss-text-color-presets button[aria-pressed]').count(),0);
+    assert.equal(await yellow.locator('.moss-k2cf-slot-body > textarea').inputValue(),literal);
+  }
+  for(const key of ['bubbleFill','outline','bubbleStroke','shadow']){
+    const field=style.getByRole('textbox',{name:`yellow dialogue ${key}`,exact:true});
+    const before=await Promise.all(colorNames.map(name=>style.getByRole('textbox',{name,exact:true}).inputValue()));
+    const wireBefore=JSON.parse((await page.evaluate(()=>window.nodes.first.save())).widgets_values[12]).slotValues.yellow.textStyle;
+    await style.getByRole('button',{name:`yellow dialogue ${key} presets`,exact:true}).click();
+    const colors=style.getByRole('dialog',{name:'yellow text color presets',exact:true});
+    assert.equal(await colors.locator('button[aria-pressed]').count(),256);
+    assert.equal(await first.locator('.moss-text-color-presets button[aria-pressed]').count(),256);
+    assert.deepEqual(JSON.parse((await page.evaluate(()=>window.nodes.first.save())).widgets_values[12]).slotValues.yellow.textStyle,wireBefore);
+    await colors.getByRole('button',{name:'#ff9900',exact:true}).click();
+    assert.equal(await field.inputValue(),'#ff9900');assert.equal(await colors.isVisible(),false);
+    for(let i=0;i<colorNames.length;i++)if(colorNames[i]!==`yellow dialogue ${key}`)
+      assert.equal(await style.getByRole('textbox',{name:colorNames[i],exact:true}).inputValue(),before[i]);
+    await field.fill('');
+  }
+  const independentColors=['gold','#123456','#abc','淡い青','#222222'];
+  for(let i=0;i<colorNames.length;i++)await style.getByRole('textbox',{name:colorNames[i],exact:true}).fill(independentColors[i]);
+  for(const [lang,placeholder] of [['Japanese','未指定'],['English','Unset']]){
+    await language.selectOption(lang);
+    for(let i=0;i<colorNames.length;i++){
+      const field=style.getByRole('textbox',{name:colorNames[i],exact:true});
+      assert.equal(await field.getAttribute('placeholder'),placeholder);
+      assert.equal(await field.inputValue(),independentColors[i]);
+    }
+  }
+  const colorState=await page.evaluate(()=>window.nodes.first.save());
+  await page.evaluate(data=>window.nodes.first.configure(data),colorState);
+  await style.locator('details').evaluate(e=>e.open=true);
+  for(let i=0;i<colorNames.length;i++)assert.equal(await style.getByRole('textbox',{name:colorNames[i],exact:true}).inputValue(),independentColors[i]);
+  assert.equal(await style.locator('.moss-text-color-presets').count(),1);
+  await page.evaluate(data=>window.nodes.first.configure(data),colorStateBefore);
+  await style.locator('details').evaluate(e=>e.open=true);
   const color=style.getByRole('textbox',{name:'yellow text style color',exact:true});
   const palette=style.locator('input[aria-label="yellow text style palette"]');
   assert.equal(await color.inputValue(),'');
@@ -170,7 +222,13 @@ try {
   assert.equal(JSON.parse((await page.evaluate(()=>window.nodes.first.save())).widgets_values[12]).slotValues.yellow.textStyle.color,'#ff9900');
   await presets.click();
   assert.equal(await popup.getByRole('button',{name:'#ff9900',exact:true}).getAttribute('aria-pressed'),'true');
-  await page.keyboard.press('Escape');assert.equal(await popup.isVisible(),false);
+  const escape=await presets.evaluate(el=>{
+    let forwarded=false;const listener=()=>forwarded=true;document.addEventListener('keydown',listener);
+    const event=new KeyboardEvent('keydown',{key:'Escape',bubbles:true,cancelable:true});el.dispatchEvent(event);
+    document.removeEventListener('keydown',listener);
+    return {closed:!el.closest('.moss-text-style').querySelector('.moss-text-color-presets').matches(':popover-open'),prevented:event.defaultPrevented,forwarded};
+  });
+  assert.deepEqual(escape,{closed:true,prevented:true,forwarded:false});assert.equal(await popup.isVisible(),false);
   assert.equal(await color.inputValue(),'#ff9900');
   await presets.click();await page.locator('h2').click();assert.equal(await popup.isVisible(),false);
   await presets.click();await popup.getByRole('button',{name:'yellow close color presets',exact:true}).click();
@@ -206,7 +264,9 @@ try {
   assert.deepEqual(yellowStyle,{mode:'individual',font:'serif',weight:'bold',color:'#FFD700',extra:'thin black outline'});
   assert.equal(JSON.parse(styled.widgets_values[12]).slotValues.red.textStyle.mode,'common');
   await page.evaluate(data=>{window.nodes.styled=window.clone(data)},styled);
-  const styledHost=page.locator('.host').nth(4);
+  const styledHost=page.locator('.host').last();
+  // Loading saved colors updates the picker without constructing preset buttons.
+  assert.equal(await styledHost.locator('.moss-text-color-presets button[aria-pressed]').count(),0);
   await styledHost.locator('.moss-text-style[data-slot="yellow"] details').evaluate(e=>e.open=true);
   assert.equal(await styledHost.getByRole('combobox',{name:'yellow text style font',exact:true}).inputValue(),'serif');
   assert.equal(await styledHost.getByRole('textbox',{name:'yellow text style color',exact:true}).inputValue(),'#FFD700');
@@ -292,7 +352,7 @@ try {
   await writeFile(resolve(artifacts,'seven-slots-browser-wire.json'),JSON.stringify({widgets_values:seven.widgets_values}));
   for(const card of await first.locator('.moss-k2cf-slot-card').all())if(!(await card.evaluate(el=>el.classList.contains('collapsed'))))await card.locator('.moss-k2cf-foldmark').click();
   await first.screenshot({path:resolve(artifacts,'seven-slots-prompter.jpg'),type:'jpeg',quality:85});
-  const results={standalone:!process.env.KREA2_UI_SOURCE,coexistence:!!process.env.KREA2_UI_SOURCE,unrelated_nodes_untouched:true,three_choices:true,latest_types_saved:true,clone_restores_types:true,literal_text_roundtrip:true,clone_isolation:true,legacy_obj_restores_object:true,raw_controls_unchanged:true,page_errors:errors};
+  const results={color_fields_ordered:true,all_five_color_palettes:true,color_fields_independent_reload:true,standalone:!process.env.KREA2_UI_SOURCE,coexistence:!!process.env.KREA2_UI_SOURCE,unrelated_nodes_untouched:true,three_choices:true,latest_types_saved:true,clone_restores_types:true,literal_text_roundtrip:true,clone_isolation:true,legacy_obj_restores_object:true,raw_controls_unchanged:true,page_errors:errors};
   if(process.env.KREA2_UI_SOURCE){
     await page.evaluate(()=>window.makeExternal());
     assert.equal(await page.evaluate(()=>window.external.host.querySelectorAll('[class^="moss-k2cf-"]').length),0);
@@ -300,6 +360,7 @@ try {
   }
   assert.deepEqual(errors,[]);
   Object.assign(results,{individual_style:true,style_defaults_common:true,style_text_exact:true,
+    palette_initial_zero:true,palette_first_open_256:true,palette_shared_five_fields:true,palette_reload_lazy:true,unset_localized_five_fields:true,unset_preserves_saved_colors:true,palette_escape_local:true,
     seven_cards:true,extra_cards_default_closed:true,extra_widgets_appended:true,extra_character_and_text:true,
     extra_style_palette:true,extra_save_clone_reload:true,old_five_workflow_no_stale_extras:true,
     color_palette:true,color_palette_blank_preserved:true,color_palette_manual_names_hex:true,color_palette_reload:true,color_palette_stable_height:true,
@@ -326,6 +387,19 @@ try {
     graph.links.set(100,{origin_id:100});graph.links.set(101,{origin_id:window.nodes.first.id});window.nodes.first.onConnectionsChange?.();
   });
   const idCards=first.locator('.moss-box-prompt-cards');await page.waitForFunction(()=>document.querySelectorAll('.host:first-child .moss-box-prompt-cards [data-box-id]').length===9);
+  const sharedSettings=first.locator('.moss-shared-defaults');
+  assert.equal(await sharedSettings.evaluate(e=>e.open),false);
+  assert.equal(await sharedSettings.locator('.moss-k2cf-slot-card').first().isVisible(),false);
+  const beforeSharedToggle=await page.evaluate(()=>window.idCanvas.save());
+  await sharedSettings.locator(':scope > summary').click();
+  assert.equal(await sharedSettings.locator('.moss-k2cf-slot-card').first().isVisible(),true);
+  await page.evaluate(()=>{window.dispatchEvent(new Event('focus'));document.dispatchEvent(new Event('visibilitychange'));});
+  assert.equal(await sharedSettings.evaluate(e=>e.open),true);
+  assert.equal(await idCards.isVisible(),true);
+  await sharedSettings.locator(':scope > summary').click();
+  assert.equal(await sharedSettings.locator('.moss-k2cf-slot-card').first().isVisible(),false);
+  assert.deepEqual((await page.evaluate(()=>window.idCanvas.save())).widgets_values,beforeSharedToggle.widgets_values);
+  Object.assign(results,{shared_closed_on_connect:true,shared_explicit_open:true,shared_focus_stable:true,shared_toggle_preserves_prompts:true});
   const eighth=idCards.locator('[data-box-id="id-7"]'),ninth=idCards.locator('[data-box-id="id-8"]');
   assert.equal(await idCards.isVisible(),true);
   await eighth.locator('.moss-k2cf-slot-head').click();
@@ -341,6 +415,18 @@ try {
   assert.equal((await idRead()).boxes[8].promptData.type,'text');
   await first.getByRole('button',{name:'Undo box prompt',exact:true}).click();assert.equal((await idRead()).boxes[8].promptData.type,'object');
   await first.getByRole('button',{name:'Redo box prompt',exact:true}).click();assert.equal((await idRead()).boxes[8].promptData.type,'text');
+  const idStyle=ninth.locator('.moss-text-style');
+  assert.equal(await idStyle.locator('.moss-text-color-presets button[aria-pressed]').count(),0);
+  await idStyle.getByRole('combobox',{name:'box-id-8 text style mode',exact:true}).selectOption('individual');
+  const idColor=idStyle.getByRole('textbox',{name:'box-id-8 text style color',exact:true});
+  assert.equal(await idColor.getAttribute('placeholder'),'Unset');
+  const idColorBefore=await page.evaluate(()=>window.idCanvas.save());
+  await idStyle.getByRole('button',{name:'box-id-8 text style presets',exact:true}).click();
+  const idPopup=idStyle.getByRole('dialog',{name:'box-id-8 text color presets',exact:true});
+  assert.equal(await idPopup.locator('button[aria-pressed]').count(),256);
+  await page.keyboard.press('Escape');
+  assert.equal(await idColor.inputValue(),'');
+  assert.deepEqual((await page.evaluate(()=>window.idCanvas.save())).widgets_values,idColorBefore.widgets_values);
   const idSave=await page.evaluate(()=>window.idCanvas.save());
   await page.evaluate(data=>window.idCanvas.configure(data),idSave);
   await page.waitForFunction(()=>document.querySelector('[aria-label="Box id-8 Type"]')?.value==='text');

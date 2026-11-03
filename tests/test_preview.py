@@ -87,7 +87,10 @@ class PreviewTests(unittest.TestCase):
             framing = cls().execute(**values)[0]
             result = preview.preview_layout(framing)
             expected = json.loads(framing)
-            dimensions = {"MOSS_BBOX_Standard.json": (880, 1184),
+            dimensions = {"MOSS_BBOX_Canvas_V2.json": (1024, 1344),
+                          "MOSS_BBOX_Standard.json": (880, 1184),
+                          "MOSS_BBOX_External_Text_Blank.json": (896, 1184),
+                          "MOSS_BBOX_Reference_Analysis_Blank.json": (896, 1184),
                           "MOSS_BBOX_DMD.json": (880, 1184),
                           "MOSS_BBOX_Template.json": (1024, 1344)}
             self.assertEqual((result["width"], result["height"]), dimensions[path.name])

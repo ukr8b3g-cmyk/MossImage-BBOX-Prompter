@@ -1,7 +1,7 @@
 import {overlappingBoxes} from './canvas_editing.mjs?v=20261027-simple4';
 import {bindHelp} from './help.mjs?v=1.0.11';
 
-export function mountBoxSelectionMenu(overlay,{boxes,point,select,color,language}) {
+export function mountBoxSelectionMenu(overlay,{boxes,point,select,color,language,analysis}) {
   let menu=null;
   const close=()=>{menu?.remove();menu=null;};
   const outside=event=>{if(menu&&!menu.contains(event.target))close();};
@@ -19,7 +19,9 @@ export function mountBoxSelectionMenu(overlay,{boxes,point,select,color,language
       const label=box.promptData?.name||(/^box_\d+_\d+$/.test(box.id)?'':box.id);
       button.textContent=`#${all.indexOf(box)+1}${label?' · '+label:''} · ${box.slot.toUpperCase()}${box.locked?' 🔒':''}`;
       bindHelp(button,'select_overlap');
-      button.onclick=()=>{select(box.id);close();overlay.focus({preventScroll:true});};menu.append(button);return button;
+      button.onclick=()=>{select(box.id);close();overlay.focus({preventScroll:true});};menu.append(button);
+      if(analysis){const action=analysis(box.id),run=document.createElement('button');run.textContent=language()==='ja'?'解析':'Analyze';run.disabled=!action.enabled;run.title=action.reason;run.style.cssText='font:inherit;height:22px;margin:0 8px 5px';run.onclick=()=>{close();action.run();};const row=document.createElement('div');row.title=action.reason;row.append(run);menu.append(row);}
+      return button;
     });
     menu.addEventListener('keydown',event=>{
       if(event.key!=='ArrowDown'&&event.key!=='ArrowUp')return;

@@ -319,9 +319,11 @@ class ExportOptionsTests(unittest.TestCase):
                     for key in ("prompt", "moss_json", "width", "height"):
                         self.assertEqual(outputs[1][key], outputs[0][key])
                 continue
-            ui = {node["type"]: node for node in workflow["nodes"]}
+            nested = [node for graph in workflow.get("definitions", {}).get("subgraphs", []) for node in graph.get("nodes", [])]
+            ui = {node["type"]: node for node in workflow["nodes"] + nested}
             implementations = (previous, package)
-            if path.name == "MOSS_BBOX_Template.json":
+            if path.name in ("MOSS_BBOX_Template.json", "MOSS_BBOX_Canvas_V2.json",
+                             "MOSS_BBOX_External_Text_Blank.json", "MOSS_BBOX_Reference_Analysis_Blank.json"):
                 # This example uses ID prompts introduced after the legacy reference.
                 baseline = os.environ.get("MOSS_FOCUS_BEFORE_ROOT")
                 if not baseline:

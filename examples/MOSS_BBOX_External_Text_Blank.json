@@ -1,0 +1,1314 @@
+{
+  "id": "f755bff7-6294-4957-9454-d0fccb3052bb",
+  "revision": 0,
+  "last_node_id": 10,
+  "last_link_id": 12,
+  "nodes": [
+    {
+      "id": 1,
+      "type": "MOSSSharedCanvas",
+      "pos": [
+        40,
+        100
+      ],
+      "size": [
+        620,
+        1020
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "reference_image",
+          "name": "reference_image",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": null
+        },
+        {
+          "localized_name": "width",
+          "name": "width",
+          "type": "INT",
+          "widget": {
+            "name": "width"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "height",
+          "name": "height",
+          "type": "INT",
+          "widget": {
+            "name": "height"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "preset",
+          "name": "preset",
+          "type": "COMBO",
+          "widget": {
+            "name": "preset"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "layout_data",
+          "name": "layout_data",
+          "type": "STRING",
+          "widget": {
+            "name": "layout_data"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "camera_data",
+          "name": "camera_data",
+          "type": "STRING",
+          "widget": {
+            "name": "camera_data"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "grid_mode",
+          "name": "grid_mode",
+          "type": "COMBO",
+          "widget": {
+            "name": "grid_mode"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "ui_language",
+          "name": "ui_language",
+          "type": "COMBO",
+          "widget": {
+            "name": "ui_language"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "camera_set_data",
+          "name": "camera_set_data",
+          "type": "STRING",
+          "widget": {
+            "name": "camera_set_data"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "canvas_preset_data",
+          "name": "canvas_preset_data",
+          "type": "STRING",
+          "widget": {
+            "name": "canvas_preset_data"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "framing_data",
+          "name": "framing_data",
+          "type": "KREA2_ELEMENT_FRAMING_DATA",
+          "links": [
+            1,
+            3,
+            7,
+            9
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "MOSSSharedCanvas",
+        "k2cfCanvasState": {
+          "version": "v15",
+          "saved_at": 1793171392947,
+          "widgets_values": [
+            896,
+            1184,
+            "Custom",
+            "{\"boxes\":[{\"id\":\"same-0\",\"slot\":\"blue\",\"x1\":80,\"y1\":80,\"x2\":320,\"y2\":250,\"promptData\":{\"type\":\"text\",\"prompt\":\"\",\"name\":\"\"}},{\"id\":\"same-1\",\"slot\":\"blue\",\"x1\":420,\"y1\":280,\"x2\":750,\"y2\":500,\"promptData\":{\"type\":\"text\",\"prompt\":\"\",\"name\":\"\"}}]}",
+            "{\"iso\":\"\",\"shutter\":\"\",\"aperture\":\"\",\"focal_length\":\"\"}",
+            "Thirds",
+            "Auto",
+            "{\"sets\":[],\"selected\":\"\"}",
+            "{\"sets\":[],\"selected\":\"\"}"
+          ]
+        }
+      },
+      "widgets_values": [
+        896,
+        1184,
+        "Custom",
+        "{\"boxes\":[{\"id\":\"same-0\",\"slot\":\"blue\",\"x1\":80,\"y1\":80,\"x2\":320,\"y2\":250,\"promptData\":{\"type\":\"text\",\"prompt\":\"\",\"name\":\"\"}},{\"id\":\"same-1\",\"slot\":\"blue\",\"x1\":420,\"y1\":280,\"x2\":750,\"y2\":500,\"promptData\":{\"type\":\"text\",\"prompt\":\"\",\"name\":\"\"}}]}",
+        "{\"iso\":\"\",\"shutter\":\"\",\"aperture\":\"\",\"focal_length\":\"\"}",
+        "Thirds",
+        "Auto",
+        "{\"sets\":[],\"selected\":\"\"}",
+        "{\"sets\":[],\"selected\":\"\"}"
+      ],
+      "widgets_values_named": {
+        "width": 896,
+        "height": 1184,
+        "preset": "Custom",
+        "layout_data": "{\"boxes\":[{\"id\":\"same-0\",\"slot\":\"blue\",\"x1\":80,\"y1\":80,\"x2\":320,\"y2\":250,\"promptData\":{\"type\":\"text\",\"prompt\":\"\",\"name\":\"\"}},{\"id\":\"same-1\",\"slot\":\"blue\",\"x1\":420,\"y1\":280,\"x2\":750,\"y2\":500,\"promptData\":{\"type\":\"text\",\"prompt\":\"\",\"name\":\"\"}}]}",
+        "camera_data": "{\"iso\":\"\",\"shutter\":\"\",\"aperture\":\"\",\"focal_length\":\"\"}",
+        "grid_mode": "Thirds",
+        "ui_language": "Auto",
+        "camera_set_data": "{\"sets\":[],\"selected\":\"\"}",
+        "canvas_preset_data": "{\"sets\":[],\"selected\":\"\"}",
+        "krea2_canvas_ui": ""
+      }
+    },
+    {
+      "id": 2,
+      "type": "MOSSSharedPrompter",
+      "pos": [
+        1150,
+        100
+      ],
+      "size": [
+        570,
+        1150
+      ],
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "external_text",
+          "name": "external_text",
+          "shape": 7,
+          "type": "MOSS_BBOX_TEXT_LINKS",
+          "link": 12
+        },
+        {
+          "localized_name": "scene",
+          "name": "scene",
+          "type": "STRING",
+          "widget": {
+            "name": "scene"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "background",
+          "name": "background",
+          "type": "STRING",
+          "widget": {
+            "name": "background"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "red_prompt",
+          "name": "red_prompt",
+          "type": "STRING",
+          "widget": {
+            "name": "red_prompt"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "blue_prompt",
+          "name": "blue_prompt",
+          "type": "STRING",
+          "widget": {
+            "name": "blue_prompt"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "yellow_prompt",
+          "name": "yellow_prompt",
+          "type": "STRING",
+          "widget": {
+            "name": "yellow_prompt"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "green_prompt",
+          "name": "green_prompt",
+          "type": "STRING",
+          "widget": {
+            "name": "green_prompt"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "magenta_prompt",
+          "name": "magenta_prompt",
+          "type": "STRING",
+          "widget": {
+            "name": "magenta_prompt"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "red_type",
+          "name": "red_type",
+          "type": "COMBO",
+          "widget": {
+            "name": "red_type"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "blue_type",
+          "name": "blue_type",
+          "type": "COMBO",
+          "widget": {
+            "name": "blue_type"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "yellow_type",
+          "name": "yellow_type",
+          "type": "COMBO",
+          "widget": {
+            "name": "yellow_type"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "green_type",
+          "name": "green_type",
+          "type": "COMBO",
+          "widget": {
+            "name": "green_type"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "magenta_type",
+          "name": "magenta_type",
+          "type": "COMBO",
+          "widget": {
+            "name": "magenta_type"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "prompt_ui_data",
+          "name": "prompt_ui_data",
+          "type": "STRING",
+          "widget": {
+            "name": "prompt_ui_data"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "red_framing",
+          "name": "red_framing",
+          "type": "COMBO",
+          "widget": {
+            "name": "red_framing"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "blue_framing",
+          "name": "blue_framing",
+          "type": "COMBO",
+          "widget": {
+            "name": "blue_framing"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "yellow_framing",
+          "name": "yellow_framing",
+          "type": "COMBO",
+          "widget": {
+            "name": "yellow_framing"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "green_framing",
+          "name": "green_framing",
+          "type": "COMBO",
+          "widget": {
+            "name": "green_framing"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "magenta_framing",
+          "name": "magenta_framing",
+          "type": "COMBO",
+          "widget": {
+            "name": "magenta_framing"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "red_angle",
+          "name": "red_angle",
+          "type": "COMBO",
+          "widget": {
+            "name": "red_angle"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "blue_angle",
+          "name": "blue_angle",
+          "type": "COMBO",
+          "widget": {
+            "name": "blue_angle"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "yellow_angle",
+          "name": "yellow_angle",
+          "type": "COMBO",
+          "widget": {
+            "name": "yellow_angle"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "green_angle",
+          "name": "green_angle",
+          "type": "COMBO",
+          "widget": {
+            "name": "green_angle"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "magenta_angle",
+          "name": "magenta_angle",
+          "type": "COMBO",
+          "widget": {
+            "name": "magenta_angle"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "cyan_prompt",
+          "name": "cyan_prompt",
+          "shape": 7,
+          "type": "STRING",
+          "widget": {
+            "name": "cyan_prompt"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "cyan_type",
+          "name": "cyan_type",
+          "shape": 7,
+          "type": "COMBO",
+          "widget": {
+            "name": "cyan_type"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "cyan_framing",
+          "name": "cyan_framing",
+          "shape": 7,
+          "type": "COMBO",
+          "widget": {
+            "name": "cyan_framing"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "cyan_angle",
+          "name": "cyan_angle",
+          "shape": 7,
+          "type": "COMBO",
+          "widget": {
+            "name": "cyan_angle"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "orange_prompt",
+          "name": "orange_prompt",
+          "shape": 7,
+          "type": "STRING",
+          "widget": {
+            "name": "orange_prompt"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "orange_type",
+          "name": "orange_type",
+          "shape": 7,
+          "type": "COMBO",
+          "widget": {
+            "name": "orange_type"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "orange_framing",
+          "name": "orange_framing",
+          "shape": 7,
+          "type": "COMBO",
+          "widget": {
+            "name": "orange_framing"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "orange_angle",
+          "name": "orange_angle",
+          "shape": 7,
+          "type": "COMBO",
+          "widget": {
+            "name": "orange_angle"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "red_focus",
+          "name": "red_focus",
+          "shape": 7,
+          "type": "COMBO",
+          "widget": {
+            "name": "red_focus"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "blue_focus",
+          "name": "blue_focus",
+          "shape": 7,
+          "type": "COMBO",
+          "widget": {
+            "name": "blue_focus"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "yellow_focus",
+          "name": "yellow_focus",
+          "shape": 7,
+          "type": "COMBO",
+          "widget": {
+            "name": "yellow_focus"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "green_focus",
+          "name": "green_focus",
+          "shape": 7,
+          "type": "COMBO",
+          "widget": {
+            "name": "green_focus"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "magenta_focus",
+          "name": "magenta_focus",
+          "shape": 7,
+          "type": "COMBO",
+          "widget": {
+            "name": "magenta_focus"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "cyan_focus",
+          "name": "cyan_focus",
+          "shape": 7,
+          "type": "COMBO",
+          "widget": {
+            "name": "cyan_focus"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "orange_focus",
+          "name": "orange_focus",
+          "shape": 7,
+          "type": "COMBO",
+          "widget": {
+            "name": "orange_focus"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "prompt_ui_data",
+          "name": "prompt_ui_data",
+          "type": "KREA2_ELEMENT_PROMPT_DATA",
+          "links": [
+            2,
+            4
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "MOSSSharedPrompter",
+        "k2cfPromptState": {
+          "version": "v15",
+          "widgets_values": [
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "object",
+            "object",
+            "object",
+            "object",
+            "object",
+            "",
+            "Auto",
+            "Auto",
+            "Auto",
+            "Auto",
+            "Auto",
+            "Auto",
+            "Auto",
+            "Auto",
+            "Auto",
+            "Auto",
+            "",
+            "object",
+            "Auto",
+            "Auto",
+            "",
+            "object",
+            "Auto",
+            "Auto",
+            "Auto",
+            "Auto",
+            "Auto",
+            "Auto",
+            "Auto",
+            "Auto",
+            "Auto"
+          ],
+          "saved_at": 1793171393028
+        }
+      },
+      "widgets_values": [
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "object",
+        "object",
+        "object",
+        "object",
+        "object",
+        "",
+        "Auto",
+        "Auto",
+        "Auto",
+        "Auto",
+        "Auto",
+        "Auto",
+        "Auto",
+        "Auto",
+        "Auto",
+        "Auto",
+        "",
+        "object",
+        "Auto",
+        "Auto",
+        "",
+        "object",
+        "Auto",
+        "Auto",
+        "Auto",
+        "Auto",
+        "Auto",
+        "Auto",
+        "Auto",
+        "Auto",
+        "Auto"
+      ],
+      "widgets_values_named": {
+        "scene": "",
+        "background": "",
+        "red_prompt": "",
+        "blue_prompt": "",
+        "yellow_prompt": "",
+        "green_prompt": "",
+        "magenta_prompt": "",
+        "red_type": "object",
+        "blue_type": "object",
+        "yellow_type": "object",
+        "green_type": "object",
+        "magenta_type": "object",
+        "prompt_ui_data": "",
+        "red_framing": "Auto",
+        "blue_framing": "Auto",
+        "yellow_framing": "Auto",
+        "green_framing": "Auto",
+        "magenta_framing": "Auto",
+        "red_angle": "Auto",
+        "blue_angle": "Auto",
+        "yellow_angle": "Auto",
+        "green_angle": "Auto",
+        "magenta_angle": "Auto",
+        "cyan_prompt": "",
+        "cyan_type": "object",
+        "cyan_framing": "Auto",
+        "cyan_angle": "Auto",
+        "orange_prompt": "",
+        "orange_type": "object",
+        "orange_framing": "Auto",
+        "orange_angle": "Auto",
+        "red_focus": "Auto",
+        "blue_focus": "Auto",
+        "yellow_focus": "Auto",
+        "green_focus": "Auto",
+        "magenta_focus": "Auto",
+        "cyan_focus": "Auto",
+        "orange_focus": "Auto",
+        "krea2_prompt_ui": ""
+      }
+    },
+    {
+      "id": 3,
+      "type": "PrimitiveStringMultiline",
+      "pos": [
+        710,
+        100
+      ],
+      "size": [
+        350,
+        230
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "値",
+          "name": "value",
+          "type": "STRING",
+          "widget": {
+            "name": "value"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "文字列",
+          "name": "STRING",
+          "type": "STRING",
+          "links": [
+            8
+          ]
+        }
+      ],
+      "title": "Text A",
+      "properties": {
+        "Node name for S&R": "PrimitiveStringMultiline"
+      },
+      "widgets_values": [
+        ""
+      ],
+      "widgets_values_named": {
+        "value": ""
+      }
+    },
+    {
+      "id": 4,
+      "type": "PrimitiveStringMultiline",
+      "pos": [
+        710,
+        570
+      ],
+      "size": [
+        350,
+        230
+      ],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "値",
+          "name": "value",
+          "type": "STRING",
+          "widget": {
+            "name": "value"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "文字列",
+          "name": "STRING",
+          "type": "STRING",
+          "links": [
+            10
+          ]
+        }
+      ],
+      "title": "Text B",
+      "properties": {
+        "Node name for S&R": "PrimitiveStringMultiline"
+      },
+      "widgets_values": [
+        ""
+      ],
+      "widgets_values_named": {
+        "value": ""
+      }
+    },
+    {
+      "id": 5,
+      "type": "MOSSBBoxTextLink",
+      "pos": [
+        710,
+        400
+      ],
+      "size": [
+        270,
+        98
+      ],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "text",
+          "name": "text",
+          "type": "STRING",
+          "link": 8
+        },
+        {
+          "localized_name": "framing_data",
+          "name": "framing_data",
+          "type": "KREA2_ELEMENT_FRAMING_DATA",
+          "link": 7
+        },
+        {
+          "localized_name": "previous",
+          "name": "previous",
+          "shape": 7,
+          "type": "MOSS_BBOX_TEXT_LINKS",
+          "link": null
+        },
+        {
+          "localized_name": "target",
+          "name": "target",
+          "type": "STRING",
+          "widget": {
+            "name": "target"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "external_text",
+          "name": "external_text",
+          "type": "MOSS_BBOX_TEXT_LINKS",
+          "links": [
+            11
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "MOSSBBoxTextLink"
+      },
+      "widgets_values": [
+        "same-0"
+      ],
+      "widgets_values_named": {
+        "target": "same-0"
+      }
+    },
+    {
+      "id": 6,
+      "type": "MOSSBBoxTextLink",
+      "pos": [
+        710,
+        870
+      ],
+      "size": [
+        270,
+        98
+      ],
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "text",
+          "name": "text",
+          "type": "STRING",
+          "link": 10
+        },
+        {
+          "localized_name": "framing_data",
+          "name": "framing_data",
+          "type": "KREA2_ELEMENT_FRAMING_DATA",
+          "link": 9
+        },
+        {
+          "localized_name": "previous",
+          "name": "previous",
+          "shape": 7,
+          "type": "MOSS_BBOX_TEXT_LINKS",
+          "link": 11
+        },
+        {
+          "localized_name": "target",
+          "name": "target",
+          "type": "STRING",
+          "widget": {
+            "name": "target"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "external_text",
+          "name": "external_text",
+          "type": "MOSS_BBOX_TEXT_LINKS",
+          "links": [
+            12
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "MOSSBBoxTextLink"
+      },
+      "widgets_values": [
+        "same-1"
+      ],
+      "widgets_values_named": {
+        "target": "same-1"
+      }
+    },
+    {
+      "id": 7,
+      "type": "MOSSFromKrea2",
+      "pos": [
+        1820,
+        100
+      ],
+      "size": [
+        400,
+        220
+      ],
+      "flags": {},
+      "order": 6,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "framing_data",
+          "name": "framing_data",
+          "type": "KREA2_ELEMENT_FRAMING_DATA",
+          "link": 1
+        },
+        {
+          "localized_name": "prompt_ui_data",
+          "name": "prompt_ui_data",
+          "type": "KREA2_ELEMENT_PROMPT_DATA",
+          "link": 2
+        },
+        {
+          "localized_name": "auto_position_hint",
+          "name": "auto_position_hint",
+          "type": "BOOLEAN",
+          "widget": {
+            "name": "auto_position_hint"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "output_mode",
+          "name": "output_mode",
+          "shape": 7,
+          "type": "COMBO",
+          "widget": {
+            "name": "output_mode"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "text_mode",
+          "name": "text_mode",
+          "shape": 7,
+          "type": "COMBO",
+          "widget": {
+            "name": "text_mode"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "text_style",
+          "name": "text_style",
+          "shape": 7,
+          "type": "STRING",
+          "widget": {
+            "name": "text_style"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "prompt",
+          "name": "prompt",
+          "type": "STRING",
+          "links": [
+            5
+          ]
+        },
+        {
+          "localized_name": "width",
+          "name": "width",
+          "type": "INT",
+          "links": null
+        },
+        {
+          "localized_name": "height",
+          "name": "height",
+          "type": "INT",
+          "links": null
+        },
+        {
+          "localized_name": "moss_json",
+          "name": "moss_json",
+          "type": "STRING",
+          "links": null
+        }
+      ],
+      "title": "Export · JSON",
+      "properties": {
+        "Node name for S&R": "MOSSFromKrea2"
+      },
+      "widgets_values": [
+        false,
+        "layout_json",
+        "legacy",
+        ""
+      ],
+      "widgets_values_named": {
+        "auto_position_hint": false,
+        "output_mode": "layout_json",
+        "text_mode": "legacy",
+        "text_style": ""
+      }
+    },
+    {
+      "id": 8,
+      "type": "MOSSFromKrea2",
+      "pos": [
+        1820,
+        570
+      ],
+      "size": [
+        400,
+        220
+      ],
+      "flags": {},
+      "order": 7,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "framing_data",
+          "name": "framing_data",
+          "type": "KREA2_ELEMENT_FRAMING_DATA",
+          "link": 3
+        },
+        {
+          "localized_name": "prompt_ui_data",
+          "name": "prompt_ui_data",
+          "type": "KREA2_ELEMENT_PROMPT_DATA",
+          "link": 4
+        },
+        {
+          "localized_name": "auto_position_hint",
+          "name": "auto_position_hint",
+          "type": "BOOLEAN",
+          "widget": {
+            "name": "auto_position_hint"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "output_mode",
+          "name": "output_mode",
+          "shape": 7,
+          "type": "COMBO",
+          "widget": {
+            "name": "output_mode"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "text_mode",
+          "name": "text_mode",
+          "shape": 7,
+          "type": "COMBO",
+          "widget": {
+            "name": "text_mode"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "text_style",
+          "name": "text_style",
+          "shape": 7,
+          "type": "STRING",
+          "widget": {
+            "name": "text_style"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "prompt",
+          "name": "prompt",
+          "type": "STRING",
+          "links": [
+            6
+          ]
+        },
+        {
+          "localized_name": "width",
+          "name": "width",
+          "type": "INT",
+          "links": null
+        },
+        {
+          "localized_name": "height",
+          "name": "height",
+          "type": "INT",
+          "links": null
+        },
+        {
+          "localized_name": "moss_json",
+          "name": "moss_json",
+          "type": "STRING",
+          "links": null
+        }
+      ],
+      "title": "Export · Caption",
+      "properties": {
+        "Node name for S&R": "MOSSFromKrea2"
+      },
+      "widgets_values": [
+        false,
+        "caption",
+        "literal",
+        ""
+      ],
+      "widgets_values_named": {
+        "auto_position_hint": false,
+        "output_mode": "caption",
+        "text_mode": "literal",
+        "text_style": ""
+      }
+    },
+    {
+      "id": 9,
+      "type": "PreviewAny",
+      "pos": [
+        2250,
+        100
+      ],
+      "size": [
+        210,
+        122
+      ],
+      "flags": {},
+      "order": 8,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "ソース",
+          "name": "source",
+          "type": "*",
+          "link": 5
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "文字列",
+          "name": "STRING",
+          "type": "STRING",
+          "links": null
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "PreviewAny"
+      },
+      "widgets_values": [],
+      "widgets_values_named": {}
+    },
+    {
+      "id": 10,
+      "type": "PreviewAny",
+      "pos": [
+        2250,
+        570
+      ],
+      "size": [
+        210,
+        122
+      ],
+      "flags": {},
+      "order": 9,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "ソース",
+          "name": "source",
+          "type": "*",
+          "link": 6
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "文字列",
+          "name": "STRING",
+          "type": "STRING",
+          "links": null
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "PreviewAny"
+      },
+      "widgets_values": [],
+      "widgets_values_named": {}
+    }
+  ],
+  "links": [
+    [
+      1,
+      1,
+      0,
+      7,
+      0,
+      "KREA2_ELEMENT_FRAMING_DATA"
+    ],
+    [
+      2,
+      2,
+      0,
+      7,
+      1,
+      "KREA2_ELEMENT_PROMPT_DATA"
+    ],
+    [
+      3,
+      1,
+      0,
+      8,
+      0,
+      "KREA2_ELEMENT_FRAMING_DATA"
+    ],
+    [
+      4,
+      2,
+      0,
+      8,
+      1,
+      "KREA2_ELEMENT_PROMPT_DATA"
+    ],
+    [
+      5,
+      7,
+      0,
+      9,
+      0,
+      "STRING"
+    ],
+    [
+      6,
+      8,
+      0,
+      10,
+      0,
+      "STRING"
+    ],
+    [
+      7,
+      1,
+      0,
+      5,
+      1,
+      "KREA2_ELEMENT_FRAMING_DATA"
+    ],
+    [
+      8,
+      3,
+      0,
+      5,
+      0,
+      "STRING"
+    ],
+    [
+      9,
+      1,
+      0,
+      6,
+      1,
+      "KREA2_ELEMENT_FRAMING_DATA"
+    ],
+    [
+      10,
+      4,
+      0,
+      6,
+      0,
+      "STRING"
+    ],
+    [
+      11,
+      5,
+      0,
+      6,
+      2,
+      "MOSS_BBOX_TEXT_LINKS"
+    ],
+    [
+      12,
+      6,
+      0,
+      2,
+      0,
+      "MOSS_BBOX_TEXT_LINKS"
+    ]
+  ],
+  "groups": [],
+  "config": {},
+  "extra": {
+    "moss_bbox_state_id": "k2cf_1793171393032_c5o8vwz0yx",
+    "ds": {
+      "scale": 0.55,
+      "offset": [
+        40,
+        80
+      ]
+    }
+  },
+  "version": 0.4
+}

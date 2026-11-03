@@ -1,5 +1,8 @@
 import {DIALOGUE_OPTIONS} from '../web/dialogue_options.mjs';
 import {FOCUS_OPTIONS,normalizeFocus,localizeCameraSelect} from '../web/camera_options.mjs';
+import {origin,externalBindings} from '../web/external_text.mjs';
+import {analysisStatus} from '../web/reference_analysis.mjs';
+import {graphInputs} from '../web/graph_inputs.mjs';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import test from 'node:test';
@@ -33,6 +36,7 @@ class Element extends EventTarget {
   getBoundingClientRect(){return {top:0,left:0,bottom:125,right:300,width:300,height:125};}
 }
 function harness(initial={}) {
+  const analysisCalls=[];
   const document=new EventTarget(),window=new EventTarget();window.confirm=()=>true;document.hidden=false;document.createElement=tag=>Object.assign(new Element(tag),{ownerDocument:document});
   const frames=new Map(),mutations=[],resizes=[];let sequence=0;
   class MutationObserver {constructor(callback){this.callback=callback;mutations.push(this);}observe(target){this.target=target;}disconnect(){this.target=null;}}
@@ -42,9 +46,9 @@ function harness(initial={}) {
   const flush=()=>{for(let i=0;frames.size;i++){assert(i<10,'refresh must settle');const next=[...frames.values()];frames.clear();for(const callback of next)callback();}};
   const {mountSpeechBubble,bubbleDescription}=new Function('document','bindHelp','DIALOGUE_OPTIONS',bubbleSource.replace(/^import .*;\r?\n/gm,'').replace(/export /g,'')+'\nreturn {mountSpeechBubble,bubbleDescription};')(document,()=>{},DIALOGUE_OPTIONS);
   const mountTextStyle=new Function('document','CSS','bindHelp','mountSpeechBubble','bubbleDescription','createEmojiPicker',styleSource.replace(/^import .*;\r?\n/gm,'').replace(/export /g,'')+'\nreturn mountTextStyle;')(document,{supports:()=>false},()=>{},mountSpeechBubble,bubbleDescription,()=>{throw Error('picker should be lazy');});
-  const {mountBoxPrompts}=new Function('document','window','MutationObserver','ResizeObserver','requestAnimationFrame','cancelAnimationFrame','mountTextStyle','bindHelp','FOCUS_OPTIONS','normalizeFocus','localizeCameraSelect',
+  const {mountBoxPrompts}=new Function('document','window','MutationObserver','ResizeObserver','requestAnimationFrame','cancelAnimationFrame','mountTextStyle','bindHelp','FOCUS_OPTIONS','normalizeFocus','localizeCameraSelect','origin','externalBindings','analysisStatus','requestAnalysis','graphInputs',
     source.replace(/^import .*;\r?\n/gm,'').replace(/export /g,'')+'\nreturn {mountBoxPrompts};')
-    (document,window,MutationObserver,ResizeObserver,requestAnimationFrame,cancelAnimationFrame,mountTextStyle,()=>{},FOCUS_OPTIONS,normalizeFocus,localizeCameraSelect);
+    (document,window,MutationObserver,ResizeObserver,requestAnimationFrame,cancelAnimationFrame,mountTextStyle,()=>{},FOCUS_OPTIONS,normalizeFocus,localizeCameraSelect,origin,externalBindings,initial.analysisStatus||analysisStatus,(...args)=>analysisCalls.push(args),graphInputs);
   const state=structuredClone(initial.state||{boxes:[{id:'red-1',slot:'red'},{id:'yellow-2',slot:'yellow'}],selectedId:null});
   const graph={_nodes:[],links:new Map([[1,{origin_id:10}],[2,{origin_id:20}]]),getNodeById:id=>graph._nodes.find(n=>n.id===id)};
   const node={id:20,graph};
@@ -66,10 +70,114 @@ function harness(initial={}) {
   const inherit=id=>descendant(card(id),e=>e.attributes['aria-label']===`Box ${id} shared`);
   const mutate=element=>mutations.filter(o=>o.target===element).forEach(o=>o.callback());
   const resume=()=>{document.hidden=false;document.dispatchEvent(new Event('visibilitychange'));window.dispatchEvent(new Event('focus'));flush();};
-  return {node,canvas,graph,wrap,state,api,container,card,field,fold,control,inherit,colorCards,defaults,document,window,flush,resume,mutate,resizes,mutations,saved:()=>structuredClone(saved)};
+  return {node,canvas,graph,wrap,state,api,container,card,field,fold,control,inherit,colorCards,defaults,document,window,flush,resume,mutate,resizes,mutations,analysisCalls,saved:()=>structuredClone(saved)};
 }
 
 function descendant(root,predicate){if(predicate(root))return root;for(const child of root.children){const found=descendant(child,predicate);if(found)return found;}return null;}
+
+function connectExternal(h,box='red-1') {
+  const link={id:30,type:'MOSSBBoxTextLink',graph:h.graph,widgets:[{name:'target',value:box}],
+    inputs:[{name:'framing_data',link:1},{name:'text',link:4},{name:'previous',link:null}]};
+  h.graph._nodes.push(link,{id:31,type:'StringSource'});
+  h.graph.links.set(3,{origin_id:30});h.graph.links.set(4,{origin_id:31});
+  h.node.inputs=[{name:'external_text',link:3}];h.node.onConnectionsChange();h.flush();return link;
+}
+
+function connectAnalysis(h){
+  const analysis={id:30,type:'MOSSBBoxImageAnalysis',graph:h.graph,widgets:[{name:'target',value:'red-1'}],inputs:[{name:'framing_data',link:1},{name:'image',link:4}]};
+  const sw={id:40,type:'ComfySwitchNode',graph:h.graph,widgets:[{name:'switch',value:true}],inputs:[{name:'on_true',link:5},{name:'on_false',link:null},{name:'switch',link:null}]};
+  h.graph._nodes.push(analysis,sw,{id:31,type:'LoadImage'});h.graph.links.set(3,{origin_id:40});h.graph.links.set(4,{origin_id:31});h.graph.links.set(5,{origin_id:30});
+  h.node.inputs=[{name:'external_text',link:3}];h.node.onConnectionsChange();h.flush();return {analysis,sw};
+}
+
+test('analysis Auto resolves the first box independent of color and explicit missing targets remain invalid',()=>{
+  const h=harness({state:{boxes:[{id:'blue-first',slot:'blue'},{id:'red-next',slot:'red'}]}}),{analysis}=connectAnalysis(h);
+  analysis.widgets[0].value='';h.api.refresh();h.flush();
+  assert.equal(externalBindings(h.node).items[0].box,'blue-first');assert.equal(externalBindings(h.node).error,'');
+  h.node.onExecuted({moss_external_text:[{canvas:'10',box:'blue-first',text:'Blue analysis',link:'30'}]});h.flush();
+  assert.equal(h.state.boxes[0].promptData.prompt,'Blue analysis');assert.equal(h.state.boxes[1].promptData,undefined);
+  analysis.widgets[0].value='deleted';h.api.refresh();h.flush();assert.equal(externalBindings(h.node).error,'target');
+  analysis.widgets[0].value='red-next';h.api.refresh();h.flush();assert.equal(externalBindings(h.node).items[0].box,'red-next');
+  analysis.widgets[0].value='';h.state.boxes.shift();h.api.refresh();h.flush();assert.equal(externalBindings(h.node).items[0].box,'red-next');
+  h.state.boxes=[];h.api.refresh();h.flush();assert.equal(externalBindings(h.node).error,'target');h.node.onRemoved();
+});
+
+test('successful analysis remains editable on OFF, saves with the box and uses existing Undo',()=>{
+  const h=harness(),before=structuredClone(h.state.boxes),height=h.field('red-1').style.height;
+  const {sw}=connectAnalysis(h);assert.equal(h.field('red-1').readOnly,true);
+  h.node.onExecuted({moss_external_text:[{canvas:'10',box:'red-1',text:'Automatically analyzed subject',link:'30'}]});h.flush();
+  assert.equal(h.field('red-1').value,'Automatically analyzed subject');
+  assert.deepEqual(h.state.boxes[0].promptData,{...h.defaults.red,prompt:'Automatically analyzed subject'});assert.deepEqual(h.state.boxes[1],before[1]);
+  // Repeated delivery must not add a second Undo entry.
+  h.node.onExecuted({moss_external_text:[{canvas:'10',box:'red-1',text:'Automatically analyzed subject',link:'30'}]});h.flush();
+  sw.widgets[0].value=false;h.document.dispatchEvent(Object.assign(new Event('litegraph:canvas'),{detail:{subType:'after-change'}}));h.flush();
+  assert.equal(h.field('red-1').readOnly,false);assert.equal(h.field('red-1').value,'Automatically analyzed subject');assert.equal(h.field('red-1').style.height,height);
+  h.canvas.__mossBoxEditor.undo();h.flush();assert.deepEqual(h.state.boxes,before);
+  h.canvas.__mossBoxEditor.redo();h.flush();assert.equal(h.field('red-1').value,'Automatically analyzed subject');
+  h.field('red-1').value='Completely different manual prompt';h.field('red-1').dispatchEvent(new Event('input'));h.flush();h.resume();
+  assert.equal(h.state.boxes[0].promptData.prompt,'Completely different manual prompt');
+  const reloaded=harness({state:h.state,ui:h.saved()});assert.equal(reloaded.field('red-1').value,'Completely different manual prompt');assert.equal(reloaded.control('red-1','Type').value,'character');assert.equal(reloaded.field('red-1').style.height,height);
+  const {sw:nextSwitch}=connectAnalysis(reloaded);nextSwitch.widgets[0].value=false;reloaded.api.refresh();reloaded.flush();
+  assert.equal(reloaded.field('red-1').value,'Completely different manual prompt');h.node.onRemoved();reloaded.node.onRemoved();
+});
+
+test('analysis saves only valid current results and preserves every other box setting',()=>{
+  const h=harness({state:{boxes:[{id:'red-1',slot:'red',promptData:{prompt:'Original',name:'Keep',type:'character',framing:'Full body',angle:'Side view',focus:'Face',textStyle:{mode:'individual',color:'#123456'}}},{id:'yellow-2',slot:'yellow'}]}});
+  const before=structuredClone(h.state.boxes),{analysis,sw}=connectAnalysis(h);
+  const receive=(text,box='red-1',link='30',canvas='10')=>{h.node.onExecuted({moss_external_text:[{canvas,box,text,link}]});h.flush();};
+  receive('');receive('   ');receive('Wrong link','red-1','999');receive('Wrong Canvas','red-1','30','999');assert.deepEqual(h.state.boxes,before);
+  analysis.widgets[0].value='yellow-2';h.api.refresh();h.flush();receive('Stale target');assert.deepEqual(h.state.boxes,before);
+  analysis.widgets[0].value='red-1';h.api.refresh();h.flush();sw.widgets[0].value=false;receive('Late after OFF');assert.deepEqual(h.state.boxes,before);
+  sw.widgets[0].value=true;h.api.refresh();h.flush();receive('New analyzed body');assert.deepEqual(h.state.boxes[0].promptData,{...before[0].promptData,prompt:'New analyzed body'});assert.deepEqual(h.state.boxes[1],before[1]);h.node.onRemoved();
+});
+
+test('external card uses one read-only field, restores manual text on unlink and rejects formatter writes',()=>{
+  const h=harness({state:{boxes:[{id:'red-1',slot:'red',promptData:{prompt:'こんにちは',type:'character'}}]}});
+  const saved=structuredClone(h.state),height=h.field('red-1').style.height;
+  connectExternal(h);
+  assert.equal(h.field('red-1').readOnly,true);assert.equal(h.field('red-1').value,'');
+  h.node.onExecuted({moss_external_text:[{canvas:'10',box:'red-1',link:'30',text:'ありがとう'}]});h.flush();
+  assert.equal(h.field('red-1').value,'ありがとう');
+  h.field('red-1').value='formatter must not save';h.field('red-1').dispatchEvent(new Event('input'));h.flush();
+  assert.equal(h.field('red-1').value,'ありがとう');assert.deepEqual(h.state,saved);
+  assert.equal(h.inherit('red-1').disabled,true);
+  h.node.inputs[0].link=null;h.node.onConnectionsChange();h.flush();
+  assert.equal(h.field('red-1').readOnly,false);assert.equal(h.field('red-1').value,'こんにちは');
+  assert.equal(h.field('red-1').style.height,height);assert.deepEqual(h.state,saved);
+  h.node.onRemoved();
+});
+
+test('external empty and missing input never reveal manual text; reconnect waits for execution',()=>{
+  const h=harness();const link=connectExternal(h);
+  h.node.onExecuted({moss_external_text:[{canvas:'10',box:'red-1',link:'30',text:''}]});h.flush();
+  assert.equal(h.field('red-1').value,'');assert.equal(h.field('yellow-2').readOnly,false);
+  link.inputs[1].link=null;h.api.refresh();h.flush();
+  assert.equal(h.field('red-1').value,'');assert.equal(h.field('red-1').readOnly,true);
+  assert.match(h.field('red-1').placeholder,/Check link/);
+  link.inputs[1].link=4;h.api.refresh();h.flush();
+  assert.match(h.field('red-1').placeholder,/Not run/);
+  h.node.onRemoved();
+});
+
+test('two Exports, focus, configure and stale execution results cannot switch external targets or saved Type',()=>{
+  const h=harness();const link=connectExternal(h);
+  h.graph._nodes.push({id:41,type:'MOSSFromKrea2',inputs:[{name:'framing_data',link:1},{name:'prompt_ui_data',link:2}]});
+  h.node.onExecuted({moss_external_text:[{canvas:'10',box:'red-1',link:'30',text:'First external'}]});h.flush();h.resume();
+  assert.equal(h.field('red-1').value,'First external');
+  h.control('red-1','Type').value='text';h.control('red-1','Type').dispatchEvent(new Event('change'));h.flush();
+  assert.equal(h.state.boxes[0].promptData.type,'text');assert.equal(h.state.boxes[0].promptData.prompt,'unchanged');
+  link.widgets[0].value='yellow-2';h.api.refresh();h.flush();
+  assert.equal(h.field('red-1').readOnly,false);assert.equal(h.field('yellow-2').value,'');
+  h.node.onExecuted({moss_external_text:[{canvas:'10',box:'red-1',link:'30',text:'Stale result'}]});h.flush();
+  assert.equal(h.field('red-1').value,'unchanged');assert.equal(h.field('yellow-2').value,'');
+  h.node.onConfigure({});h.flush();assert.equal(h.field('yellow-2').readOnly,true);
+  h.node.onRemoved();
+});
+
+test('a pending manual composition survives unrelated refresh with unchanged saved model',()=>{
+  const h=harness();h.field('red-1').value='日本語入力中';h.api.refresh();h.flush();
+  assert.equal(h.field('red-1').value,'日本語入力中');h.node.onRemoved();
+});
 test('selection refresh cannot overwrite a pending Type choice when its underlying model has not changed',()=>{
   const h=harness({state:{boxes:[{id:'red-1',slot:'red',promptData:{type:'object',prompt:'keep'}}],selectedId:null}});
   h.control('red-1','Type').value='character';h.api.refresh();h.flush();
@@ -181,6 +289,41 @@ test('temporary empty Canvas lists cannot erase remembered card sizes and expans
 test('node removal disconnects visibility, size and style observers',()=>{
   const h=harness();h.node.onRemoved();h.wrap.isConnected=false;
   h.resume();assert(h.resizes.every(o=>o.target===null));assert(h.mutations.every(o=>o.target===null));
+});
+
+test('visible Analyze command targets only the selected box and never changes prompt settings',()=>{
+  const h=harness({analysisStatus:()=>({enabled:true,reason:''})}),before=structuredClone(h.state.boxes);
+  const action=descendant(h.wrap,e=>e.attributes['aria-label']==='Analyze selected box');
+  assert(action);assert.equal(action.disabled,true);
+  h.canvas.__mossBoxEditor.select('yellow-2');h.flush();assert.equal(action.disabled,false);action.onclick();
+  assert.deepEqual(h.analysisCalls,[[h.canvas,'yellow-2','en']]);assert.deepEqual(h.state.boxes,before);
+  const unavailable=harness();unavailable.canvas.__mossBoxEditor.select('red-1');unavailable.flush();
+  assert.equal(descendant(unavailable.wrap,e=>e.attributes['aria-label']==='Analyze selected box').disabled,true);
+  h.node.onRemoved();unavailable.node.onRemoved();
+});
+
+test('legacy shared-open state stays closed while individual text, Type, height and folding survive',()=>{
+ const ui={sharedOpen:true,sourceId:'10',cards:[{canvasId:'10',id:'red-1',open:true,height:245},{canvasId:'10',id:'yellow-2',open:false,height:185}]};
+ const state={boxes:[{id:'red-1',slot:'red',promptData:{prompt:'Keep my text',type:'character',focus:'Face'}},{id:'yellow-2',slot:'yellow'}],selectedId:null};
+ const h=harness({ui,state}),before=structuredClone(h.state),shared=h.wrap.children.find(e=>e.classList.contains('moss-shared-defaults'));
+ assert.equal(Boolean(shared.open),false);assert.equal(h.field('red-1').value,'Keep my text');assert.equal(h.control('red-1','Type').value,'character');
+ assert.equal(h.field('red-1').style.height,'245px');assert.equal(h.card('yellow-2').classList.contains('collapsed'),true);
+ shared.open=true;shared.dispatchEvent(new Event('toggle'));h.flush();h.api.restore(h.saved());h.flush();h.resume();
+ assert.equal(shared.open,true);assert.equal(Object.hasOwn(h.saved(),'sharedOpen'),false);
+ h.node.onConfigure();h.flush();assert.equal(shared.open,false);assert.deepEqual(h.state,before);
+ assert.equal(h.field('red-1').style.height,'245px');assert.equal(h.card('yellow-2').classList.contains('collapsed'),true);h.node.onRemoved();
+});
+
+test('standalone common editor closes when Canvas connects, including reconnection',()=>{
+ const h=harness(),before=structuredClone(h.state),shared=h.wrap.children.find(e=>e.classList.contains('moss-shared-defaults'));
+ const exportNode=h.graph._nodes.find(n=>n.type==='MOSSFromKrea2');
+ for(let round=0;round<2;round++){
+  h.graph._nodes=h.graph._nodes.filter(n=>n!==exportNode);h.node.onConnectionsChange();h.flush();
+  assert.equal(shared.open,true);assert.equal(h.container.style.display,'none');
+  h.graph._nodes.push(exportNode);h.node.onConnectionsChange();h.flush();
+  assert.equal(shared.open,false);assert.equal(h.container.style.display,'flex');assert.deepEqual(h.state,before);
+ }
+ h.node.onRemoved();
 });
 
 test('selection/focus and advanced shared settings never replace or hide the box editor',()=>{
@@ -364,7 +507,7 @@ test('legacy workflows without a saved view show existing independent prompts di
   assert.equal(h.card('red-1').classList.contains('collapsed'),false);
   const bar=h.wrap.children.find(e=>e.classList.contains('moss-box-prompt-bar'));
   const shared=h.wrap.children.find(e=>e.className==='moss-shared-defaults');shared.open=true;shared.dispatchEvent(new Event('toggle'));h.flush();
-  assert.equal(h.container.style.display,'flex');assert.equal(bar.children.length,4);
+  assert.equal(h.container.style.display,'flex');assert.equal(bar.children.length,5);
   h.canvas.__mossBoxEditor.select('red-1');h.flush();assert.equal(h.container.style.display,'flex');assert.equal(h.state.boxes[0].promptData.prompt,'actual generated text');
   h.node.onRemoved();
 });

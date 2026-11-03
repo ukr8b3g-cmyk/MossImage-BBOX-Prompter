@@ -1,10 +1,13 @@
-# Release 1.0.11 validation — 2026-10-28
+# Release 2.0.0 validation — 2026-11-04
 
-- Original MOSS BBOX only. Comic files and the separate JP Assist extension are not part of this release.
-- JavaScript **117 passed**; Python **71 passed, 0 skipped**, including the pinned official MOSS reference and published workflow compatibility.
-- Isolated real-ComfyUI frontend checks cover seven colors, connected/standalone geometry and typography, three Types, English/Japanese, fixed menus, literal wording, manual-size persistence and workflow reload. No unexpected page errors.
-- Existing standalone DOM fixture passes for color palettes, editable JSON, nine ID cards, Undo/Redo, duplication, deletion restore and node-size persistence.
-- Current Template / Standard / DMD CPU outputs are identical before and after the uniform UI dimension update. Templates retain their example words and generation settings. Newly created UI nodes have empty prompt fields and Export lettering descriptions.
-- Public 1.0.10 inputs remain the compatibility baseline. New Focus widgets append after the existing 31 positional inputs; old 23/31-widget workflows restore Auto.
-- No new GPU generation or user-managed process restart is performed during publication. These checks do not establish generation quality, literal glyph accuracy or Registry activation.
+- JavaScript **128 passed**; Python **86 passed, 0 skipped**, including the pinned official MOSS reference and version-appropriate published workflow compatibility.
+- Native ComfyUI UI checks cover Auto/explicit targets, subgraph promotion, system-prompt editing, Core sampling controls, parameter serialization and workflow reload. Existing text, Type, styles, editor sizes and shared-section behavior retain their owners. No unexpected page errors.
+- Existing standalone DOM and external-text CPU fixtures pass, including two Exports, blank input, unlink/reconnect, per-Canvas identity, editable JSON, nine cards, Undo/Redo and blank workflows.
+- The V2 workflow JSON and reference image are copied byte-for-byte from the supplied template ZIP. Node titles, wiring, saved text and generation settings are retained. Older workflow files remain unchanged; only the V2 workflow is included in the new workflow bundle.
+- Old target/kind widget positions and default analysis settings remain compatible. Successful analysis saves through the existing Canvas editor; OFF enables manual editing, and Undo restores the prior body within the session.
+- The user confirmed GPU operation of the supplied V2 workflow. Developer CPU/UI/forwarding checks and earlier fixed-default ON/OFF generation checks are distinct evidence. No additional GPU generation or user-managed process restart is performed during this publication step. These checks do not establish universal image quality, literal glyph accuracy or Registry activation.
 - GitHub push CI runs tests, Ruff and tracked-source packaging. Explicit `[github-release]` commits publish a GitHub Release only after those checks succeed. Registry publication remains separately opt-in.
+
+## Standalone GPU acceptance — 2026-10-21
+
+Historical V1 acceptance covered Standard and DMD generation after restart on an RTX 5060 Ti, with workflow/API metadata matching the submitted generation settings. This is retained as historical evidence, not a new V2 GPU run.

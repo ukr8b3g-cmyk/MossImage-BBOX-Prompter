@@ -6,10 +6,11 @@ import { app } from "../../scripts/app.js";
 import { api } from "../../scripts/api.js";
 import { mountCanvasReference } from "./canvas_reference.mjs?v=20261027-simple4";
 import { bindHelp } from "./help.mjs?v=1.0.11";
-import { mountTextStyle } from "./text_style.mjs?v=1.0.11";
+import { mountTextStyle } from "./text_style.mjs?v=20261028-palette1";
 import { openLayoutImport } from "./layout_import.mjs?v=20261027-simple4";
-import { mountBoxPrompts, notifyBoxEdit, BOX_PROMPT_HEIGHTS, mountCardOptions } from "./box_prompts.mjs?v=1.0.11";
-import { mountBoxSelectionMenu } from "./box_selection.mjs?v=20261027-simple4";
+import { mountBoxPrompts, notifyBoxEdit, BOX_PROMPT_HEIGHTS, mountCardOptions } from "./box_prompts.mjs?v=20261104-controls1";
+import { mountBoxSelectionMenu } from "./box_selection.mjs?v=20261103-analysis1";
+import {analysisStatus,requestAnalysis} from './reference_analysis.mjs?v=20261104-controls1';
 import { createCanvasHistory, nextOverlappingBox, snapBoxToGuides, resizeBoxWithAspect, moveBoxSelection, arrangeBoxes } from "./canvas_editing.mjs?v=20261027-simple4";
 
 const CANVAS_NODE = "MOSSSharedCanvas";
@@ -1229,7 +1230,8 @@ function ensureStyle() {
     .moss-k2cf-panel select{max-width:100%}.moss-k2cf-help .user{color:}
     .moss-k2cf-prompt-wrap :is(button,select,input,textarea,summary){font-family:inherit}
     .moss-k2cf-prompt-wrap :is(button,select,input){box-sizing:border-box;border-radius:5px}
-    .moss-k2cf-slot-side :is(button,select,input){height:22px;min-height:22px;font:inherit}
+    .moss-k2cf-slot-side :is(button,select,input),.moss-text-style :is(select,input){height:22px;min-height:22px;font:inherit}
+    .moss-text-style textarea,.moss-text-style .moss-emoji-button{font:inherit}
     .moss-k2cf-prompt-wrap{display:flex;flex-direction:column;gap:8px;min-height:0;overflow:auto}
     .moss-k2cf-prompt-top{display:flex;gap:8px;align-items:center;justify-content:space-between;flex-wrap:nowrap}
     .moss-k2cf-language-select{width:72px;min-width:72px}
@@ -2542,6 +2544,7 @@ function setupCanvasNode(node) {
     state.drawing={id:newBoxId(),slot:state.activeSlot,x1:p.x,y1:p.y,x2:p.x,y2:p.y};
   });
   const selectionMenu = mountBoxSelectionMenu(overlay, {
+    analysis: id => ({...analysisStatus(node,id,resolveLang(controls.ui_language?.value || 'Auto')),run:()=>requestAnalysis(node,id,resolveLang(controls.ui_language?.value || 'Auto'))}),
     boxes: () => state.layoutError || state.hideBoxes || pointerStart ? [] : state.boxes,
     point: event => point(event, false), color: colorFor, language: () => resolveLang(controls.ui_language?.value || "Auto"),
     select: id => { selectBoxes([id]); drawOverlay(); },
@@ -2684,6 +2687,7 @@ function setupCanvasNode(node) {
 
   node.__k2cfHydrateFromWidgets = hydrateCanvasFromWidgets;
   node.__mossBoxEditor = {
+    busy: () => Boolean(state.layoutError || state.drawing || state.moving || state.resizing || pointerStart),
     read: () => ({boxes: structuredClone(state.boxes), selectedId: state.selectedId, canUndo: history.canUndo, canRedo: history.canRedo}),
     select: id => { if (!state.layoutError && state.boxes.some(b => b.id === id)) { selectBoxes([id]); drawOverlay(); refreshPrecision(); } },
     update: (id, value) => {

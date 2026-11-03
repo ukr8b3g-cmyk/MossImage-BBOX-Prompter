@@ -34,7 +34,7 @@ class SevenSlotTests(unittest.TestCase):
                     *(f"{s}_type" for s in OLD_SLOTS), "prompt_ui_data",
                     *(f"{s}_framing" for s in OLD_SLOTS), *(f"{s}_angle" for s in OLD_SLOTS))
         self.assertEqual(tuple(schema["required"]), expected)
-        self.assertEqual(tuple(schema["optional"]), tuple(f"{s}_{key}" for s in ("cyan", "orange")
+        self.assertEqual(tuple(name for name, entry in schema["optional"].items() if "default" in entry[1]), tuple(f"{s}_{key}" for s in ("cyan", "orange")
                                                          for key in ("prompt", "type", "framing", "angle")) + tuple(f"{s}_focus" for s in ALL_SLOTS))
         for slot in ("cyan", "orange"):
             self.assertEqual(schema["optional"][f"{slot}_prompt"][1]["default"], "")
@@ -96,7 +96,7 @@ class SevenSlotTests(unittest.TestCase):
     def test_extra_cards_do_not_leak_into_unrelated_five_color_output(self):
         values = {f"{slot}_prompt": f"An object for {slot}" for slot in OLD_SLOTS}
         prompts = PROMPTER().execute(**values)[0]
-        defaults = {key: value[1]["default"] for key, value in PROMPTER.INPUT_TYPES()["optional"].items()}
+        defaults = {key: value[1]["default"] for key, value in PROMPTER.INPUT_TYPES()["optional"].items() if "default" in value[1]}
         for mode in ("hybrid", "caption", "layout_json", "auto"):
             self.assertEqual(EXPORT().build(framing(OLD_SLOTS), prompts, output_mode=mode),
                              EXPORT().build(framing(OLD_SLOTS), PROMPTER().execute(**values, **defaults)[0], output_mode=mode))

@@ -5,6 +5,7 @@ import json
 from . import canvas_controls as controls
 
 from .prompt_builder import SLOTS, build_prompt, default_state
+from .external_text import canvas_text
 
 ELEMENT_TYPES = ("character", "object", "text")
 
@@ -51,6 +52,7 @@ def build_from_krea(framing_data, prompt_ui_data, auto_position_hint=False,
         raise ValueError("Connect the MOSS BBOX Canvas framing_data output.")
     if prompts.get("version") != "krea2_element_prompt_ui_v1":
         raise ValueError("Connect the MOSS BBOX Prompter prompt_ui_data output.")
+    external = canvas_text(prompts, framing)
     state = default_state()
     state["width"], state["height"] = framing["width"], framing["height"]
     summary = [prompts.get("scene", ""), prompts.get("background", "")]
@@ -96,16 +98,21 @@ def build_from_krea(framing_data, prompt_ui_data, auto_position_hint=False,
         label, text = metadata[slot]
         box = {"id": str(index), "slot": slot, "label": label, "text": text,
                **{key: source[key] for key in ("x1", "y1", "x2", "y2")}}
-        if "promptData" in source:
-            individual = source["promptData"]
-            if not isinstance(individual, dict) or not isinstance(individual.get("prompt"), str):
+        is_external = str(source.get("id", "")) in external
+        if "promptData" in source or is_external:
+            individual = source.get("promptData", prompts.get("slots", {}).get(slot, {}))
+            if not isinstance(individual, dict):
+                raise ValueError("Box promptData must contain a prompt string")
+            if is_external:
+                individual = {**individual, "prompt": external[str(source["id"])]}
+            elif not isinstance(individual.get("prompt"), str):
                 raise ValueError("Box promptData must contain a prompt string")
             kind = element_type(individual.get("type", "object"))
             focus = controls._normalize_focus(individual.get("focus", "Auto"))
             content = individual["prompt"]
             if kind == "text":
-                if text_mode == "literal":
-                    style = individual_text_caption(individual.get("textStyle"))
+                if text_mode == "literal" or is_external:
+                    style = individual_text_caption(individual.get("textStyle", individual.get("text_style")))
                     caption = text_style if style is None else style
                     text = content
                 else:

@@ -2,16 +2,18 @@
 
 [English](README.md) | **日本語**
 
-**GitHub最新版：1.0.11** — [Release・Workflowダウンロード](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/tag/v1.0.11) ・ [Comfy Registry](https://registry.comfy.org/nodes/mossimage-bbox-prompter)
+**GitHub最新版：2.0.0（V2）** — [Release・Workflowダウンロード](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/tag/v2.0.0) ・ [Comfy Registry](https://registry.comfy.org/nodes/mossimage-bbox-prompter)
 
-## 1.0.11の変更
+**V2の追加機能：** 参照画像の解析、対象枠への自動保存、OFF後の編集、Auto対象、解析設定の表示。V1との互換性を維持します。
+
+## V1から引き継いだ機能（1.0.11）
 
 - 接続前後で共通のコンパクトなカード表示。全7色で同じ4段・書体・幅・初期170px。保存済みの手動サイズは保持します。
 - 名前とSharedは見出しの **⋯**、色の共通設定の⋯はプリセット。画面の説明は短いラベルとマウスオーバーへ整理しました。
 - Type・本文・開閉・入力欄サイズの保存復元を修正。枠の選択だけで閉じたり、別の文章・設定へ戻したりしません。
 - Angleに斜め後ろ左右と覗き見るローアングル、独立したFocusを追加。詳細は下記のAngle／Focusへ。
 - Textに用途7種・形状22種・構造・文字方向・色・絵文字一覧を追加。描く本文と見た目の指示を分けます。
-- [現行テンプレート](examples/MOSS_BBOX_Template.json)を追加。本文・生成設定を保持し、表示寸法を統一しました。**新規ノードの初期文章は空欄**で、例の文章をコピーしません。
+- [V1テンプレート](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/download/v1.0.11/MOSS_BBOX_Template.json)を追加。本文・生成設定を保持し、表示寸法を統一しました。**新規ノードの初期文章は空欄**で、例の文章をコピーしません。
 - 未接続の旧width_override／height_override端子を取り除き、Canvas上部を短縮。接続済みの旧端子と下部W／H入力は維持します。
 
 **更新時：** Workflowを別名保存し、処理が終わってから更新してください。1.0.10以前からはFocusなどのPython入力も変わるため、ComfyUIを通常の方法で再起動し、その後Ctrl+F5で更新します。Registry公開はGitHub Releaseと別工程です。
@@ -49,24 +51,68 @@ MOSS-Image対応のComfyUIと、使用するモデル・CLIP・VAEが必要で�
 標準のMOSS BBOXテンプレートはNodes 2.0が必要ですが、このパッケージは
 **従来のComfyUI UI（LiteGraph）でも使用できます**。Nodes 2.0を有効にする必要はありません。
 
-## ワークフローと接続
+## 外部テキスト（任意のSTRING接続）
 
-[テンプレート・通常版・DMD版をまとめたZIP](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/download/v1.0.11/MOSS_BBOX_Workflows_1.0.11.zip)をダウンロードできます。README・参照画像も同梱しています。
+**MOSS BBOX Text Link**で、外部のSTRINGをCanvasの枠へ指定できます。置き換えるのは本文だけで、タイプ・構図・角度・フォーカス・文字スタイルはカード側の設定を使います。追加の依存パッケージはありません。Text LinkにはComfyUIのV3ノードAPIが必要です。既存Workflowの保存形式は維持します。
 
-- [MOSS_BBOX_Template.json](examples/MOSS_BBOX_Template.json)：現行UIのテンプレート。人物とTextの例、既存の本文・生成設定を含みます。必要な内容へ編集して使ってください。新規ノードへ例文を自動転記する機能はありません。
+1. **Text (Multiline)**、文字列処理ノード、LLMなどのSTRING出力 → Text Linkの **text**。
+2. Canvasの **framing_data** → Text Linkの **framing_data**。**対象**から枠を選びます。色と任意の名前で表示し、名前や色を変更しても同じ枠を指定し続けます。
+3. Text Linkの **external_text** → Prompterの **external_text**。CanvasとPrompterは、従来どおり同じExportへ接続します。
+4. 複数枠ではText Linkを追加し、前の **external_text** → 次の **previous**。最後のText LinkをPrompterへ接続します。
 
-- [MOSS_BBOX_Standard.json](examples/MOSS_BBOX_Standard.json)：通常版。LoRA OFF・25 steps・CFG 2.5。
-- [MOSS_BBOX_DMD.json](examples/MOSS_BBOX_DMD.json)：DMD版。LoRA ON・強度0.7・8 steps・CFG 1。
-- [ComfyUI_00238_.webp](examples/ComfyUI_00238_.webp)：参照画像。
+カードは同じ本文欄のまま読み取り専用になります。実行前は **外部・未実行**、Prompterが受け取った後は **外部・前回実行**。表示するのは前回実行の本文で、上流の編集内容を即時表示する機能ではありません。コピーは可能です。位置・保存した高さ・開閉は変わりません。タイプと見た目は変更できますが、外部本文の整形・絵文字挿入は受け付けません。
 
-Standard／DMDの2本は880×1184、er_sde／simple、WebP保存（品質80）、BBOX Preview接続済みです。
-参照画像の表示は初期OFF・不透明度50％です。参照画像入力を使う今回の2本にはノード1.0.7以降が必要です。
-モデル・CLIP・VAE・LoRAのファイル名は、インストール済みのものを選んでください。
-テンプレートのLoRAノードには**rgthree-comfy**が必要です。設定値は使用例であり、万能な推奨設定ではありません。
+| 状態 | 実行に使う本文 |
+| --- | --- |
+| 外部入力を接続 | 外部STRINGのみ。手入力とは連結しません |
+| 外部STRINGが空 | 空欄。保存済みの手入力へ戻しません |
+| Text Link → Prompterを解除 | 元の手入力が戻ります |
+| 上流STRINGの接続不足・対象枠の削除・同じ枠への二重指定 | エラー。手入力や前回結果で代用しません |
+| 同じCanvas＋Prompterを複数Exportへ接続 | 同一実行では同じ枠本文。Exportの順番や選択に依存しません |
 
-JSONを読み込んだ後、Load Imageで同梱WebPをアップロード・選択してください。
-またはComfyUIの`input`フォルダへ元の名前でコピーして選択します。
-画像自体はワークフローJSONに埋め込まれていません。
+外部の**Text**は、空白・改行・引用符・`|`を含めて全文を描く文言として扱います。Exportのlegacy／literalでも本文を分割しません。Exportごとの出力モードや補助説明によって、最終プロンプトの形式は異なります。確認には各Exportの **prompt** → **Preview as Text**を接続します。異なる外部本文を比較するときはText Link＋Prompterの組を分けます。同じCanvasの手入力を編集した場合は、そのCanvasを使う組で共有されます。
+
+通常のText Linkは元の手入力をCanvasに保持し、外部結果で書き換えません。Workflowには接続と対象枠を保存し、カードの前回実行表示は保存しません。読み込み後に実行すると再表示します。Image Analysisは別で、成功した解析文を対象枠の本文へ保存し、OFF後に編集できます。別Canvasで色や枠IDが同じでも、その枠へ外部文章を流用しません。WorkflowにはCanvasとPrompterの両方を残してください。
+
+
+## V2テンプレートと使い方
+
+配布案内は次の2系統です。V2のZIPには今回のWorkflowだけを収録し、V1のWorkflowは混在させません。過去のRelease履歴は保持します。
+
+| 版 | ダウンロード | 用途 |
+| --- | --- | --- |
+| **V2・2.0.0** | [V2 ZIP](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/download/v2.0.0/MOSS_BBOX_Canvas_V2.zip) ／ [Workflow JSON](examples/MOSS_BBOX_Canvas_V2.json) | 参照画像の解析を組み込んだ今回のテンプレート。 |
+| V1・1.0.11 | [前版Release](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/tag/v1.0.11) ／ [前版Template JSON](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/download/v1.0.11/MOSS_BBOX_Template.json) | 従来の構成を使う場合。 |
+
+V2 ZIPを展開し、`examples/MOSS_BBOX_Canvas_V2.json`をComfyUIへ読み込みます。Load Imageには同梱の`ed6c61ad22695e639fb4b5b75fd2b931.webp`をアップロード・選択してください。モデル・TE・VAE・LoRAのファイル名はインストール済みのものへ合わせます。テンプレートのPower Lora Loaderには[rgthree-comfy](https://github.com/rgthree/rgthree-comfy)が必要です。CoreのGenerate Text／If/Else Switch／Seedが使えるMOSS対応ComfyUIを使用してください。
+
+### 1. 参照画像と解析の操作
+
+画像をLoad Imageへ読み込み、生成サブグラフの**Image analysis enable**をtrueにします。参照画像を直接生成へ条件付けする機能ではなく、画像を文章化し、その文章を使って通常生成する構成です。
+
+### 2. targetとkind
+
+targetの初期値Autoは、最初に作成された枠を使い、実際の対象も`Auto · RED`などと表示します。色の優先順位はありません。固定したい場合はRED／BLUEなどを明示指定してください。
+
+kindはcharacter（人物）またはobject（物体）です。この設定は解析時の依頼種別で、カードのTypeを書き換える操作ではありません。
+
+今回の解析は**参照画像1枚・対象枠1つ**です。Missing box／対象なしは有効な送り先ではなく、解析ONで実行するとエラーになります。枠を作成するか、実在する枠を選び直してください。
+
+### 3. ONで解析して生成
+
+Image analysis enableがtrueの状態で通常の「実行」を押すと、指定枠の解析文がPrompterのカードへ自動保存され、Exportから画像生成へ流れます。解析文のコピー・貼り付けや専用の「適用」は不要です。
+
+### 4. OFFで編集・従来の生成
+
+解析文をそのまま編集する場合は、先にImage analysis enableを**false**へ切り替えます。本文は残り、カードがManualとなって編集できるようになります。全く違う文章へ変更して生成することも可能です。OFFでは参照画像を再解析せず、保存済みの本文を使う従来どおりの生成になります。
+
+**再びtrueにして実行すると、手動編集した本文も新しい解析文で上書きされます。** trueへ切り替えるだけでは解析しません。編集した文章を使う間はfalseのままにします。保存・再読み込みで本文を保持し、同じセッション中はCanvasのUndoで解析前へ戻せます。
+
+V1の既存ノードID・Workflow・保存設定との互換性を維持しています。V1／V2という同名ノードを追加し直す必要はありません。新規ノードのプロンプト初期値は空欄で、テンプレート内の文章を自動でコピーしません。
+
+V2テンプレートのGPU動作はユーザー環境で確認済みです。開発側のCPU・画面・保存復元の確認とは区別しています。
+
+## 基本の接続
 
 基本の接続は次のとおりです。
 
@@ -91,7 +137,7 @@ Canvasの座標をMOSS標準の中央原点・ピクセル`yxyx`形式へ変換�
 - 新しい文章プリセットはFocusも保存します。旧プリセットにFocusがなければ現在のFocusを維持し、新プリセットのAutoは明示的にAutoへ戻します。Type／Framing／Angleは文章プリセットで切り替えません。
 - 再編集JSONは、保存するID別設定に非Auto Focusまたは新Angleがあれば **v2**、それ以外や配置のみはv1です。Textで無効表示の設定も判定します。v1は引き続き読み込め、v2は更新版のノードが必要です。色別設定はJSONではなくWorkflow全体で保存してください。
 
-**今回はPython側の入力が増えるため、使用にはComfyUIの再起動と、その後のCtrl+F5が必要です。** 再起動前の古い入力定義では新Angle／Focusを無効表示にし、再起動案内を出します。既存31ウィジェットの後ろへ7色のFocusを追加し、旧23／31入力はFocus=Autoで復元します。実装時にユーザーのプロセスを再起動していません。CPU検証と隔離した実ComfyUI画面での検証を実施しました。この公開工程で新たなGPU生成は行っていません。外部テキスト接続改善は保留のままです。
+**1.0.10以前からの更新では、ComfyUIの通常再起動と、その後のCtrl+F5が必要です。** 再起動前の古い入力定義では新Angle／Focusを無効表示にし、再起動案内を出します。既存31ウィジェットの後ろへ7色のFocusを追加し、旧23／31入力はFocus=Autoで復元します。外部STRING入力はV2で対応しています。詳細は「外部テキスト」を参照してください。検証範囲は[TEST_REPORT.md](TEST_REPORT.md)に記載しています。
 
 ### ダイアログ・吹き出し・文字の設定
 
@@ -109,7 +155,7 @@ Canvasの座標をMOSS標準の中央原点・ピクセル`yxyx`形式へ変換�
 | 文字方向 | 自動、横書き、縦書き。縦書きは上→下・列は右→左。入力した本文や改行自体は変えません。 |
 | 文字の大きさ／輪郭の太さ | 生成する文字の相対サイズ、吹き出し線の太さ。入力欄の寸法とは別です。 |
 | しっぽ・話者 | 例：左側の人物の口へ。文章による指示で、人物IDへの自動接続ではありません。 |
-| 文字色／縁取り／影／吹き出しの塗り・輪郭色 | 色名・HEXまたは色見本で指定。文字色は既存の256色パレットも使えます。空欄は追加指示なし。色見本の初期表示だけでは色を保存しません。 |
+| 文字色／吹き出しの塗り／文字の縁取り／吹き出しの輪郭／影 | 詳細欄は文字色と吹き出しの塗りを先頭に配置。各色に自由選択と **▦** 256色パレットがあり、色名・HEXでも入力できます。空欄は **未指定** と表示し、追加指示なし。色ボタンは初めて開く時に作成し、同じカードの5色欄で共用します。開閉だけでは値を変えません。 |
 | 書体・文字の太さ・補足 | 既存の値を保持。補足は見た目の説明で、描く本文とは別です。 |
 | 文字スタイル | 「共通スタイル」はExport.text_styleを使います。「個別スタイル」はそのTextだけの指定です。用途・形状などを変更すると後者になります。共有／個別は文字の見た目の選択で、本文の表示切替ではありません。 |
 
@@ -291,22 +337,11 @@ Textには対応する色のBBOXも用意してください。枠がないText�
 
 ## 旧ワークフローの互換性
 
-旧Workflowは現在のノードでも使用できます。現在の同梱2本はPreview接続済みで、
-v1.0.0の旧2本にはPreviewが含まれていません。今後は各GitHub Releaseに、その版に対応する通常版・DMD版のJSONを添付し、
-旧版のタグとファイルも保持します。下の表から旧版を直接ダウンロードできます。
-提供された通常版・DMD版で既存2本を差し替えました。表の「現在のmain」から最新版をダウンロードできます。
-Preview入りWorkflowにはv1.0.3以降が必要です。日本語説明・縮小表示・座標欄の修正はv1.0.4に含まれます。
-
-| バージョン | 通常版 | DMD版 |
-| --- | --- | --- |
-| [v1.0.9](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/tag/v1.0.9) | [JSONをダウンロード](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/download/v1.0.9/MOSS_BBOX_Standard.json) | [JSONをダウンロード](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/download/v1.0.9/MOSS_BBOX_DMD.json) |
-| [v1.0.8](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/tag/v1.0.8) | [JSONをダウンロード](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/download/v1.0.8/MOSS_BBOX_Standard.json) | [JSONをダウンロード](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/download/v1.0.8/MOSS_BBOX_DMD.json) |
-| [v1.0.7](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/tag/v1.0.7) | [JSONをダウンロード](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/download/v1.0.7/MOSS_BBOX_Standard.json) | [JSONをダウンロード](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/download/v1.0.7/MOSS_BBOX_DMD.json) |
-| [v1.0.6](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/tag/v1.0.6) | [JSONをダウンロード](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/download/v1.0.6/MOSS_BBOX_Standard.json) | [JSONをダウンロード](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/download/v1.0.6/MOSS_BBOX_DMD.json) |
-| [v1.0.5](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/tag/v1.0.5) | [JSONをダウンロード](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/download/v1.0.5/MOSS_BBOX_Standard.json) | [JSONをダウンロード](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/download/v1.0.5/MOSS_BBOX_DMD.json) |
-| [v1.0.4](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/tag/v1.0.4) | [JSONをダウンロード](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/download/v1.0.4/MOSS_BBOX_Standard.json) | [JSONをダウンロード](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/download/v1.0.4/MOSS_BBOX_DMD.json) |
-| 現在のmain（参照画像入力：1.0.7以降） | [JSONをダウンロード](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/raw/refs/heads/main/examples/MOSS_BBOX_Standard.json) | [JSONをダウンロード](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/raw/refs/heads/main/examples/MOSS_BBOX_DMD.json) |
-| [v1.0.0](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/tag/v1.0.0) | [JSONをダウンロード](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/raw/refs/tags/v1.0.0/examples/MOSS_BBOX_Standard.json) | [JSONをダウンロード](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/raw/refs/tags/v1.0.0/examples/MOSS_BBOX_DMD.json) |
+ダウンロードは上の[V2／V1の案内](#v2テンプレートと使い方)を使用してください。
+旧Standard／DMDのWorkflowも、ノードID・端子・保存値を保持して使用できます。
+過去のタグとRelease添付ファイルは保持し、新しいV2配布ZIPにはV2テンプレートだけを収録します。
+Preview入りWorkflowにはノード1.0.3以降が必要です。モデル・追加ノードは別途必要で、
+ComfyUIやモデルの更新前後で同一画像になることを保証するものではありません。
 
 ## 座標入力・矢印キー・吸着
 
@@ -397,7 +432,7 @@ CanvasとPrompterを同じExportへ接続すると、通常の編集欄に **枠
 | ⋯ | 固定位置のカード設定です。枠別は名前・共通設定、色別はプリセットを開きます。開いても本文欄や操作欄の寸法は変わりません。 |
 | 名前（任意） | 見出しの「⋯」から開きます。旧表示「Optional」。枠を見分ける名前を入力する**テキスト欄**で、ボタンではありません。クリックして入力します。例：セリフ1。空欄でも使用でき、名前は生成する本文へ混ぜません。保存とUndo／Redoの対象です。無効になる仕様はありません。 |
 | 見出し／矢印 | 見出しはCanvasの対応枠を選択し、矢印だけがカードを開閉します。選択やフォーカスで本文・Type・入力欄高さを戻しません。 |
-| 共通設定 | 通常のカードの下に置いた、同じ色の共通値を扱う詳細欄です。初期状態は閉じています。互換性と同色の共通設定のために残しています。Canvas未接続時は、従来の色ごとの編集欄として開きます。 |
+| 共通設定 | 通常は実際の枠のカードだけを表示し、この欄は読み込み・Canvas接続時に閉じます。必要なときだけ見出しをクリックして開きます。開閉は本文・設定を変更しません。古いWorkflowの「開いた状態」は復元しませんが、共通値と枠カードの本文・高さ・開閉状態は保持します。Canvas未接続時は、従来の色ごとの編集欄として開きます。 |
 | 共通設定（⋯内） | 見出しの「⋯」から開きます。その枠の個別の本文・名前・Type・構図・角度・文字スタイルを共通値で置き換える操作です。**置換後の本文を確認してから実行**します。キャンセルなら変更せず、実行後もCanvasのUndoで戻せます。通常の表示切替では実行しません。 |
 | 共通設定（無効） | まだ個別編集していない枠の状態です。置換の必要がないため、この操作ボタンだけが無効になります。名前欄の有効／無効とは別です。 |
 
@@ -432,5 +467,63 @@ Krea2 BBOX Prompt Effect.prompt_out → CLIP Text Encode.text
 
 背景だけ、効果だけでも使えます。使用しないノードは省き、最後の **prompt_out** をテキストエンコーダーへ接続します。`prompt_in` が文字欄の場合はComfyUIのウィジェットを入力端子へ変換する操作を使います。`background_text`／`effect_text`だけを最終入力へ渡すと元の配置・人物・セリフが含まれないので、通常の生成経路では **prompt_out** を使います。
 
-EffectはExportが作った文字列へ文章を追加するノードです。背景や効果を画像として合成する機能ではありません。Canvasへ置いただけの未接続ノードは生成に影響しません。MOSSの外部テキスト入力改善は引き続き保留で、今回新しい入力端子は追加していません。
+EffectはExportが作った文字列へ文章を追加するノードです。背景や効果を画像として合成する機能ではありません。Canvasへ置いただけの未接続ノードは生成に影響しません。V2では任意のSTRING接続も利用できます。詳細は「外部テキスト」を参照してください。
 
+# 参照画像から自動で枠の本文を作る（V2）
+
+本版で対応する標準構成は、**参照画像1枚・Image Analysisノード1つ・解析対象の枠1つ**です。複数画像・複数枠の一括解析や自動振り分けは今回の対象外です。通常のCanvasに複数の枠を置く機能はそのまま使用できます。
+
+1. Load Imageで参照画像を選びます。
+2. MOSS BBOX Image Analysisの「対象／Box」を確認します。初期値Autoは最初に作成された枠（読み込み時は保存された枠順の先頭）を使い、`Auto · RED`など実際の対象も表示します。固定したい場合はREDなどを明示指定し、「kind」でcharacterまたはobjectを選びます。同色の別枠も個別の対象です。
+3. If/Else SwitchをON（true）にして、通常の「実行」を押します。
+4. 解析文が対象カードへ自動保存され、その文章をExport→CLIP Text Encode→Samplerが使用して画像を生成します。コピー・貼り付けや「適用」は不要です。
+5. SwitchをOFFにすると解析文がそのまま残り、通常の本文として編集できます。全く違う文章に書き換えて生成することもできます。
+
+**編集時の注意：先にSwitchをOFFにしてください。再びONにして「実行」すると、手動で編集した本文も新しい解析文で上書きされます。** ONへ切り替えるだけでは解析・上書きは始まりません。編集した文章で生成を続ける間はOFFのまま使います。
+
+配線は Image Analysis.external_text → Switch.on_true → Switch.output → Prompter.external_text です。on_falseは未接続にします。ON中は読み取り専用で「解析・前回実行」と表示し、正常に受信した解析文を既存のCanvasの枠本文へ保存します。OFFでは保存した解析文を編集できます。解析前の本文にはCanvasのUndoで戻せます。名前・Type・構図・角度・Focus・文字スタイルは変更しません。OFFのまま再実行・保存・再読み込みしても、編集した本文を維持します。失敗・空の結果や、OFFにした後の遅い結果は本文へ保存しません。
+
+Image AnalysisにはCanvasのframing_data、同じLoad ImageのIMAGE、既存MOSS CLIPLoaderのCLIPを接続します。対応TEはqwen3.5_9b_int8_convrot.safetensors／moss_imageです。生成サブグラフ内のCLIPLoaderは、CLIPを外へ出力して共有します。別のTEローダー・クラウドAPI・モデル取得は不要です。
+
+
+対象欄はComfyUI標準のドロップダウンです。サブグラフ内でもCanvasの枠を参照し、targetを外側へ公開するとAuto／RED／BLUE等を選択できます。明示指定は従来と同じ枠IDで保存し、読み込みでも保持します。明示指定した枠を削除すると「対象なし／Missing box」となり、別の枠へ切り替えません。Autoは先頭の枠が削除されると残った枠の先頭へ変わるため、**出力先を確実に固定する場合は明示指定を推奨**します。
+
+### target／対象欄とOFF時の動作
+
+`target`は**解析文を保存する送り先**です。生成に使う枠を1つに絞るスイッチではありません。REDを選んで解析をOFFにしても、他の枠は通常どおりExportへ渡されます。
+
+例：REDを解析してOFFにした後、targetをBLUEへ変更しても、REDの文章はREDに残り、BLUEへ移動・複製されません。次にONで実行した解析結果からBLUEへ保存します。
+
+| 対象表示 | 解析Switch | 動作 |
+| --- | --- | --- |
+| Auto · RED／BLUE等 | ONで実行 | 保存された枠順の先頭を使います。色に優先順位はなく、最初がBLUEならBLUEです。 |
+| Auto · Missing box／対象なし | ONで実行 | Canvasに枠がないためエラーになります。先に枠を作成してください。 |
+| REDなどの実在する枠 | ONで実行 | 参照画像のその枠を解析し、結果を対応カードへ保存して生成に使います。 |
+| REDなどの実在する枠 | OFF | 解析・上書きは行いません。REDには最後に保存した本文を使います。解析済みなら解析文、編集後なら編集文、未解析なら元の本文です。空欄なら空欄のままです。 |
+| Missing box／対象なし | ONで実行 | 対象枠が存在しないためエラーになります。結果の送り先はなく、他の枠へ自動転送・保存しません。実在するREDなどを選び直してください。 |
+| Missing box／対象なし | OFF | 解析の対象指定は使いません。各枠の保存済み本文で通常生成します。無効な対象へ文章を書き込む処理はありません。 |
+
+**Missing boxは新しい枠や出力先の名前ではありません。** 明示指定した枠IDが見つからない場合や、Autoで使える枠がない場合の表示です。解析ノードの空の対象値はAutoとして扱います。`Auto · Connect Canvas／Canvasを接続`は参照先が未接続の案内です。Missing boxのまま解析ONで実行するとエラーになります。
+
+上表のOFFは、on_false未接続の標準構成で、その他のモデル・画像・生成経路の入力が有効な場合です。OFFでもComfyUIの入力検証は行われるため、Load Image等の接続不足まで無視する機能ではありません。
+
+### 解析設定とシステムプロンプト
+
+System prompt欄は実際に解析へ渡す指示文です。初期文は外見・衣服・色などを記述し、背景・他の人物・見えない詳細を追加しないように指示します。内容は表示・編集・Workflow保存できます。別の「Describe…」用プロンプト欄は追加していません。kindに応じた短い依頼文は内部で作成します。
+
+| 項目 | 初期値 | 用途 |
+| --- | --- | --- |
+| system_prompt | 外見解析用の指示文 | 解析の指示を編集します。use_default_templateがOFFのときはCoreと同じく無視されます。 |
+| max_length | 384 | 解析文の最大生成トークン数。文字数ではありません。 |
+| Sampling Mode | off | onではtemperature、top_k、top_p、min_p、repetition_penalty、seed、presence_penaltyをCoreと同じUIで指定できます。 |
+| thinking | false | 対応モデルの思考モード。モデル側の対応が必要です。 |
+| use_default_template | true | モデルの標準チャットテンプレートを使います。system_promptを使う場合はONにします。 |
+| mtp | off | CoreのMTP設定。対応するモデル重みがない場合は効果がありません。 |
+
+新しい設定は従来の対象・kindの後ろへ追加し、旧Workflowは従来と同じ初期値で読み込みます。Python側の入力追加のため、反映には作業保存後のComfyUI通常再起動とブラウザー更新が必要です。
+
+画像の外見を文章化する機能です。OCR、人物同定、見えない部分、参照画像の完全再現は保証しません。画像を生成モデルへ直接条件付けしていません。Coreはlazyの両枝の入力検証を行うため、OFFであっても接続したLoad Imageには有効な画像を選んでください。
+
+以前のReference Crop／Generate Text／未接続Switchと、メニューから候補を開いて「適用」する方式は旧Workflow互換用に残しています。新しい接続済みWorkflowでは、専用ボタンや確認ダイアログは使いません。
+
+RTX 5060 Tiで通常実行だけの解析→REDカード→Export→画像生成を確認しています。OFF後は最後に保存した本文を使います。画像形式・向きの網羅確認、一般のTEモデル対応、VRAMピークの一般保証は未確認です。モデルのロード・退避はComfyUI標準に任せます。

@@ -4,16 +4,14 @@ from __future__ import annotations
 import argparse
 import hashlib
 import shutil
-import tomllib
 import zipfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-WORKFLOWS = ["MOSS_BBOX_Template.json", "MOSS_BBOX_Standard.json", "MOSS_BBOX_DMD.json"]
+WORKFLOWS = ["MOSS_BBOX_Canvas_V2.json"]
 
 
 def package(output: Path) -> list[Path]:
-    version = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))["project"]["version"]
     output.mkdir(parents=True, exist_ok=True)
     assets = []
     for name in WORKFLOWS:
@@ -22,9 +20,9 @@ def package(output: Path) -> list[Path]:
         assets.append(target)
     members = ["README.md", "README.ja.md", "LICENSE", "NOTICE.md"]
     members += ["examples/" + name for name in WORKFLOWS]
-    members.append("examples/ComfyUI_00238_.webp")
+    members.append("examples/ed6c61ad22695e639fb4b5b75fd2b931.webp")
     members += sorted(p.relative_to(ROOT).as_posix() for p in (ROOT / "docs").rglob("*") if p.is_file())
-    archive = output / f"MOSS_BBOX_Workflows_{version}.zip"
+    archive = output / "MOSS_BBOX_Canvas_V2.zip"
     with zipfile.ZipFile(archive, "w", compression=zipfile.ZIP_DEFLATED) as bundle:
         for name in members:
             info = zipfile.ZipInfo(name, date_time=(1980, 1, 1, 0, 0, 0))

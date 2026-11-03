@@ -1,6 +1,9 @@
 {
+  "MOSSBBoxImageAnalysis": "MOSS BBOX Image Analysis: one reference image to one prompt card, Auto or explicit target, editable system prompt and Core generation settings; switch OFF to edit saved analysis.",
+  "MOSSBBoxReferenceCrop": "MOSS BBOX Reference Crop: crop one reference-image box for optional local text analysis; never changes prompt bodies or saves preview files.",
+  "MOSSBBoxTextLink": "MOSS BBOX Text Link: connect external STRING text to a Canvas box through Prompter; preserves manual text and supports multiple Exports.",
   "MOSSBBoxPreview": "MOSS BBOX Preview: display generated images with optional boxes and opacity; original IMAGE passes through unchanged.",
-  "MOSSSharedCanvas": "MOSS BBOX Canvas: manual five-color layout using the installed Krea2 shared UI.",
+  "MOSSSharedCanvas": "MOSS BBOX Canvas: seven-color layout, independent per-box prompts and reference-image input.",
   "MOSSSharedPrompter": "MOSS BBOX Prompter: scene and color prompts with Character, Object and Text types.",
   "MOSSFromKrea2": "MOSS BBOX Export: hybrid, caption, layout_json or auto output with centralized pixel bounding boxes.",
   "MOSSBBoxCanvasPrompt": "Legacy combined MOSS BBOX Canvas + Prompt; retained for existing workflows.",
