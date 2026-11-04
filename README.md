@@ -1,6 +1,8 @@
 # MOSS BBOX Prompter
 
 **English** | [日本語](README.ja.md) · **v2.0.1** · [Release](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/tag/v2.0.1)
+<img width="1789" height="741" alt="{EBFA18EE-0E04-416C-A085-46EEBC310FFD}" src="https://github.com/user-attachments/assets/a9736fd8-202e-40e0-b12a-c83cd5ba8fd1" />
+
 
 Arrange colored boxes in ComfyUI and write a prompt for each character, object or text area. **Canvas** defines placement and **Prompter** supplies words; connect both to the same **Export** to build the MOSS-Image prompt.
 
