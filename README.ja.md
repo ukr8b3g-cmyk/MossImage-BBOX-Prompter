@@ -1,6 +1,6 @@
 # MOSS BBOX Prompter
 
-[English](README.md) | **日本語** · **v2.0.0** · [Release](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/tag/v2.0.0)
+[English](README.md) | **日本語** · **v2.0.1** · [Release](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/tag/v2.0.1)
 
 ComfyUIで色付きの枠を配置し、人物・物体・文字のプロンプトを枠ごとに指定します。配置は**Canvas**、文章は**Prompter**で指定し、両方を同じ**Export**へ接続してMOSS-Image用のプロンプトにまとめます。
 
@@ -14,7 +14,7 @@ ComfyUIで色付きの枠を配置し、人物・物体・文字のプロンプ�
 
 | Workflow | ダウンロード | 用途 |
 | --- | --- | --- |
-| **V2・2.0.0** | [参照画像付きZIP](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/download/v2.0.0/MOSS_BBOX_Canvas_V2.zip) ／ [JSON](examples/MOSS_BBOX_Canvas_V2.json) | 今回のテンプレート。解析の初期値はOFFで、従来どおり手入力でも使えます。 |
+| **V2・2.0.1** | [参照画像付きZIP](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/download/v2.0.1/MOSS_BBOX_Canvas_V2.zip) ／ [JSON](examples/MOSS_BBOX_Canvas_V2.json) | 今回のテンプレート。解析の初期値はOFFで、従来どおり手入力でも使えます。 |
 | V1・1.0.11 | [前版Release](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/tag/v1.0.11) ／ [Template JSON](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/download/v1.0.11/MOSS_BBOX_Template.json) | 従来の構成。過去Releaseも保持しています。 |
 
 V2 ZIPを展開し、`examples/MOSS_BBOX_Canvas_V2.json`を開きます。**Load Image**には同梱の`ed6c61ad22695e639fb4b5b75fd2b931.webp`か自分の参照画像を選択してください。新規ノードのプロンプト初期値は空欄で、テンプレートの例文は自動コピーしません。
@@ -46,7 +46,7 @@ V2 ZIPを展開し、`examples/MOSS_BBOX_Canvas_V2.json`を開きます。**Load
 
 **再びONで実行すると、手動編集した本文も新しい解析文で上書きされます。** ONへ切り替えるだけでは解析しません。編集文を使う間はOFFのままにし、Workflow全体を保存してください。
 
-**現在のmainで保護を修正：** 画像・対象・本文・座標・Type・Switchの変更後に届く旧結果は保存しません。UndoやOFF→ONでも復活しません。実行中のジョブ自体は実行要求時の入力で完了します。GitHubから更新後、ComfyUIを通常再起動し、Ctrl+F5で反映してください。
+**v2.0.1の上書き保護** 画像・対象・本文・座標・Type・Switchの変更後に届く旧結果は保存しません。UndoやOFF→ONでも復活しません。実行中のジョブ自体は実行要求時の入力で完了します。GitHubから更新後、ComfyUIを通常再起動し、Ctrl+F5で反映してください。
 
 <details>
 <summary>ON／OFFの操作画面</summary>

@@ -1,6 +1,6 @@
 # MOSS BBOX Prompter
 
-**English** | [日本語](README.ja.md) · **v2.0.0** · [Release](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/tag/v2.0.0)
+**English** | [日本語](README.ja.md) · **v2.0.1** · [Release](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/tag/v2.0.1)
 
 Arrange colored boxes in ComfyUI and write a prompt for each character, object or text area. **Canvas** defines placement and **Prompter** supplies words; connect both to the same **Export** to build the MOSS-Image prompt.
 
@@ -14,7 +14,7 @@ Seven colors, multiple boxes of the same color, Angle/Framing/Focus, dialogue st
 
 | Workflow | Download | Use |
 | --- | --- | --- |
-| **V2 · 2.0.0** | [ZIP with reference image](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/download/v2.0.0/MOSS_BBOX_Canvas_V2.zip) / [JSON](examples/MOSS_BBOX_Canvas_V2.json) | Current template. Analysis starts OFF; ordinary prompting works as before. |
+| **V2 · 2.0.1** | [ZIP with reference image](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/download/v2.0.1/MOSS_BBOX_Canvas_V2.zip) / [JSON](examples/MOSS_BBOX_Canvas_V2.json) | Current template. Analysis starts OFF; ordinary prompting works as before. |
 | V1 · 1.0.11 | [Previous release](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/tag/v1.0.11) / [Template JSON](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/download/v1.0.11/MOSS_BBOX_Template.json) | Previous setup. Older release history is retained. |
 
 Extract the V2 ZIP and open `examples/MOSS_BBOX_Canvas_V2.json`. Upload/select the included `ed6c61ad22695e639fb4b5b75fd2b931.webp` in **Load Image**, or use your own reference. New nodes start with blank prompts; sample workflow wording is not copied into them.
@@ -46,7 +46,7 @@ Set **Image analysis enable = false**. The text stays in the card, becomes **Man
 
 **Running again with analysis ON overwrites manual edits with the new analysis.** Switching ON alone does not analyze anything. Keep it OFF while using your edited wording; save the whole workflow to retain it.
 
-**Safety fix on current main:** changing the image, target, body, coordinates, Type or Switch invalidates pending results; Undo or OFF→ON does not revive them. An in-flight job still finishes with its queued inputs. Update from GitHub, restart ComfyUI and press Ctrl+F5.
+**Safety in v2.0.1:** changing the image, target, body, coordinates, Type or Switch invalidates pending results; Undo or OFF→ON does not revive them. An in-flight job still finishes with its queued inputs. Update from GitHub, restart ComfyUI and press Ctrl+F5.
 
 <details>
 <summary>ON / OFF control screenshots</summary>
