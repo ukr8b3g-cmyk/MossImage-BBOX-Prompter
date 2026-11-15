@@ -1,5 +1,5 @@
-import {externalBindings} from './external_text.mjs?v=20261104-safety1';
-import {graphInputs} from './graph_inputs.mjs?v=20261103-target1';
+import {externalBindings} from './external_text.mjs?v=20261115-perf1';
+import {graphInputs} from './graph_inputs.mjs?v=20261115-perf1';
 
 const kind=n=>n?.comfyClass||n?.type;
 const fields=['x1','y1','x2','y2'];

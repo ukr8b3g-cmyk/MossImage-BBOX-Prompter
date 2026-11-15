@@ -1,9 +1,9 @@
 import { normalizeFocus } from "./camera_options.mjs?v=20261027-simple4";
 import { app } from "../../scripts/app.js";
 import { api } from "../../scripts/api.js";
-import { installAnalysisRequests } from "./analysis_requests.mjs?v=20261104-safety1";
-import { installControls } from "./moss_controls.mjs?v=20261104-safety1";
-import { installTextLink } from "./external_text.mjs?v=20261104-safety1";
+import { installAnalysisRequests } from "./analysis_requests.mjs?v=20261115-perf1";
+import { installControls } from "./moss_controls.mjs?v=20261115-perf1";
+import { installTextLink } from "./external_text.mjs?v=20261115-perf1";
 import { helpText } from "./help.mjs?v=1.0.11";
 
 const sharedTypes = new Set(["MOSSSharedCanvas", "MOSSSharedPrompter"]);

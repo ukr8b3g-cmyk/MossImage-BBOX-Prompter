@@ -662,6 +662,8 @@ test('actual Canvas commits notify the native workflow snapshot for per-box Type
   h.app.extensionManager={workflow:{activeWorkflow:{changeTracker:{captureCanvasState(){captures++;capturedType=JSON.parse(h.widgets.layout_data.value).boxes[0].promptData.type;}}}}};
   h.state.boxes[0].promptData.type='character';h.sync();assert.equal(capturedType,'character');assert.equal(captures,1);
   h.state.boxes[0].promptData.type='text';h.sync();assert.equal(capturedType,'text');assert.equal(captures,2);
+  for(let index=0;index<50;index++)h.sync();
+  assert.equal(captures,2);
 });
 
 

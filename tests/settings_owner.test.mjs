@@ -88,6 +88,8 @@ test('prompt Type edits and manual card heights reach the native workflow snapsh
     (false,()=>{},node,{red_type:{value:'character'}},names,widgets,setWidget,x=>x,()=>{},()=>{},app,()=>{},save);
   sync();assert.equal(capturedType,'character');assert.equal(capturedHeight,800);assert.equal(captures,1);
   ui.boxCards.cards[0].height=950;save();assert.equal(capturedHeight,950);assert.equal(captures,2);
+  for(let index=0;index<50;index++)save();
+  assert.equal(captures,2);
 });
 test('the existing 31-widget backend can serialize safely before its Focus schema is reloaded',()=>{
   const h=helpers(),names=h.PROMPT_WIDGETS;

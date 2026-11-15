@@ -1,8 +1,8 @@
 import {FOCUS_OPTIONS, normalizeFocus, localizeCameraSelect} from './camera_options.mjs?v=20261027-simple4';
 import {mountTextStyle} from './text_style.mjs?v=20261028-palette1';
 import {bindHelp} from './help.mjs?v=1.0.11';
-import {externalBindings} from './external_text.mjs?v=20261104-safety1';
-import {graphInputs} from './graph_inputs.mjs?v=20261103-target1';
+import {externalBindings} from './external_text.mjs?v=20261115-perf1';
+import {graphInputs} from './graph_inputs.mjs?v=20261115-perf1';
 import {analysisStatus,requestAnalysis} from './reference_analysis.mjs?v=20261104-safety1';
 
 export const BOX_PROMPT_HEIGHTS=Object.fromEntries(['red','blue','yellow','green','magenta','cyan','orange'].map(slot=>[slot,170]));
@@ -29,11 +29,13 @@ export function mountCardOptions(root,head,label) {
   return {popup,button,dispose:close};
 }
 
-export function linkedCanvases(prompt) {
+const hasOutgoingLink=node=>!node.outputs||node.outputs.some(output=>output.links?.length);
+
+export function linkedCanvases(prompt,view) {
   const graph=prompt.graph;
-  if(!graph)return [];
+  if(!graph||!hasOutgoingLink(prompt))return [];
   const found=[];
-  let view;try{view=graphInputs(graph);}catch{return found;}
+  try{view??=graphInputs(graph);}catch{return found;}
   for(const e of view.entries) {
     const node=e.node;if((node.comfyClass||node.type)!=='MOSSFromKrea2')continue;
     if(view.source(e,'prompt_ui_data')?.node!==prompt)continue;
@@ -59,7 +61,7 @@ export function mountBoxPrompts(node,wrap,{language,defaults,framing,angles,came
   const note=el('div',null,'moss-k2cf-help');container.append(note);
   const colorCards=[...wrap.children].filter(e=>e.classList.contains('moss-k2cf-slot-card'));
   wrap.insertBefore(bar,colorCards[0]||null);for(const card of colorCards)shared.append(card);wrap.append(container,shared);
-  let current=null,frame=null,bindings=externalBindings(node);
+  let current=null,frame=null,bindings=externalBindings(node),view=null;
   const cards=new Map();
   let savedUi={},restoring=false;
   const ja=()=>language()==='ja';const text=(en,jp)=>ja()?jp:en;
@@ -212,10 +214,14 @@ export function mountBoxPrompts(node,wrap,{language,defaults,framing,angles,came
   function refresh() {
     frame=null;
     if(!wrap.isConnected)return;
-    const next=externalBindings(node);
+    view=null;
+    if(hasOutgoingLink(node)||node.inputs?.some(input=>input.name==='external_text'&&input.link!=null)){
+      try{view=graphInputs(node.graph,true);}catch{}
+    }
+    const next=externalBindings(node,view);
     if(next.signature!==bindings.signature)delete node.__mossExternalResult;
     bindings=next;
-    const choices=linkedCanvases(node);
+    const choices=linkedCanvases(node,view);
     if(!choices.includes(current)){
       current=choices.find(canvas=>String(canvas.id)===savedUi.sourceId)||(choices.length===1?choices[0]:null);
       for(const card of cards.values()){card.dispose();card.root.remove();}cards.clear();
@@ -252,7 +258,7 @@ export function mountBoxPrompts(node,wrap,{language,defaults,framing,angles,came
   source.onchange=()=>{persist();current=linkedCanvases(node).find(n=>String(n.id)===source.value)||null;for(const card of cards.values()){card.dispose();card.root.remove();}cards.clear();savedUi.sourceId=current?String(current.id):'';saveUiState(structuredClone(savedUi));schedule();};
   undo.onclick=()=>{current?.__mossBoxEditor.undo();schedule();};redo.onclick=()=>{current?.__mossBoxEditor.redo();schedule();};
   const listener=event=>{const graph=event.detail?.graph;if(graph&&(graph.rootGraph||graph)===(node.graph?.rootGraph||node.graph))schedule();};document.addEventListener(BOX_EVENT,listener);
-  const graphChanged=event=>{if(event.detail?.subType==='after-change')schedule();};document.addEventListener('litegraph:canvas',graphChanged);
+  const graphChanged=event=>{if(event.detail?.subType==='after-change'&&view?.changed())schedule();};document.addEventListener('litegraph:canvas',graphChanged);
   const connected=node.onConnectionsChange;node.onConnectionsChange=function(){const result=connected?.apply(this,arguments);schedule();return result;};
   const executed=node.onExecuted;node.onExecuted=function(message){
     const result=executed?.apply(this,arguments);bindings=externalBindings(node);

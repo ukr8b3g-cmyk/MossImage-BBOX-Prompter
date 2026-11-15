@@ -1,4 +1,4 @@
-import {graphInputs} from './graph_inputs.mjs?v=20261103-target1';
+import {graphInputs} from './graph_inputs.mjs?v=20261115-perf1';
 
 export function origin(graph,input,seen=new Set()) {
   if(input?.link==null)return null;
@@ -14,12 +14,13 @@ const input=(node,name)=>node.inputs?.find(i=>i.name===name);
 const kind=node=>node?.comfyClass||node?.type;
 const targetBox=(canvas,target,analysis)=>String(target||(analysis?canvas?.__mossBoxEditor?.read().boxes[0]?.id:'')||'');
 
-export function externalBindings(node) {
+export function externalBindings(node, view) {
   const items=[],seen=new Set(),keys=new Set();let error='',analysisConfigured=false;
   const connected=input(node,'external_text')?.link!=null;
   if(!connected)return {items,error,connected:false,signature:'',analysisConfigured};
   try {
-    const view=graphInputs(node.graph),root=view.entry(node);
+    view??=graphInputs(node.graph);
+    const root=view.entry(node);
     let link=view.source(root,'external_text');
     if(kind(link?.node)==='ComfySwitchNode'){
       analysisConfigured=kind(view.source(link,'on_true')?.node)==='MOSSBBoxImageAnalysis';
@@ -68,10 +69,17 @@ export function installTextLink(nodeType,app) {
     },{values,getOptionLabel:value=>labels.get(String(value??''))||'Missing box'});
     // Keep the widget at its schema position for old positional saves.
     const last=node.widgets.indexOf(widget);if(last!==index){node.widgets.splice(last,1);node.widgets.splice(index,0,widget);}
-    let lastCanvas=null;
+    let lastCanvas=null,view=null;
     const refresh=()=>{
       let canvas,current=String(widget.value||''),promoted=[];
-      try{const view=graphInputs(node.graph),e=view.entry(node);canvas=view.source(e,'framing_data')?.node;current=String(view.value(e,'target')||'');promoted=view.promoted(e,'target');}catch{}
+      view=null;
+      if(input(node,'framing_data')?.link!=null||(node.graph?.rootGraph&&node.graph.rootGraph!==node.graph)){
+        try{
+          view=graphInputs(node.graph,true);
+          const e=view.entry(node);canvas=view.source(e,'framing_data')?.node;
+          current=String(view.value(e,'target')||'');promoted=view.promoted(e,'target');
+        }catch{}
+      }
       lastCanvas=canvas;
       const lang=canvas?.widgets?.find(w=>w.name==='ui_language')?.value;
       const ja=lang==='Japanese'||(lang!=='English'&&/^ja/.test(app.ui?.settings?.getSettingValue?.('Comfy.Locale')||navigator.language));
@@ -89,7 +97,7 @@ export function installTextLink(nodeType,app) {
       const old=node[name];node[name]=function(){const value=old?.apply(this,arguments);queueMicrotask(()=>{refresh();document.dispatchEvent(new CustomEvent('moss-bbox-edit',{detail:node}));});return value;};
     }
     const listener=event=>{if(event.detail!==node&&(event.detail===lastCanvas||event.detail?.graph===(node.graph?.rootGraph||node.graph)))refresh();};
-    const graphChanged=event=>{if(event.detail?.subType==='after-change')refresh();};
+    const graphChanged=event=>{if(event.detail?.subType==='after-change'&&view?.changed())refresh();};
     document.addEventListener('moss-bbox-edit',listener);document.addEventListener('litegraph:canvas',graphChanged);
     const removed=node.onRemoved;node.onRemoved=function(){document.removeEventListener('moss-bbox-edit',listener);document.removeEventListener('litegraph:canvas',graphChanged);return removed?.apply(this,arguments);};
     refresh();return result;

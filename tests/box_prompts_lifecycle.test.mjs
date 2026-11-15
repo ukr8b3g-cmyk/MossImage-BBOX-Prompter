@@ -647,3 +647,40 @@ test('native Switch callbacks alone refresh editability and permanently invalida
 test('replacing an image under the same filename invalidates the pending request',async()=>{
  const h=harness(),{image}=connectAnalysis(h),id=await h.queue();image.widgets[0].callback('A.png');await h.deliver(id,'Old pixels with the same filename');assert.equal(h.state.boxes[0].promptData,undefined);h.node.onRemoved();
 });
+
+test('an unconnected Prompter skips subgraphs during unrelated canvas changes',()=>{
+  const h=harness();
+  h.node.outputs=[{links:[]}];
+  let expansions=0;
+  h.graph._nodes=[h.node,{id:40,getInnerNodes(){expansions++;return [];}}];
+  h.node.onConnectionsChange();h.flush();
+  for(let index=0;index<10;index++)h.changed();
+  assert.equal(expansions,0);
+  h.node.onRemoved();
+});
+
+test('graph input views build each subgraph once and notice changes to watched inputs',()=>{
+  let expansions=0;
+  class DTO {
+    constructor(node,path,map){
+      this.node=node;this.id=[...path,node.id].join(':');this.inputs=node.inputs||[];this.map=map;
+    }
+  }
+  const inner={id:5,widgets:[{name:'switch',value:false}]};
+  const rootNode={id:1,type:'MOSSSharedPrompter'};
+  const sub={id:2,getInnerNodes(map){
+    expansions++;
+    for(const dto of [new DTO(this,[],map),new DTO(inner,[this.id],map)])map.set(dto.id,dto);
+  }};
+  const root={_nodes:[rootNode,sub],links:new Map(),state:{lastLinkId:0}};
+  const view=graphInputs(root,true);
+  assert.deepEqual(view.entries.map(dto=>dto.id),['1','2','2:5']);
+  assert.equal(view.value(view.entry(inner),'switch'),false);
+  assert.equal(expansions,1);
+  assert.equal(view.changed(),false);
+  inner.widgets[0].value=true;
+  assert.equal(view.changed(),true);
+  inner.widgets[0].value=false;
+  root.state.lastLinkId++;
+  assert.equal(view.changed(),true);
+});

@@ -8,7 +8,7 @@ import { mountCanvasReference } from "./canvas_reference.mjs?v=20261027-simple4"
 import { bindHelp } from "./help.mjs?v=1.0.11";
 import { mountTextStyle } from "./text_style.mjs?v=20261028-palette1";
 import { openLayoutImport } from "./layout_import.mjs?v=20261027-simple4";
-import { mountBoxPrompts, notifyBoxEdit, BOX_PROMPT_HEIGHTS, mountCardOptions } from "./box_prompts.mjs?v=20261104-safety1";
+import { mountBoxPrompts, notifyBoxEdit, BOX_PROMPT_HEIGHTS, mountCardOptions } from "./box_prompts.mjs?v=20261115-perf1";
 import { mountBoxSelectionMenu } from "./box_selection.mjs?v=20261103-analysis1";
 import {analysisStatus,requestAnalysis} from './reference_analysis.mjs?v=20261104-safety1';
 import { createCanvasHistory, nextOverlappingBox, snapBoxToGuides, resizeBoxWithAspect, moveBoxSelection, arrangeBoxes } from "./canvas_editing.mjs?v=20261027-simple4";
@@ -1468,6 +1468,8 @@ function setupCanvasNode(node) {
       } catch (_) {}
     }
     node.properties = node.properties || {};
+    const saved = node.properties.k2cfCanvasState?.widgets_values;
+    const changed = saved?.length !== values.length || values.some((value, i) => value !== saved[i]);
     node.properties.k2cfCanvasState = {
       version: "v27",
       widgets_values: node.widgets_values.slice()
@@ -1480,6 +1482,7 @@ function setupCanvasNode(node) {
       historyState = next;
       updateHistoryButtons();
     }
+    if (!changed) return;
     try { app.graph?.setDirtyCanvas?.(true, true); } catch (_) {}
     notifyBoxEdit(node);
     app.extensionManager?.workflow?.activeWorkflow?.changeTracker?.captureCanvasState();
@@ -2799,12 +2802,15 @@ function setupPromptNode(node) {
     node.widgets_values = values.slice();
     applyConfiguredValuesToWidgets(node, PROMPT_WIDGETS, node.widgets_values);
     node.properties = node.properties || {};
+    const saved = node.properties.k2cfPromptState?.widgets_values;
+    const changed = saved?.length !== values.length || values.some((value, i) => value !== saved[i]);
     node.properties.k2cfPromptState = {
       version: "v27",
       widgets_values: node.widgets_values.slice()
     };
     k2cfWriteLocalState(node, "prompt", node.properties.k2cfPromptState);
     node.__k2cfConfiguredWidgetValues = null;
+    if (!changed) return;
     try { app.graph?.setDirtyCanvas?.(true, true); } catch (_) {}
     notifyBoxEdit(node);
     app.extensionManager?.workflow?.activeWorkflow?.changeTracker?.captureCanvasState();
@@ -2874,8 +2880,10 @@ function setupPromptNode(node) {
       boxCards: promptUiState.boxCards ? structuredClone(promptUiState.boxCards) : undefined,
     };
     const serializedPromptUiState = JSON.stringify(node.properties.k2cfPromptUiState);
+    const changed = serializedPromptUiState !== widgets.prompt_ui_data?.value;
     setWidget("prompt_ui_data", serializedPromptUiState);
     node.widgets_values = k2cfSanitizePromptValues(PROMPT_WIDGETS.map((n) => widgets[n]?.value ?? (n.endsWith("_focus") ? "Auto" : "")));
+    if (!changed) return;
     k2cfWriteLocalState(node, "prompt_ui", node.properties.k2cfPromptUiState);
     if (markDirty) {
       try { app.graph?.setDirtyCanvas?.(true, true); } catch (_) {}
