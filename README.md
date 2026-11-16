@@ -1,12 +1,14 @@
 # MOSS BBOX Prompter
 
-**English** | [日本語](README.ja.md) · **v2.0.1** · [Release](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/tag/v2.0.1)
+**English** | [日本語](README.ja.md) · **v2.0.2** · [Release](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/tag/v2.0.2)
 <img width="1789" height="741" alt="{EBFA18EE-0E04-416C-A085-46EEBC310FFD}" src="https://github.com/user-attachments/assets/a9736fd8-202e-40e0-b12a-c83cd5ba8fd1" />
 
 
 Arrange colored boxes in ComfyUI and write a prompt for each character, object or text area. **Canvas** defines placement and **Prompter** supplies words; connect both to the same **Export** to build the MOSS-Image prompt.
 
 Seven colors, multiple boxes of the same color, Angle/Framing/Focus, dialogue styles, reference images and Undo/Redo are included. V2 adds **reference-image analysis → automatic box text → editing after OFF**, while retaining V1 workflows and saved settings.
+
+v2.0.2 reduces unnecessary graph searches and workflow snapshots in large workflows. If you use both extensions, also update Krea2 BBOX Prompter to v1.0.4.
 
 ## Install and open a workflow
 
@@ -16,7 +18,7 @@ Seven colors, multiple boxes of the same color, Angle/Framing/Focus, dialogue st
 
 | Workflow | Download | Use |
 | --- | --- | --- |
-| **V2 · 2.0.1** | [ZIP with reference image](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/download/v2.0.1/MOSS_BBOX_Canvas_V2.zip) / [JSON](examples/MOSS_BBOX_Canvas_V2.json) | Current template. Analysis starts OFF; ordinary prompting works as before. |
+| **V2 · 2.0.2** | [ZIP with reference image](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/download/v2.0.2/MOSS_BBOX_Canvas_V2.zip) / [JSON](examples/MOSS_BBOX_Canvas_V2.json) | Current template. Analysis starts OFF; ordinary prompting works as before. |
 | V1 · 1.0.11 | [Previous release](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/tag/v1.0.11) / [Template JSON](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/download/v1.0.11/MOSS_BBOX_Template.json) | Previous setup. Older release history is retained. |
 
 Extract the V2 ZIP and open `examples/MOSS_BBOX_Canvas_V2.json`. Upload/select the included `ed6c61ad22695e639fb4b5b75fd2b931.webp` in **Load Image**, or use your own reference. New nodes start with blank prompts; sample workflow wording is not copied into them.

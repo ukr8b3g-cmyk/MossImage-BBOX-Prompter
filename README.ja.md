@@ -1,10 +1,12 @@
 # MOSS BBOX Prompter
 
-[English](README.md) | **日本語** · **v2.0.1** · [Release](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/tag/v2.0.1)
+[English](README.md) | **日本語** · **v2.0.2** · [Release](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/tag/v2.0.2)
 
 ComfyUIで色付きの枠を配置し、人物・物体・文字のプロンプトを枠ごとに指定します。配置は**Canvas**、文章は**Prompter**で指定し、両方を同じ**Export**へ接続してMOSS-Image用のプロンプトにまとめます。
 
 7色・同色の複数枠、Angle／Framing／Focus、吹き出し、参照画像、Undo／Redoに対応。V2では**参照画像の解析 → 枠へ自動入力 → OFF後に編集**を追加し、V1のWorkflow・保存設定も維持しています。
+
+v2.0.2では大規模ワークフローで不要なグラフ探索と保存要求を減らしました。Krea2を併用する場合は、Krea2 BBOX Prompterもv1.0.4へ更新してください。
 
 ## 導入とWorkflow
 
@@ -14,7 +16,7 @@ ComfyUIで色付きの枠を配置し、人物・物体・文字のプロンプ�
 
 | Workflow | ダウンロード | 用途 |
 | --- | --- | --- |
-| **V2・2.0.1** | [参照画像付きZIP](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/download/v2.0.1/MOSS_BBOX_Canvas_V2.zip) ／ [JSON](examples/MOSS_BBOX_Canvas_V2.json) | 今回のテンプレート。解析の初期値はOFFで、従来どおり手入力でも使えます。 |
+| **V2・2.0.2** | [参照画像付きZIP](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/download/v2.0.2/MOSS_BBOX_Canvas_V2.zip) ／ [JSON](examples/MOSS_BBOX_Canvas_V2.json) | 今回のテンプレート。解析の初期値はOFFで、従来どおり手入力でも使えます。 |
 | V1・1.0.11 | [前版Release](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/tag/v1.0.11) ／ [Template JSON](https://github.com/ukr8b3g-cmyk/MossImage-BBOX-Prompter/releases/download/v1.0.11/MOSS_BBOX_Template.json) | 従来の構成。過去Releaseも保持しています。 |
 
 V2 ZIPを展開し、`examples/MOSS_BBOX_Canvas_V2.json`を開きます。**Load Image**には同梱の`ed6c61ad22695e639fb4b5b75fd2b931.webp`か自分の参照画像を選択してください。新規ノードのプロンプト初期値は空欄で、テンプレートの例文は自動コピーしません。
